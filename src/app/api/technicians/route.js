@@ -1,0 +1,53 @@
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyJWT } from '@/lib/auth';
+
+// GET: Ambil Semua Teknisi (Admin, User, View)
+export async function GET(request) {
+    try {
+        const token = request.cookies.get('token')?.value;
+        const user = await verifyJWT(token);
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const [technicians] = await db.query('SELECT * FROM technicians ORDER BY name ASC');
+        return NextResponse.json(technicians);
+    } catch (error) {
+        console.error('Technicians Error:', error);
+        return NextResponse.json({ error: 'Gagal mengambil data teknisi' }, { status: 500 });
+    }
+}
+
+// POST: Tambah Teknisi Baru (Hanya Admin)
+export async function POST(request) {
+    try {
+        const token = request.cookies.get('token')?.value;
+        const user = await verifyJWT(token);
+        
+        // Cek Role Admin
+        if (!user || user.role !== 'Admin') {
+            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin.' }, { status: 403 });
+        }
+
+        const body = await request.json();
+        const { nik, name, phone_number } = body;
+
+        if (!nik || !name) {
+            return NextResponse.json({ error: 'NIK dan nama harus diisi' }, { status: 400 });
+        }
+
+        // Insert Default is_active = 1
+        await db.query(
+            'INSERT INTO technicians (nik, name, phone_number, is_active) VALUES (?, ?, ?, 1)',
+            [nik, name, phone_number]
+        );
+
+        return NextResponse.json({ message: 'Teknisi berhasil ditambahkan' }, { status: 201 });
+
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return NextResponse.json({ error: 'NIK sudah terdaftar' }, { status: 400 });
+        }
+        console.error('Add Technician Error:', error);
+        return NextResponse.json({ error: 'Gagal menambahkan teknisi' }, { status: 500 });
+    }
+}
