@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // PUT: Update Data Teknisi (Nama/HP) - Hanya Admin
 export async function PUT(request, { params }) {
     try {

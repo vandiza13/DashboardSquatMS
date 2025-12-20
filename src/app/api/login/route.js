@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { signJWT } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
     try {
         const body = await request.json();

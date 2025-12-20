@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // --- GET: AMBIL DATA TIKET (FILTERING & PAGINATION) ---
 export async function GET(request) {
     const { searchParams } = new URL(request.url);

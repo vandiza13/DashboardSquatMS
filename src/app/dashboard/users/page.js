@@ -5,10 +5,11 @@ import {
     FaUserPlus, 
     FaTrash, 
     FaKey, 
-    FaShieldAlt, // Icon Admin
+    FaEdit,         // Icon Edit Baru
+    FaShieldAlt, 
     FaSpinner, 
-    FaUserCircle, // Icon User
-    FaEye         // Icon View
+    FaUserCircle, 
+    FaEye 
 } from 'react-icons/fa';
 
 export default function UsersPage() {
@@ -17,7 +18,7 @@ export default function UsersPage() {
     
     // State Modal & Form
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('CREATE'); 
+    const [modalMode, setModalMode] = useState('CREATE'); // 'CREATE', 'EDIT', 'RESET'
     const [selectedUser, setSelectedUser] = useState(null);
     const [formData, setFormData] = useState({ username: '', password: '', role: 'User' });
 
@@ -50,7 +51,14 @@ export default function UsersPage() {
             let method = 'POST';
             let body = formData;
 
-            if (modalMode === 'RESET') {
+            // Mode EDIT (Ganti Role)
+            if (modalMode === 'EDIT') {
+                url = `/api/users/${selectedUser.id}`;
+                method = 'PUT';
+                body = { role: formData.role }; // Hanya kirim role
+            }
+            // Mode RESET PASSWORD
+            else if (modalMode === 'RESET') {
                 url = `/api/users/${selectedUser.id}`;
                 method = 'PUT';
                 body = { password: formData.password }; 
@@ -87,10 +95,18 @@ export default function UsersPage() {
         }
     };
 
-    // Modal Triggers
+    // --- MODAL TRIGGERS ---
     const openCreateModal = () => {
         setModalMode('CREATE');
-        setFormData({ username: '', password: '', role: 'User' }); // Default role User
+        setFormData({ username: '', password: '', role: 'User' });
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (user) => {
+        setModalMode('EDIT');
+        setSelectedUser(user);
+        // Password dikosongkan karena tidak diedit disini
+        setFormData({ username: user.username, password: '', role: user.role }); 
         setIsModalOpen(true);
     };
 
@@ -101,47 +117,34 @@ export default function UsersPage() {
         setIsModalOpen(true);
     };
 
-    // --- HELPER UI: WARNA & ICON ROLE ---
+    // --- HELPER UI ---
     const getRoleBadge = (role) => {
         switch (role) {
-            case 'Admin':
-                return (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100">
-                        <FaShieldAlt /> Administrator
-                    </span>
-                );
-            case 'View':
-                return (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                        <FaEye /> View Only
-                    </span>
-                );
-            default: // User
-                return (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                        <FaUserCircle /> User Staff
-                    </span>
-                );
+            case 'Admin': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100"><FaShieldAlt /> Administrator</span>;
+            case 'View': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><FaEye /> View Only</span>;
+            default: return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"><FaUserCircle /> User Staff</span>;
         }
+    };
+
+    // Judul Modal Dinamis
+    const getModalTitle = () => {
+        if (modalMode === 'CREATE') return 'Tambah Pengguna Baru';
+        if (modalMode === 'EDIT') return 'Edit Akses Pengguna';
+        return 'Reset Password';
     };
 
     return (
         <div className="space-y-8">
-            {/* HEADER */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Manajemen Pengguna</h2>
                     <p className="text-slate-500 mt-1">Kontrol akses (Admin, User, View)</p>
                 </div>
-                <button 
-                    onClick={openCreateModal}
-                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95"
-                >
+                <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95">
                     <FaUserPlus /> Tambah User
                 </button>
             </div>
 
-            {/* TABEL USER */}
             <div className="rounded-2xl bg-white shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -168,26 +171,33 @@ export default function UsersPage() {
                                             </div>
                                         </div>
                                     </td>
-                                    
-                                    {/* Kolom Role dengan Badge Baru */}
-                                    <td className="px-6 py-4">
-                                        {getRoleBadge(u.role)}
-                                    </td>
-
+                                    <td className="px-6 py-4">{getRoleBadge(u.role)}</td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                            <button 
-                                                onClick={() => openResetModal(u)}
-                                                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 transition-colors border border-transparent hover:border-amber-100"
-                                            >
-                                                <FaKey /> Reset Pass
+                                            
+                                            {/* HANYA TAMPILKAN TOMBOL EDIT JIKA BUKAN ID 1 */}
+                                            {u.id !== 1 && (
+                                                <button onClick={() => openEditModal(u)} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100">
+                                                    <FaEdit /> Edit
+                                                </button>
+                                            )}
+                                            
+                                            {/* Tombol Reset Password tetap boleh untuk ID 1 (misal lupa password) */}
+                                            <button onClick={() => openResetModal(u)} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 transition-colors border border-transparent hover:border-amber-100">
+                                                <FaKey /> Reset
                                             </button>
-                                            <button 
-                                                onClick={() => handleDelete(u.id)}
-                                                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
-                                            >
-                                                <FaTrash /> Hapus
-                                            </button>
+
+                                            {/* HANYA TAMPILKAN TOMBOL HAPUS JIKA BUKAN ID 1 */}
+                                            {u.id !== 1 && (
+                                                <button onClick={() => handleDelete(u.id)} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100">
+                                                    <FaTrash /> Hapus
+                                                </button>
+                                            )}
+                                            
+                                            {/* Tanda Pengaman untuk ID 1 */}
+                                            {u.id === 1 && (
+                                                <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">LOCKED</span>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -197,32 +207,31 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            {/* MODAL POPUP */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-all">
                     <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-transform">
                         <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800">{modalMode === 'CREATE' ? 'Tambah Pengguna Baru' : 'Reset Password'}</h3>
+                            <h3 className="font-bold text-slate-800">{getModalTitle()}</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500">✕</button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             
-                            {/* Input Username */}
+                            {/* Input Username (Disabled saat Edit/Reset) */}
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Username</label>
                                 <input 
                                     type="text" 
                                     required 
-                                    disabled={modalMode === 'RESET'}
+                                    disabled={modalMode !== 'CREATE'} 
                                     value={formData.username}
                                     onChange={e => setFormData({...formData, username: e.target.value})}
-                                    className="w-full rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm disabled:bg-slate-100"
+                                    className="w-full rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm disabled:bg-slate-100 disabled:text-slate-500"
                                     placeholder="Masukkan username..."
                                 />
                             </div>
 
-                            {/* Input Role (Dropdown Baru) */}
-                            {modalMode === 'CREATE' && (
+                            {/* Input Role (Tampil saat CREATE atau EDIT) */}
+                            {(modalMode === 'CREATE' || modalMode === 'EDIT') && (
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Role Akses</label>
                                     <select 
@@ -237,20 +246,22 @@ export default function UsersPage() {
                                 </div>
                             )}
 
-                            {/* Input Password */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                                    {modalMode === 'CREATE' ? 'Password' : 'Password Baru'}
-                                </label>
-                                <input 
-                                    type="password" 
-                                    required 
-                                    value={formData.password}
-                                    onChange={e => setFormData({...formData, password: e.target.value})}
-                                    className="w-full rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm"
-                                    placeholder="••••••••"
-                                />
-                            </div>
+                            {/* Input Password (Tampil saat CREATE atau RESET) */}
+                            {(modalMode === 'CREATE' || modalMode === 'RESET') && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                        {modalMode === 'CREATE' ? 'Password' : 'Password Baru'}
+                                    </label>
+                                    <input 
+                                        type="password" 
+                                        required 
+                                        value={formData.password}
+                                        onChange={e => setFormData({...formData, password: e.target.value})}
+                                        className="w-full rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                            )}
 
                             <div className="flex justify-end gap-3 pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">Batal</button>

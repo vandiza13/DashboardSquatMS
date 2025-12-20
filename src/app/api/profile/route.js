@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Ambil Profil Saya
 export async function GET(request) {
     try {

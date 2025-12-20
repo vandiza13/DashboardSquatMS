@@ -17,6 +17,14 @@ export default function TechniciansPage() {
 
     // Fetch Role & Data
     useEffect(() => {
+    // Buat timeout untuk menunda fetch
+    const timeoutId = setTimeout(() => {
+        fetchTickets();
+    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+
+    // Bersihkan timeout jika user mengetik lagi sebelum 500ms
+    return () => clearTimeout(timeoutId);
+}, [page, search, activeTab, activeCategory, startDate, endDate]);
         // Ambil Role
         fetch('/api/me')
             .then(res => res.json())

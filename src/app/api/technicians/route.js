@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Ambil Semua Teknisi (Admin, User, View)
 export async function GET(request) {
     try {

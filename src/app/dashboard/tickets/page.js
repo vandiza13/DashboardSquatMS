@@ -75,9 +75,14 @@ export default function TicketsPage() {
 
     useEffect(() => { setPage(1); }, [activeTab, activeCategory, startDate, endDate]);
     useEffect(() => {
-        const timeoutId = setTimeout(() => { fetchTickets(); }, 500);
-        return () => clearTimeout(timeoutId);
-    }, [page, search, activeTab, activeCategory, startDate, endDate]);
+    // Buat timeout untuk menunda fetch
+    const timeoutId = setTimeout(() => {
+        fetchTickets();
+    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+
+    // Bersihkan timeout jika user mengetik lagi sebelum 500ms
+    return () => clearTimeout(timeoutId);
+}, [page, search, activeTab, activeCategory, startDate, endDate]); // Dependency tetap sama
 
     const handleCreateClick = () => { setEditingTicket(null); setIsModalOpen(true); };
     const handleEditClick = (ticket) => { setEditingTicket(ticket); setIsModalOpen(true); };
@@ -264,3 +269,8 @@ export default function TicketsPage() {
         </div>
     );
 }
+
+export const metadata = {
+  title: 'Manajemen Tiket | Dashboard SQUAT & MS',
+  description: 'Kelola tiket operasional lapangan',
+};
