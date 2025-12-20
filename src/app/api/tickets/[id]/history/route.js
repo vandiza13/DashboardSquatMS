@@ -3,11 +3,12 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request, { params }) {
+export async function GET(request, props) {
     try {
+        // FIX: Await params agar ID tiket terbaca di Next.js 15+
+        const params = await props.params;
         const { id } = params;
         
-        // Pastikan ORDER BY menggunakan 'change_timestamp'
         const [history] = await db.query(`
             SELECT * FROM ticket_history 
             WHERE ticket_id = ? 

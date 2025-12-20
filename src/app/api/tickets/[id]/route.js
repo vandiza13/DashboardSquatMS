@@ -4,10 +4,12 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// GET Detail 1 Tiket (Untuk Form Edit)
-export async function GET(request, { params }) {
+// GET Detail 1 Tiket
+export async function GET(request, props) {
+    const params = await props.params; // FIX: Await Params
+    const { id } = params;
+
     try {
-        const { id } = params;
         const [rows] = await db.query(`
             SELECT t.*, 
                    GROUP_CONCAT(tt.technician_nik) as technician_niks 
@@ -25,19 +27,20 @@ export async function GET(request, { params }) {
 }
 
 // PUT: UPDATE TIKET (TRANSACTIONAL)
-export async function PUT(request, { params }) {
+export async function PUT(request, props) {
+    const params = await props.params; // FIX: Await Params
+    const { id } = params;
+
     const connection = await db.getConnection();
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
         // --- PROTEKSI ROLE EDIT ---
-        // Admin & User BOLEH. View DILARANG.
         if (!user || user.role === 'View') {
             return NextResponse.json({ error: 'Akses ditolak. Role View tidak bisa mengedit.' }, { status: 403 });
         }
 
-        const { id } = params;
         const body = await request.json();
         
         // Ambil data lama (Untuk history)
@@ -101,7 +104,10 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE: HAPUS TIKET (TRANSACTIONAL)
-export async function DELETE(request, { params }) {
+export async function DELETE(request, props) {
+    const params = await props.params; // FIX: Await Params
+    const { id } = params;
+
     const connection = await db.getConnection();
     try {
         const token = request.cookies.get('token')?.value;
@@ -111,85 +117,6 @@ export async function DELETE(request, { params }) {
         if (!user || user.role !== 'Admin') {
             return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
         }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
-    try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-
-        // --- PROTEKSI ROLE HAPUS ---
-        // HANYA ADMIN YANG BOLEH
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin yang bisa menghapus tiket.' }, { status: 403 });
-        }
-
-        const { id } = params;
 
         // === MULAI TRANSAKSI ===
         await connection.beginTransaction();

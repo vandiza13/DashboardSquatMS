@@ -269,8 +269,3 @@ export default function TicketsPage() {
         </div>
     );
 }
-
-export const metadata = {
-  title: 'Manajemen Tiket | Dashboard SQUAT & MS',
-  description: 'Kelola tiket operasional lapangan',
-};
