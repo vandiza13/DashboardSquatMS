@@ -7,7 +7,6 @@ import {
     FaHome, FaTicketAlt, FaUsers, FaChartLine, FaSignOutAlt, FaUserCircle, FaUserCog, FaBuilding, FaTimes 
 } from 'react-icons/fa';
 
-// TERIMA PROPS isOpen & onClose DARI LAYOUT
 export default function Sidebar({ isOpen, onClose }) {
     const pathname = usePathname();
     const router = useRouter();

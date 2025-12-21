@@ -6,13 +6,14 @@ export const dynamic = 'force-dynamic';
 
 // GET Detail 1 Tiket
 export async function GET(request, props) {
-    const params = await props.params; // FIX: Await Params
+    const params = await props.params; 
     const { id } = params;
 
     try {
         const [rows] = await db.query(`
             SELECT t.*, 
-                   GROUP_CONCAT(tt.technician_nik) as technician_niks 
+                   -- UBAH ALIAS INI AGAR KONSISTEN DENGAN API UTAMA
+                   GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks 
             FROM tickets t
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
             WHERE t.id = ?
@@ -25,6 +26,7 @@ export async function GET(request, props) {
         return NextResponse.json({ error: 'Database Error' }, { status: 500 });
     }
 }
+
 
 // PUT: UPDATE TIKET (TRANSACTIONAL)
 export async function PUT(request, props) {
