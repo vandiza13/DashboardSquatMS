@@ -3,26 +3,24 @@
 import { useState, useEffect } from 'react';
 import { FaTimes, FaSpinner, FaHardHat } from 'react-icons/fa';
 
-// --- KONFIGURASI KATEGORI (SESUAIKAN DISINI) ---
-// Silakan ubah daftar ini sesuai dengan yang sudah kita bahas
+// --- KONFIGURASI KATEGORI ---
 const SUB_CATEGORIES = {
     SQUAT: ['TSEL','OLO'],
     MTEL: ['TIS', 'MMP', 'FIBERISASI'],
     UMT: ['UMT'],
     CENTRATAMA: ['FSI'],
-    // Tambahkan kategori lain jika diperlukan
 };
 
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
     const [formData, setFormData] = useState({
-        category: 'MTEL',
+        category: '',
         subcategory: '',
         id_tiket: '',
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
         update_progres: '',
-        technician_nik: ''
+        technician_nik: '' // Ini yang akan mengontrol dropdown teknisi
     });
 
     const [technicians, setTechnicians] = useState([]);
@@ -30,20 +28,18 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userRole, setUserRole] = useState('');
 
-    // Helper: Mengubah string tanggal ISO dari database agar pas di input datetime-local (WIB)
+    // Helper: Format Tanggal WIB
     const formatDateTimeLocal = (dateString) => {
         if (!dateString) return '';
         const date = new Date(dateString);
-        // Menggeser waktu agar sesuai zona lokal saat ditampilkan
         const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
         return localDate.toISOString().slice(0, 16);
     };
 
-    // 1. Load Data Teknisi & Role User secara bersamaan (Parallel Fetching)
+    // 1. Fetch Data Teknisi & Role User
     useEffect(() => {
         if (isOpen) {
             setLoading(true);
-            
             const fetchTechs = fetch('/api/technicians/active').then(res => res.json());
             const fetchMe = fetch('/api/me').then(res => res.ok ? res.json() : Promise.reject('Auth Error'));
 
@@ -52,22 +48,34 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     setTechnicians(techData || []);
                     setUserRole(userData.role);
                 })
-                .catch(err => console.error("Gagal memuat data modal:", err))
+                .catch(err => console.error("Error loading data:", err))
                 .finally(() => setLoading(false));
         }
     }, [isOpen]);
 
-    // 2. Set Form Data (Untuk Mode Edit atau Baru)
+    // 2. SET DATA UNTUK EDIT (LOGIKA TEKNISI DIPERBAIKI DISINI)
     useEffect(() => {
         if (initialData) {
-            // Safety check untuk teknisi (mengambil NIK pertama jika ada banyak)
-            let techNik = '';
+            
+            // --- LOGIKA MENGAMBIL TEKNISI YANG SUDAH ADA ---
+            let selectedTech = '';
+
+            // Cek 1: Apakah field assigned_technician_niks ada? (Biasanya dari query string agg)
             if (initialData.assigned_technician_niks) {
-                techNik = Array.isArray(initialData.assigned_technician_niks) 
-                    ? initialData.assigned_technician_niks[0] 
-                    : initialData.assigned_technician_niks.split(',')[0];
+                if (Array.isArray(initialData.assigned_technician_niks)) {
+                    // Jika bentuknya Array ['123', '456']
+                    selectedTech = initialData.assigned_technician_niks[0]; 
+                } else {
+                    // Jika bentuknya String "123,456"
+                    selectedTech = initialData.assigned_technician_niks.split(',')[0];
+                }
+            } 
+            // Cek 2: Fallback jika field database bernama 'technician_nik' (Single column)
+            else if (initialData.technician_nik) {
+                selectedTech = initialData.technician_nik;
             }
 
+            // Set Form Data
             setFormData({
                 category: initialData.category || 'MTEL',
                 subcategory: initialData.subcategory || '',
@@ -76,10 +84,10 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
                 update_progres: initialData.update_progres || '',
-                technician_nik: techNik
+                technician_nik: selectedTech // <--- Pasang NIK disini agar dropdown terpilih
             });
         } else {
-            // Reset Form untuk Tiket Baru
+            // Reset Form Data Baru
             setFormData({
                 category: 'MTEL',
                 subcategory: '',
@@ -95,7 +103,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
     if (!isOpen) return null;
 
-    // Logika Restriksi: User biasa tidak bisa edit data inti tiket lama
     const isRestrictedEdit = userRole === 'User' && !!initialData;
 
     const handleSubmit = async (e) => {
@@ -108,8 +115,8 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
             const payload = {
                 ...formData,
-                // Pastikan waktu dikirim dalam format ISO UTC ke database
                 tiket_time: formData.tiket_time ? new Date(formData.tiket_time).toISOString() : null,
+                // Kirim array NIK ke backend
                 technician_niks: formData.technician_nik ? [formData.technician_nik] : []
             };
 
@@ -148,7 +155,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 {/* Form Body */}
                 <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5">
                     
-                    {/* Baris 1: Kategori & Sub Kategori */}
+                    {/* Baris 1: Kategori */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
@@ -216,13 +223,13 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             onChange={e => setFormData({...formData, deskripsi: e.target.value})} 
                             required 
                             disabled={isRestrictedEdit} 
-                            placeholder="Deskripsi singkat tiket"
+                            placeholder="Deskripsi singkat..."
                         />
                     </div>
 
                     <hr className="border-slate-100" />
 
-                    {/* Teknisi (Assignment) */}
+                    {/* Teknisi (Assignment) - YANG SUDAH DIPERBAIKI */}
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teknisi (Assignment)</label>
                         <div className="relative">
@@ -242,7 +249,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
-                    {/* Status & Update (Hanya Tampil di Mode Edit) */}
+                    {/* Status & Update (Hanya Edit) */}
                     {initialData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div>
@@ -267,26 +274,18 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                                     value={formData.update_progres} 
                                     onChange={e => setFormData({...formData, update_progres: e.target.value})}
-                                    placeholder="Tulis update pengerjaan terbaru..."
+                                    placeholder="Tulis update..."
                                 ></textarea>
                             </div>
                         </div>
                     )}
 
-                    {/* Footer / Tombol Aksi */}
+                    {/* Tombol Simpan */}
                     <div className="pt-4 flex justify-end gap-3">
-                        <button 
-                            type="button" 
-                            onClick={onClose} 
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition"
-                        >
+                        <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
                             Batal
                         </button>
-                        <button 
-                            type="submit" 
-                            disabled={isSubmitting || loading} 
-                            className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
+                        <button type="submit" disabled={isSubmitting || loading} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition disabled:opacity-70 flex items-center gap-2">
                             {(isSubmitting || loading) && <FaSpinner className="animate-spin" />}
                             {initialData ? 'Simpan Perubahan' : 'Buat Tiket'}
                         </button>
