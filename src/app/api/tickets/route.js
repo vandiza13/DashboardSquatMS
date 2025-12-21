@@ -4,7 +4,7 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// --- GET: AMBIL DATA TIKET (FILTERING & PAGINATION) ---
+// --- GET: AMBIL DATA TIKET (SUDAH DIPERBAIKI) ---
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -18,20 +18,24 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     try {
-        // Query Utama dengan Join
+        // PERBAIKAN QUERY: Menggunakan LEFT JOIN untuk mengambil NIK, Nama, dan HP sekaligus
         let query = `
             SELECT 
                 t.*, 
                 MAX(u.username) as updater_name,
-                -- Ambil 1 Teknisi Utama (Nama & HP)
-                (SELECT name FROM technicians tech 
-                 JOIN ticket_technicians tt ON tech.nik = tt.technician_nik 
-                 WHERE tt.ticket_id = t.id LIMIT 1) as technician_name,
-                (SELECT phone_number FROM technicians tech 
-                 JOIN ticket_technicians tt ON tech.nik = tt.technician_nik 
-                 WHERE tt.ticket_id = t.id LIMIT 1) as technician_phone
+                
+                -- [PENTING] INI FIELD YANG DIBUTUHKAN MODAL EDIT:
+                GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks,
+                
+                -- Ambil Nama & HP (Ambil Max/Salah satu jika ada)
+                MAX(tech.name) as technician_name,
+                MAX(tech.phone_number) as technician_phone
+
             FROM tickets t
             LEFT JOIN users u ON t.updated_by_user_id = u.id
+            -- JOIN TABEL PENUGASAN & TEKNISI
+            LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
+            LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
             WHERE 1=1
         `;
         
@@ -69,7 +73,7 @@ export async function GET(request) {
         // Grouping & Ordering
         query += ` GROUP BY t.id ORDER BY t.tiket_time DESC`;
 
-        // Pagination (Jika limit wajar)
+        // Pagination
         if (limit < 10000) {
             query += ` LIMIT ? OFFSET ?`;
             queryParams.push(limit, offset);
@@ -77,7 +81,7 @@ export async function GET(request) {
 
         const [tickets] = await db.query(query, queryParams);
 
-        // Hitung Total Data (Untuk Pagination Frontend)
+        // Hitung Total Data (Untuk Pagination)
         let countQuery = `SELECT COUNT(*) as total FROM tickets t WHERE 1=1`;
         const countParams = [];
 
@@ -114,30 +118,26 @@ export async function GET(request) {
     }
 }
 
-// --- POST: BUAT TIKET BARU (TRANSACTIONAL) ---
+// --- POST: BUAT TIKET BARU (TIDAK PERLU DIUBAH, SUDAH AMAN) ---
 export async function POST(request) {
     const connection = await db.getConnection(); 
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         
-        // --- PROTEKSI ROLE ---
         if (!user || (user.role !== 'Admin' && user.role !== 'User')) {
-            return NextResponse.json({ error: 'Akses ditolak. Role View hanya bisa melihat.' }, { status: 403 });
+            return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
         }
 
         const body = await request.json();
         const { category, subcategory, id_tiket, tiket_time, deskripsi, technician_niks } = body;
 
-        // Validasi
         if (!category || !subcategory || !id_tiket || !tiket_time || !deskripsi) {
             return NextResponse.json({ error: 'Semua field wajib diisi' }, { status: 400 });
         }
 
-        // === MULAI TRANSAKSI ===
         await connection.beginTransaction();
 
-        // 1. Insert Tiket
         const [result] = await connection.query(
             `INSERT INTO tickets 
             (category, subcategory, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time) 
@@ -147,9 +147,7 @@ export async function POST(request) {
 
         const ticketId = result.insertId;
 
-        // 2. Insert Teknisi
         if (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) {
-            // Kita ambil item pertama saja (Single Tech Logic)
             const nik = technician_niks[0]; 
             if (nik) {
                 await connection.query(
@@ -159,7 +157,6 @@ export async function POST(request) {
             }
         }
 
-        // 3. Catat History (Wajib pakai NOW() di sini)
         await connection.query(
             `INSERT INTO ticket_history 
             (ticket_id, change_details, changed_by, change_timestamp) 
@@ -167,21 +164,17 @@ export async function POST(request) {
             [ticketId, `Tiket dibuat dengan status OPEN`, user.username]
         );
 
-        // === SUKSES: COMMIT ===
         await connection.commit();
-
         return NextResponse.json({ message: 'Tiket berhasil dibuat', ticketId }, { status: 201 });
 
     } catch (error) {
-        // === GAGAL: ROLLBACK ===
         await connection.rollback(); 
-        
         console.error("Create Ticket Error:", error);
         if (error.code === 'ER_DUP_ENTRY') {
             return NextResponse.json({ error: 'ID Tiket sudah ada' }, { status: 400 });
         }
         return NextResponse.json({ error: 'Gagal membuat tiket: ' + error.message }, { status: 500 });
     } finally {
-        connection.release(); // Lepaskan koneksi kembali ke pool
+        connection.release();
     }
 }
