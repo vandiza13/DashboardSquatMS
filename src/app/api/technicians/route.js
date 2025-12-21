@@ -4,7 +4,7 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// GET: Ambil Semua Teknisi (Admin, User, View)
+// GET: Ambil Semua Teknisi
 export async function GET(request) {
     try {
         const token = request.cookies.get('token')?.value;
@@ -19,28 +19,28 @@ export async function GET(request) {
     }
 }
 
-// POST: Tambah Teknisi Baru (Hanya Admin)
+// POST: Tambah Teknisi Baru
 export async function POST(request) {
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         
-        // Cek Role Admin
         if (!user || user.role !== 'Admin') {
             return NextResponse.json({ error: 'Akses ditolak. Hanya Admin.' }, { status: 403 });
         }
 
         const body = await request.json();
-        const { nik, name, phone_number } = body;
+        // HAPUS sto & sector dari sini
+        const { nik, name, position_name, phone_number } = body;
 
         if (!nik || !name) {
             return NextResponse.json({ error: 'NIK dan nama harus diisi' }, { status: 400 });
         }
 
-        // Insert Default is_active = 1
+        // Query Insert Tanpa STO & Sector
         await db.query(
-            'INSERT INTO technicians (nik, name, phone_number, is_active) VALUES (?, ?, ?, 1)',
-            [nik, name, phone_number]
+            'INSERT INTO technicians (nik, name, position_name, phone_number, is_active) VALUES (?, ?, ?, ?, 1)',
+            [nik, name, position_name, phone_number]
         );
 
         return NextResponse.json({ message: 'Teknisi berhasil ditambahkan' }, { status: 201 });

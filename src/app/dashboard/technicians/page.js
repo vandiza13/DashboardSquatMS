@@ -1,159 +1,210 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-    FaPlus, FaEdit, FaTrash, FaSpinner, FaUsers, FaUserCog, FaSearch 
-} from 'react-icons/fa';
+import { FaPlus, FaSearch, FaUserCog, FaTrash, FaEdit } from 'react-icons/fa';
 import TechnicianFormModal from '@/components/TechnicianFormModal';
 
 export default function TechniciansPage() {
     const [technicians, setTechnicians] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [userRole, setUserRole] = useState('');
-
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTech, setEditingTech] = useState(null);
+    
+    // STATE BARU: Menyimpan Role User yang sedang login
+    const [userRole, setUserRole] = useState(''); 
 
-    // Fetch Role & Data
+    const fetchTechnicians = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/technicians');
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setTechnicians(data);
+            } else {
+                setTechnicians([]);
+            }
+        } catch (error) {
+            console.error('Gagal mengambil data teknisi:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // FETCH ROLE & DATA TEKNISI SAAT LOAD
     useEffect(() => {
-    // Buat timeout untuk menunda fetch
-    const timeoutId = setTimeout(() => {
-        fetchTickets();
-    }, 500); // Tunggu 500ms setelah user berhenti mengetik
-
-    // Bersihkan timeout jika user mengetik lagi sebelum 500ms
-    return () => clearTimeout(timeoutId);
-}, [page, search, activeTab, activeCategory, startDate, endDate]);
-        // Ambil Role
+        // 1. Ambil data User (untuk cek Role)
         fetch('/api/me')
             .then(res => res.json())
-            .then(data => setUserRole(data.role));
+            .then(data => setUserRole(data.role || ''))
+            .catch(err => console.error('Gagal ambil role:', err));
 
-        // Ambil Data Teknisi
+        // 2. Ambil data Teknisi
         fetchTechnicians();
     }, []);
 
-    const fetchTechnicians = () => {
-        setLoading(true);
-        fetch('/api/technicians')
-            .then(res => res.json())
-            .then(data => {
-                setTechnicians(data);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setLoading(false);
-            });
+    const handleSearch = (e) => {
+        setSearch(e.target.value);
     };
 
-    // Filter Search
-    const filteredTechnicians = technicians.filter(t => 
-        t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.nik.toLowerCase().includes(search.toLowerCase())
-    );
-
-    const handleCreate = () => { setEditingTech(null); setIsModalOpen(true); };
-    const handleEdit = (tech) => { setEditingTech(tech); setIsModalOpen(true); };
-    
     const handleDelete = async (nik) => {
-        if(!confirm(`Hapus teknisi ${nik}?`)) return;
+        if (!confirm('Apakah Anda yakin ingin menghapus teknisi ini?')) return;
         try {
             const res = await fetch(`/api/technicians/${nik}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Gagal menghapus (Akses Ditolak)');
-            fetchTechnicians();
-        } catch (error) { alert(error.message); }
+            if (res.ok) {
+                alert('Teknisi berhasil dihapus');
+                fetchTechnicians();
+            } else {
+                alert('Gagal menghapus teknisi');
+            }
+        } catch (error) {
+            alert('Terjadi kesalahan saat menghapus teknisi');
+        }
     };
 
-    const toggleStatus = async (nik, currentStatus) => {
-        if (userRole !== 'Admin') return; // Proteksi Frontend
-        try {
-            await fetch(`/api/technicians/status/${nik}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_active: !currentStatus })
-            });
-            fetchTechnicians();
-        } catch (error) { alert('Gagal update status'); }
+    const openAddModal = () => {
+        setEditingTech(null);
+        setIsModalOpen(true);
     };
+
+    const openEditModal = (tech) => {
+        setEditingTech(tech);
+        setIsModalOpen(true);
+    };
+
+    const handleModalClose = (shouldRefresh) => {
+        setIsModalOpen(false);
+        setEditingTech(null);
+        if (shouldRefresh) {
+            fetchTechnicians();
+        }
+    };
+
+    const filteredTechnicians = technicians.filter(t => 
+        t.name.toLowerCase().includes(search.toLowerCase()) ||
+        t.nik.includes(search) ||
+        (t.position_name && t.position_name.toLowerCase().includes(search.toLowerCase()))
+    );
 
     return (
-        <div className="space-y-6">
-            <TechnicianFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTechnicians} initialData={editingTech} />
-
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="space-y-6 animate-fade-in">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">Data Teknisi</h2>
-                    <p className="text-sm text-slate-500">Kelola daftar teknisi lapangan</p>
+                    <p className="text-sm text-slate-500">Kelola database teknisi lapangan</p>
                 </div>
-                
-                {/* TOMBOL TAMBAH: Hanya Admin */}
+
+                {/* LOGIC TOMBOL TAMBAH: HANYA MUNCUL JIKA ADMIN */}
                 {userRole === 'Admin' && (
-                    <button onClick={handleCreate} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm transition">
+                    <button 
+                        onClick={openAddModal}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+                    >
                         <FaPlus /> Tambah Teknisi
                     </button>
                 )}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-                <div className="relative">
+            {/* Search Bar */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
                     <FaSearch className="absolute left-3 top-3 text-slate-400" />
                     <input 
                         type="text" 
-                        placeholder="Cari Nama / NIK..." 
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Cari Nama, Jabatan, atau NIK..." 
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={handleSearch}
                     />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loading ? (
-                    <div className="col-span-full flex justify-center py-10"><FaSpinner className="animate-spin text-3xl text-blue-600" /></div>
-                ) : filteredTechnicians.map((tech) => (
-                    <div key={tech.nik} className="group relative overflow-hidden rounded-xl bg-white p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all">
-                        <div className="flex items-start justify-between">
-                            <div className="flex gap-4">
-                                <div className={`flex h-12 w-12 items-center justify-center rounded-full text-xl ${tech.is_active ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                                    <FaUserCog />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-800">{tech.name}</h3>
-                                    <p className="text-xs text-slate-500 font-mono">{tech.nik}</p>
-                                    <p className="text-xs text-slate-400 mt-1">{tech.phone_number || '-'}</p>
-                                </div>
-                            </div>
-                            
-                            {/* STATUS TOGGLE: Hanya Admin yang bisa klik */}
-                            <button 
-                                onClick={() => toggleStatus(tech.nik, tech.is_active)}
-                                disabled={userRole !== 'Admin'}
-                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
-                                    tech.is_active 
-                                    ? 'bg-green-100 text-green-700' 
-                                    : 'bg-slate-100 text-slate-500'
-                                } ${userRole === 'Admin' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-                            >
-                                {tech.is_active ? 'Aktif' : 'Non-Aktif'}
-                            </button>
-                        </div>
-
-                        {/* AKSI EDIT/HAPUS: Hanya Admin */}
-                        {userRole === 'Admin' && (
-                            <div className="mt-6 flex gap-2 border-t border-slate-100 pt-4">
-                                <button onClick={() => handleEdit(tech)} className="flex-1 rounded-lg bg-slate-50 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
-                                    Edit
-                                </button>
-                                <button onClick={() => handleDelete(tech.nik)} className="flex-1 rounded-lg bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition">
-                                    Hapus
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ))}
+            {/* Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-4 font-bold">Nama Teknisi</th>
+                                <th className="px-6 py-4 font-bold">Jabatan</th> 
+                                <th className="px-6 py-4 font-bold">NIK</th>
+                                <th className="px-6 py-4 font-bold">No HP</th>
+                                <th className="px-6 py-4 font-bold">Status</th>
+                                
+                                {/* LOGIC HEADER AKSI: HANYA MUNCUL JIKA ADMIN */}
+                                {userRole === 'Admin' && (
+                                    <th className="px-6 py-4 font-bold text-center">Aksi</th>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {loading ? (
+                                <tr>
+                                    {/* Sesuaikan colspan jika admin/bukan */}
+                                    <td colSpan={userRole === 'Admin' ? 6 : 5} className="px-6 py-8 text-center text-slate-500">Memuat data teknisi...</td>
+                                </tr>
+                            ) : filteredTechnicians.length === 0 ? (
+                                <tr>
+                                    <td colSpan={userRole === 'Admin' ? 6 : 5} className="px-6 py-8 text-center text-slate-500">Tidak ada data teknisi.</td>
+                                </tr>
+                            ) : (
+                                filteredTechnicians.map((tech) => (
+                                    <tr key={tech.nik} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="px-6 py-4 font-semibold text-slate-700 flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                <FaUserCog />
+                                            </div>
+                                            {tech.name}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {tech.position_name ? (
+                                                <span className="bg-purple-50 text-purple-600 px-2 py-1 rounded-md text-xs font-bold border border-purple-100">
+                                                    {tech.position_name}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400 italic text-xs">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 font-mono text-slate-500">{tech.nik}</td>
+                                        <td className="px-6 py-4 text-slate-600 text-xs">{tech.phone_number || '-'}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                                                tech.is_active 
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                                : 'bg-slate-100 text-slate-500 border-slate-200'
+                                            }`}>
+                                                {tech.is_active ? 'Aktif' : 'Non-Aktif'}
+                                            </span>
+                                        </td>
+                                        
+                                        {/* LOGIC KOLOM TOMBOL: HANYA MUNCUL JIKA ADMIN */}
+                                        {userRole === 'Admin' && (
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => openEditModal(tech)} className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
+                                                        <FaEdit />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(tech.nik)} className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors" title="Hapus">
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
+            {/* Modal Form hanya dirender, tapi logic di dalamnya sudah terlindungi API Backend */}
+            <TechnicianFormModal 
+                isOpen={isModalOpen} 
+                onClose={handleModalClose} 
+                technicianToEdit={editingTech} 
+            />
         </div>
     );
 }

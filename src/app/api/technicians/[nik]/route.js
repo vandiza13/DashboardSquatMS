@@ -4,51 +4,66 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// PUT: Update Data Teknisi (Nama/HP) - Hanya Admin
-export async function PUT(request, { params }) {
+// PUT: Edit Data Teknisi
+export async function PUT(request, props) {
     try {
+        const params = await props.params;
+        const { nik } = params;
+
+        // Cek Auth
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        if (!user || user.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        
+        if (!user || user.role !== 'Admin') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
 
-        const { nik } = params;
         const body = await request.json();
-        const { name, phone_number } = body;
+        const { name, position_name, phone_number, is_active } = body;
 
-        await db.query(
-            'UPDATE technicians SET name = ?, phone_number = ? WHERE nik = ?',
-            [name, phone_number, nik]
+        // FIX: Pastikan status tidak NULL. Jika kosong, anggap 1 (Aktif)
+        const status = (is_active === undefined || is_active === null) ? 1 : is_active;
+
+        const [result] = await db.query(
+            `UPDATE technicians 
+             SET name = ?, position_name = ?, phone_number = ?, is_active = ? 
+             WHERE nik = ?`,
+            [name, position_name, phone_number, status, nik]
         );
 
-        return NextResponse.json({ message: 'Data teknisi berhasil diperbarui' });
+        if (result.affectedRows === 0) {
+            return NextResponse.json({ error: 'Teknisi tidak ditemukan' }, { status: 404 });
+        }
+
+        return NextResponse.json({ message: 'Data teknisi berhasil diupdate' });
     } catch (error) {
-        return NextResponse.json({ error: 'Gagal update teknisi' }, { status: 500 });
+        console.error('Update Technician Error:', error);
+        return NextResponse.json({ error: 'Gagal mengupdate teknisi' }, { status: 500 });
     }
 }
 
-// DELETE: Hapus Teknisi - Hanya Admin
-export async function DELETE(request, { params }) {
-    const connection = await db.getConnection();
+// DELETE: Hapus Teknisi
+export async function DELETE(request, props) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const user = await verifyJWT(token);
-        if (!user || user.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
+        const params = await props.params;
         const { nik } = params;
 
-        // Gunakan Transaction agar bersih (Hapus relasi di tiket dulu)
-        await connection.beginTransaction();
+        const token = request.cookies.get('token')?.value;
+        const user = await verifyJWT(token);
+        
+        if (!user || user.role !== 'Admin') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
 
-        await connection.query('DELETE FROM ticket_technicians WHERE technician_nik = ?', [nik]);
-        await connection.query('DELETE FROM technicians WHERE nik = ?', [nik]);
+        const [result] = await db.query('DELETE FROM technicians WHERE nik = ?', [nik]);
 
-        await connection.commit();
-        return NextResponse.json({ message: 'Teknisi berhasil dihapus' });
-
+        if (result.affectedRows === 0) {
+            return NextResponse.json({ error: 'Teknisi tidak ditemukan' }, { status: 404 });
+        }
+        
+        return NextResponse.json({ message: 'Teknisi dihapus' });
     } catch (error) {
-        await connection.rollback();
+        console.error('Delete Technician Error:', error);
         return NextResponse.json({ error: 'Gagal menghapus teknisi' }, { status: 500 });
-    } finally {
-        connection.release();
     }
 }

@@ -10,16 +10,22 @@ export async function GET(request) {
         const token = request.cookies.get('token')?.value;
         if (!await verifyJWT(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        // 2. Ambil Parameter Kategori (Opsional)
+        // 2. Ambil Parameter Kategori
         const { searchParams } = new URL(request.url);
         const category = searchParams.get('category') || 'ALL';
 
-        // 3. Setup Waktu Hari Ini (WIB)
-        // Kita gunakan query SQL DATE(NOW()) agar ikut jam server database yang sudah diset WIB
-        
-        let queryRunning = `
+        // 3. Query SQL dengan Gabungan Nama + No HP
+        // Format hasil: "Budi (0812xxx), Anto (0856xxx)"
+        const technicianSelect = `
             SELECT t.*, 
-            GROUP_CONCAT(tech.name SEPARATOR ', ') as technician_names
+            GROUP_CONCAT(
+                CONCAT(tech.name, ' (', COALESCE(tech.phone_number, '-'), ')') 
+                SEPARATOR ', '
+            ) as technician_names
+        `;
+
+        let queryRunning = `
+            ${technicianSelect}
             FROM tickets t
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
             LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
@@ -27,8 +33,7 @@ export async function GET(request) {
         `;
 
         let queryClosed = `
-            SELECT t.*, 
-            GROUP_CONCAT(tech.name SEPARATOR ', ') as technician_names
+            ${technicianSelect}
             FROM tickets t
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
             LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
@@ -38,7 +43,7 @@ export async function GET(request) {
 
         const params = [];
 
-        // Filter Kategori jika tidak ALL
+        // Filter Kategori
         if (category !== 'ALL') {
             queryRunning += ` AND t.category = ?`;
             queryClosed += ` AND t.category = ?`;
@@ -49,8 +54,8 @@ export async function GET(request) {
         queryClosed += ` GROUP BY t.id ORDER BY t.last_update_time DESC`;
 
         // Jalankan Query Paralel
-        const [running] = await db.query(queryRunning, category !== 'ALL' ? [category] : []);
-        const [closed] = await db.query(queryClosed, category !== 'ALL' ? [category] : []);
+        const [running] = await db.query(queryRunning, params);
+        const [closed] = await db.query(queryClosed, params);
 
         return NextResponse.json({
             running,

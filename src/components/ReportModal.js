@@ -1,18 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaTimes, FaCopy, FaWhatsapp } from 'react-icons/fa';
+import { FaTimes, FaCopy, FaWhatsapp, FaTelegramPlane, FaFileAlt, FaSpinner } from 'react-icons/fa';
+import Toast from './Toast'; // <--- 1. IMPORT TOAST
 
 export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' }) {
-    const [reportText, setReportText] = useState('Memuat data...');
+    const [reportText, setReportText] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // 2. STATE UNTUK TOAST
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // Fungsi Generate Teks (Mirip logic script.js lama)
+    // --- LOGIC GENERATOR TEKS ---
     const generateText = (data) => {
-        const { running, closed } = data;
+        const running = data.running || [];
+        const closed = data.closed || [];
         const total = running.length + closed.length;
         
-        // Format Waktu WIB
         const now = new Date();
         const optionsDate = { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric' };
         const optionsTime = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false };
@@ -28,11 +32,10 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
         t += `- Sisa Tiket Running : ${running.length} tiket\n`;
         t += `- Tiket Closed Hari Ini : ${closed.length} tiket\n\n`;
 
-        // List Closed
         if (closed.length > 0) {
             t += `*)Closed : ${closed.length} tiket\n`;
             closed.forEach((tik, i) => {
-                t += `${i + 1}.✅ ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
+                t += `${i + 1}. ✔️ ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   RCA : ${tik.update_progres || 'Done'}\n`;
                 t += `   Teknisi : ${tik.technician_names || '-'}\n\n`;
             });
@@ -40,12 +43,11 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
             t += `*)Closed : 0 tiket\n\n`;
         }
 
-        // List Running
         if (running.length > 0) {
             t += `*).ON Progres : ${running.length} tiket\n`;
             running.forEach((tik, i) => {
-                const icon = tik.status === 'SC' ? '🟡' : '❌';
-                t += `${i + 1}.${icon} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
+                const icon = tik.status === 'SC' ? '⏸️' : '✖️'; 
+                t += `${i + 1}. ${icon} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   Update : ${tik.update_progres || 'Belum ada update'}\n`;
                 t += `   Teknisi : ${tik.technician_names || '-'}\n\n`;
             });
@@ -62,7 +64,7 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
     useEffect(() => {
         if (isOpen) {
             setLoading(true);
-            setReportText('Sedang menyusun laporan...');
+            setReportText(''); 
             
             fetch(`/api/reports/daily?category=${categoryFilter}`)
                 .then(res => res.json())
@@ -79,48 +81,103 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
 
     const handleCopy = () => {
         navigator.clipboard.writeText(reportText);
-        alert('Laporan berhasil disalin!');
+        // 3. GANTI ALERT DENGAN TOAST
+        setToast({ show: true, message: 'Laporan berhasil disalin ke clipboard!', type: 'success' });
+    };
+
+    const handleSendWA = () => {
+        const url = `https://wa.me/?text=${encodeURIComponent(reportText)}`;
+        window.open(url, '_blank');
+    };
+
+    const handleSendTelegram = () => {
+        const url = `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(reportText)}`;
+        window.open(url, '_blank');
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between bg-slate-900 px-6 py-4 text-white rounded-t-2xl">
-                    <h3 className="text-lg font-bold flex items-center gap-2">
-                        <FaWhatsapp className="text-green-400" /> Generator Laporan
-                    </h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white">
-                        <FaTimes size={20} />
-                    </button>
-                </div>
+        <>
+            {/* 4. TAMPILKAN TOAST JIKA AKTIF */}
+            {toast.show && <Toast message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />}
 
-                <div className="p-6 flex-1 overflow-hidden flex flex-col">
-                    <div className="alert alert-info text-sm mb-3">
-                        Laporan ini mencakup semua tiket <strong>Running</strong> dan tiket <strong>Closed (Hari Ini)</strong>.
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[90vh]">
+                    
+                    {/* --- HEADER --- */}
+                    <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 flex justify-between items-center text-white border-b border-slate-700 shrink-0">
+                        <h3 className="font-bold text-lg flex items-center gap-3">
+                            <div className="bg-white/10 p-2 rounded-lg">
+                                <FaFileAlt className="text-blue-400" />
+                            </div>
+                            Generator Laporan Harian
+                        </h3>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all">
+                            <FaTimes size={18} />
+                        </button>
                     </div>
-                    <textarea 
-                        className="w-full flex-1 rounded-lg border border-slate-300 p-4 font-mono text-sm focus:border-blue-500 focus:outline-none bg-slate-50"
-                        value={reportText}
-                        readOnly
-                        style={{ minHeight: '300px' }}
-                    ></textarea>
-                </div>
 
-                <div className="flex justify-end gap-3 border-t bg-slate-50 px-6 py-4 rounded-b-2xl">
-                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200">
-                        Tutup
-                    </button>
-                    <button 
-                        onClick={handleCopy}
-                        disabled={loading}
-                        className="flex items-center gap-2 rounded-lg bg-green-600 px-6 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                        <FaCopy /> Salin Teks
-                    </button>
+                    {/* --- BODY --- */}
+                    <div className="p-0 flex-1 overflow-hidden flex flex-col relative bg-slate-50">
+                        <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 text-xs text-blue-800 font-medium flex items-center gap-2 shrink-0">
+                            <span>ℹ️</span> Silakan review laporan sebelum dikirim. Anda bisa mengedit teks di bawah ini jika diperlukan.
+                        </div>
+
+                        <div className="flex-1 relative h-full">
+                            {loading ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm z-10">
+                                    <FaSpinner className="animate-spin text-4xl text-blue-600 mb-3" />
+                                    <p className="text-sm font-semibold text-slate-600">Menyusun data laporan...</p>
+                                </div>
+                            ) : null}
+
+                            <textarea 
+                                className="w-full h-full resize-none border-none p-6 font-mono text-sm text-slate-700 bg-slate-50 focus:ring-0 focus:outline-none leading-relaxed custom-scrollbar"
+                                value={reportText}
+                                onChange={(e) => setReportText(e.target.value)}
+                                spellCheck="false"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    {/* --- FOOTER --- */}
+                    <div className="p-5 bg-white border-t border-slate-200 flex justify-between items-center gap-4 shrink-0">
+                        <button 
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={handleCopy}
+                                disabled={loading || !reportText}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 border border-slate-200 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <FaCopy /> Salin
+                            </button>
+
+                            <button 
+                                onClick={handleSendTelegram}
+                                disabled={loading || !reportText}
+                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold hover:shadow-lg hover:shadow-sky-500/30 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <FaTelegramPlane className="text-lg" /> Telegram
+                            </button>
+                            
+                            <button 
+                                onClick={handleSendWA}
+                                disabled={loading || !reportText}
+                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:shadow-lg hover:shadow-green-500/30 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <FaWhatsapp className="text-lg" /> WhatsApp
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
