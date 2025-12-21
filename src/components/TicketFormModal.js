@@ -12,11 +12,6 @@ const SUB_CATEGORIES = {
 };
 
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
-    if (isOpen && initialData) {
-        console.log("DATA TIKET LAMA:", initialData);
-        console.log("NIK Teknisi:", initialData.assigned_technician_niks || initialData.technician_nik);
-    }
-    
     const [formData, setFormData] = useState({
         category: '',
         subcategory: '',
