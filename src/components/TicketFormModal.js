@@ -12,6 +12,11 @@ const SUB_CATEGORIES = {
 };
 
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
+    if (isOpen && initialData) {
+        console.log("DATA TIKET LAMA:", initialData);
+        console.log("NIK Teknisi:", initialData.assigned_technician_niks || initialData.technician_nik);
+    }
+    
     const [formData, setFormData] = useState({
         category: '',
         subcategory: '',
@@ -54,28 +59,40 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     }, [isOpen]);
 
     // 2. SET DATA UNTUK EDIT (LOGIKA TEKNISI DIPERBAIKI DISINI)
+    // 2. SET DATA UNTUK EDIT (DIPERBAIKI)
     useEffect(() => {
         if (initialData) {
             
-            // --- LOGIKA MENGAMBIL TEKNISI YANG SUDAH ADA ---
+            // --- LOGIKA PENCARIAN TEKNISI YANG LEBIH KUAT ---
             let selectedTech = '';
 
-            // Cek 1: Apakah field assigned_technician_niks ada? (Biasanya dari query string agg)
+            // Prioritas 1: Cek assigned_technician_niks (Biasanya hasil GROUP_CONCAT atau Array)
             if (initialData.assigned_technician_niks) {
                 if (Array.isArray(initialData.assigned_technician_niks)) {
-                    // Jika bentuknya Array ['123', '456']
-                    selectedTech = initialData.assigned_technician_niks[0]; 
+                    // Jika data berupa Array: ['12345']
+                    selectedTech = initialData.assigned_technician_niks[0];
                 } else {
-                    // Jika bentuknya String "123,456"
-                    selectedTech = initialData.assigned_technician_niks.split(',')[0];
+                    // Jika data berupa String: "12345" atau "12345,67890"
+                    // Kita ambil string sebelum koma pertama
+                    selectedTech = String(initialData.assigned_technician_niks).split(',')[0].trim();
                 }
-            } 
-            // Cek 2: Fallback jika field database bernama 'technician_nik' (Single column)
+            }
+            // Prioritas 2: Cek technician_nik (Kolom single)
             else if (initialData.technician_nik) {
-                selectedTech = initialData.technician_nik;
+                selectedTech = String(initialData.technician_nik).trim();
+            }
+            // Prioritas 3: Cek nik_teknisi (Nama variabel alternatif umum)
+            else if (initialData.nik_teknisi) {
+                selectedTech = String(initialData.nik_teknisi).trim();
             }
 
-            // Set Form Data
+            // Pastikan tidak undefined/null
+            if (!selectedTech || selectedTech === 'null' || selectedTech === 'undefined') {
+                selectedTech = '';
+            }
+
+            console.log("Teknisi terpilih untuk Edit:", selectedTech); // Cek hasil di console
+
             setFormData({
                 category: initialData.category || 'MTEL',
                 subcategory: initialData.subcategory || '',
@@ -84,7 +101,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
                 update_progres: initialData.update_progres || '',
-                technician_nik: selectedTech // <--- Pasang NIK disini agar dropdown terpilih
+                technician_nik: selectedTech // <--- INI KUNCINYA
             });
         } else {
             // Reset Form Data Baru
@@ -231,23 +248,24 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* Teknisi (Assignment) - YANG SUDAH DIPERBAIKI */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teknisi (Assignment)</label>
-                        <div className="relative">
-                            <select 
-                                className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
-                                value={formData.technician_nik} 
-                                onChange={e => setFormData({...formData, technician_nik: e.target.value})}
-                            >
-                                <option value="">- Pilih Teknisi -</option>
-                                {technicians.map(t => (
-                                    <option key={t.nik} value={t.nik}>
-                                        {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            <FaHardHat className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
-                        </div>
-                    </div>
+    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teknisi (Assignment)</label>
+    <div className="relative">
+        <select 
+            className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
+            // Tambahkan String() disini untuk memaksa tipe data sama
+            value={String(formData.technician_nik)} 
+            onChange={e => setFormData({...formData, technician_nik: e.target.value})}>
+            <option value="">- Pilih Teknisi -</option>
+            {technicians.map(t => (
+                // Pastikan value opsi juga string
+                <option key={t.nik} value={String(t.nik)}>
+                    {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
+                </option>
+            ))}
+        </select>
+        <FaHardHat className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
+    </div>
+</div>
 
                     {/* Status & Update (Hanya Edit) */}
                     {initialData && (
