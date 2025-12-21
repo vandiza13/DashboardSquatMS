@@ -235,7 +235,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             onChange={e => setFormData({...formData, deskripsi: e.target.value})} 
                             required 
                             disabled={isRestrictedEdit} 
-                            placeholder="Deskripsi singkat..."
+                            placeholder="Deskripsi Tiket..."
                         />
                     </div>
 
@@ -243,7 +243,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* Teknisi (Assignment) - YANG SUDAH DIPERBAIKI */}
                     <div>
-    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teknisi (Assignment)</label>
+    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teknisi (Sesuai Lensa)</label>
     <div className="relative">
         <select 
             className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
