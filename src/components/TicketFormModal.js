@@ -101,7 +101,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         } else {
             // Reset Form Data Baru
             setFormData({
-                category: 'MTEL',
+                category: '',
                 subcategory: '',
                 id_tiket: '',
                 tiket_time: '',
@@ -227,7 +227,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* Deskripsi */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deskripsi</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deskripsi Tiket</label>
                         <input 
                             type="text" 
                             className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
