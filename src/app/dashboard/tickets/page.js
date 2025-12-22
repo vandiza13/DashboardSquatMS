@@ -151,7 +151,7 @@ export default function TicketsPage() {
                     <p className="text-slate-500 text-sm">Monitor dan kelola tiket lapangan</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setIsReportModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Laporan WA</button>
+                    <button onClick={() => setIsReportModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Generate Laporan</button>
                     
                     {/* TOMBOL BUAT: Sembunyikan jika Role = View */}
                     {userRole !== 'View' && (
