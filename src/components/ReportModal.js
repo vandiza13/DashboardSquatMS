@@ -2,17 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { FaTimes, FaCopy, FaWhatsapp, FaTelegramPlane, FaFileAlt, FaSpinner } from 'react-icons/fa';
-import Toast from './Toast'; // <--- 1. IMPORT TOAST
+import Toast from './Toast';
 
 export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' }) {
     const [reportText, setReportText] = useState('');
     const [loading, setLoading] = useState(false);
-    
-    // 2. STATE UNTUK TOAST
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // --- LOGIC GENERATOR TEKS ---
+    // --- LOGIC GENERATOR TEKS (DIPERBAIKI) ---
     const generateText = (data) => {
+        // 1. DEFINISI ICON UNICODE (Agar terbaca benar di WA)
+        const ICON_CHECK  = '\u2705'; // ✅ (Centang Hijau)
+        const ICON_CROSS  = '\u274C'; // ❌ (Silang Merah)
+        const ICON_PAUSE  = '\u23F8'; // ⏸️ (Pause/SC)
+        // const ICON_WARN = '\u26A0\uFE0F'; // ⚠️ (Opsional jika butuh warning)
+
         const running = data.running || [];
         const closed = data.closed || [];
         const total = running.length + closed.length;
@@ -32,24 +36,30 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
         t += `- Sisa Tiket Running : ${running.length} tiket\n`;
         t += `- Tiket Closed Hari Ini : ${closed.length} tiket\n\n`;
 
+        // --- LOOP CLOSED ---
         if (closed.length > 0) {
             t += `*)Closed : ${closed.length} tiket\n`;
             closed.forEach((tik, i) => {
-                t += `${i + 1}. ✔️ ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
+                // Gunakan ICON_CHECK
+                t += `${i + 1}. ${ICON_CHECK} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   RCA : ${tik.update_progres || 'Done'}\n`;
-                t += `   Teknisi : ${tik.technician_names || '-'}\n\n`;
+                // Pastikan properti nama teknisi sesuai dengan API (technician_name / names)
+                t += `   Teknisi : ${tik.technician_name || tik.technician_names || '-'}\n\n`;
             });
         } else {
             t += `*)Closed : 0 tiket\n\n`;
         }
 
+        // --- LOOP RUNNING ---
         if (running.length > 0) {
             t += `*).ON Progres : ${running.length} tiket\n`;
             running.forEach((tik, i) => {
-                const icon = tik.status === 'SC' ? '⏸️' : '✖️'; 
+                // Tentukan Icon Pause atau Cross
+                const icon = tik.status === 'SC' ? ICON_PAUSE : ICON_CROSS; 
+                
                 t += `${i + 1}. ${icon} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   Update : ${tik.update_progres || 'Belum ada update'}\n`;
-                t += `   Teknisi : ${tik.technician_names || '-'}\n\n`;
+                t += `   Teknisi : ${tik.technician_name || tik.technician_names || '-'}\n\n`;
             });
         } else {
             t += `*).ON Progres : 0 tiket\n`;
@@ -81,7 +91,6 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
 
     const handleCopy = () => {
         navigator.clipboard.writeText(reportText);
-        // 3. GANTI ALERT DENGAN TOAST
         setToast({ show: true, message: 'Laporan berhasil disalin ke clipboard!', type: 'success' });
     };
 
@@ -99,7 +108,6 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
 
     return (
         <>
-            {/* 4. TAMPILKAN TOAST JIKA AKTIF */}
             {toast.show && <Toast message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />}
 
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
