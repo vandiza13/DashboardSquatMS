@@ -13,7 +13,7 @@ const SUB_CATEGORIES = {
 
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
     const [formData, setFormData] = useState({
-        category: '',
+        category: 'SQUAT',
         subcategory: '',
         id_tiket: '',
         tiket_time: '',
