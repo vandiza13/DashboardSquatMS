@@ -89,7 +89,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             console.log("Teknisi terpilih untuk Edit:", selectedTech); // Cek hasil di console
 
             setFormData({
-                category: initialData.category || 'MTEL',
+                category: initialData.category || 'SQUAT',
                 subcategory: initialData.subcategory || '',
                 id_tiket: initialData.id_tiket || '',
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
@@ -101,7 +101,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         } else {
             // Reset Form Data Baru
             setFormData({
-                category: '',
+                category: 'SQUAT',
                 subcategory: '',
                 id_tiket: '',
                 tiket_time: '',
