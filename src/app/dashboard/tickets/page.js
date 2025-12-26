@@ -11,6 +11,7 @@ import TicketFormModal from '@/components/TicketFormModal';
 import ReportModal from '@/components/ReportModal';
 import HistoryModal from '@/components/HistoryModal'; 
 
+// ... (Konstanta CATEGORY_TABS & COLORS sama) ...
 const CATEGORY_TABS = ['ALL', 'MTEL', 'SQUAT', 'UMT', 'CENTRATAMA'];
 
 const CATEGORY_COLORS = {
@@ -22,37 +23,33 @@ const CATEGORY_COLORS = {
 };
 
 export default function TicketsPage() {
+    // ... (State & useEffect sama persis) ...
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [userRole, setUserRole] = useState(''); // STATE ROLE USER
+    const [userRole, setUserRole] = useState('');
 
-    // Filter & Pagination
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({});
     
-    // Filter Tanggal
     const [startDate, setStartDate] = useState(''); 
     const [endDate, setEndDate] = useState('');
 
     const [activeTab, setActiveTab] = useState('RUNNING'); 
     const [activeCategory, setActiveCategory] = useState('ALL');
 
-    // Modals
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTicket, setEditingTicket] = useState(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     
-    // History State
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [historyData, setHistoryData] = useState([]);
     const [selectedTicketId, setSelectedTicketId] = useState('');
 
-    // 1. CEK ROLE USER SAAT LOAD
     useEffect(() => {
         fetch('/api/me')
             .then(res => res.json())
-            .then(data => setUserRole(data.role)) // Simpan Role
+            .then(data => setUserRole(data.role))
             .catch(err => console.error(err));
     }, []);
 
@@ -75,14 +72,11 @@ export default function TicketsPage() {
 
     useEffect(() => { setPage(1); }, [activeTab, activeCategory, startDate, endDate]);
     useEffect(() => {
-    // Buat timeout untuk menunda fetch
-    const timeoutId = setTimeout(() => {
-        fetchTickets();
-    }, 500); // Tunggu 500ms setelah user berhenti mengetik
-
-    // Bersihkan timeout jika user mengetik lagi sebelum 500ms
-    return () => clearTimeout(timeoutId);
-}, [page, search, activeTab, activeCategory, startDate, endDate]); // Dependency tetap sama
+        const timeoutId = setTimeout(() => {
+            fetchTickets();
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [page, search, activeTab, activeCategory, startDate, endDate]);
 
     const handleCreateClick = () => { setEditingTicket(null); setIsModalOpen(true); };
     const handleEditClick = (ticket) => { setEditingTicket(ticket); setIsModalOpen(true); };
@@ -124,7 +118,10 @@ export default function TicketsPage() {
 
             const formattedData = dataToExport.map(t => ({
                 'ID Tiket': t.id_tiket, 'Kategori': t.category, 'Sub Kategori': t.subcategory,
-                'Deskripsi': t.deskripsi, 'Teknisi': t.technician_name || '-', 'No HP': t.technician_phone || '-',
+                'Deskripsi': t.deskripsi, 
+                'Teknisi PIC': t.technician_name || '-', 
+                'No HP PIC': t.technician_phone || '-',
+                'Tim Support': t.partner_technicians || '-', 
                 'Waktu Buat': new Date(t.tiket_time).toLocaleString('id-ID'),
                 'Update Terakhir': t.last_update_time ? new Date(t.last_update_time).toLocaleString('id-ID') : '-',
                 'Status': t.status
@@ -145,6 +142,7 @@ export default function TicketsPage() {
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
 
+            {/* --- HEADER --- */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">Manajemen Tiket</h2>
@@ -152,14 +150,13 @@ export default function TicketsPage() {
                 </div>
                 <div className="flex gap-2">
                     <button onClick={() => setIsReportModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Generate Laporan</button>
-                    
-                    {/* TOMBOL BUAT: Sembunyikan jika Role = View */}
                     {userRole !== 'View' && (
                         <button onClick={handleCreateClick} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm transition"><FaPlus /> Buat Tiket</button>
                     )}
                 </div>
             </div>
 
+            {/* --- TABS & FILTER --- */}
             <div className="grid grid-cols-2 rounded-xl bg-slate-200 p-1 md:w-96 shadow-inner">
                 <button onClick={() => setActiveTab('RUNNING')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all ${activeTab === 'RUNNING' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaRunning /> TIKET RUNNING</button>
                 <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaCheckCircle /> TIKET CLOSED</button>
@@ -188,6 +185,7 @@ export default function TicketsPage() {
                 </div>
             </div>
 
+            {/* --- TABEL --- */}
             <div className="overflow-hidden rounded-xl bg-white shadow-sm border border-slate-100">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
@@ -218,14 +216,43 @@ export default function TicketsPage() {
                                             <div className="text-slate-700 text-xs line-clamp-2" title={ticket.deskripsi}>{ticket.deskripsi}</div>
                                             {ticket.update_progres && <div className="mt-2 text-[10px] text-slate-500 bg-slate-100 p-1.5 rounded border border-slate-200"><span className="font-bold text-slate-600">Note:</span> {ticket.update_progres}</div>}
                                         </td>
+                                        
+                                        {/* --- AREA TEKNISI DI TABEL (UPDATED) --- */}
                                         <td className="px-6 py-4 align-top">
                                             {ticket.technician_name ? (
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-orange-50 px-2 py-1 rounded border border-orange-100 w-fit"><FaHardHat className="text-orange-500 text-[10px]" /> {ticket.technician_name}</span>
-                                                    {ticket.technician_phone && <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] text-green-600 hover:underline"><FaWhatsapp /> {ticket.technician_phone}</a>}
+                                                <div className="flex flex-col gap-2">
+                                                    {/* PIC UTAMA */}
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-xs font-bold text-slate-700">{ticket.technician_name}</span>
+                                                            <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-bold uppercase tracking-wider">LENSA</span>
+                                                        </div>
+                                                        {ticket.technician_phone && (
+                                                            <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] text-green-600 hover:underline">
+                                                                <FaWhatsapp /> {ticket.technician_phone}
+                                                            </a>
+                                                        )}
+                                                    </div>
+
+                                                    {/* PARTNER / SUPPORT (JIKA ADA) */}
+                                                    {ticket.partner_technicians && (
+                                                        <div className="pt-2 border-t border-dashed border-slate-200">
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tim Support:</span>
+                                                            <div className="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100">
+                                                                {/* Karena formatnya sekarang "Nama (NoHP), Nama (NoHP)", kita split koma saja sudah cukup */}
+                                                                {ticket.partner_technicians.split(',').map((p, idx) => (
+                                                                    <div key={idx} className="flex items-start gap-1 mb-0.5 last:mb-0">
+                                                                        <span className="text-slate-300">•</span> {p.trim()}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (<span className="text-xs text-slate-400 italic">Belum assign</span>)}
                                         </td>
+                                        {/* --------------------------- */}
+
                                         <td className="px-6 py-4 align-top">
                                             <div className="flex flex-col">
                                                 <span className="text-xs font-medium text-slate-700">{new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}</span>
@@ -237,14 +264,10 @@ export default function TicketsPage() {
                                         </td>
                                         <td className="px-6 py-4 align-top text-center">
                                             <div className="flex items-center justify-center gap-1">
-                                                {/* TOMBOL EDIT: Sembunyikan jika View */}
                                                 {userRole !== 'View' && (
                                                     <button onClick={() => handleEditClick(ticket)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded border border-slate-200" title="Edit"><FaEdit /></button>
                                                 )}
-                                                
                                                 <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="p-1.5 text-purple-600 hover:bg-purple-50 rounded border border-slate-200" title="History"><FaHistory /></button>
-                                                
-                                                {/* TOMBOL HAPUS: Hanya ADMIN */}
                                                 {userRole === 'Admin' && (
                                                     <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded border border-slate-200" title="Hapus"><FaTrash /></button>
                                                 )}

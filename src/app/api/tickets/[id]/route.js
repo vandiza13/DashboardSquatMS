@@ -59,11 +59,10 @@ export async function PUT(request, props) {
         await connection.query(
             `UPDATE tickets SET 
                 category = ?, subcategory = ?, id_tiket = ?, tiket_time = ?, deskripsi = ?, 
-                status = ?, update_progres = ?, updated_by_user_id = ?, last_update_time = NOW()
-            WHERE id = ?`,
+                status = ?, update_progres = ?, updated_by_user_id = ?, last_update_time = NOW(), partner_technicians = ? WHERE id = ?`,
             [
                 body.category, body.subcategory, body.id_tiket, body.tiket_time, body.deskripsi, 
-                body.status, body.update_progres, user.userId, id
+                body.status, body.update_progres, user.userId, body.partner_technicians, id
             ]
         );
 

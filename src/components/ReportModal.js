@@ -9,14 +9,13 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-    // --- LOGIC GENERATOR TEKS (DIPERBAIKI) ---
+    // --- LOGIC GENERATOR TEKS ---
     const generateText = (data) => {
         // 1. DEFINISI ICON UNICODE (Agar terbaca benar di WA)
         const ICON_CHECK  = '\u2705'; // ✅ (Centang Hijau)
         const ICON_CROSS  = '\u274C'; // ❌ (Silang Merah)
         const ICON_PAUSE  = '\u23F8'; // ⏸️ (Pause/SC)
-        // const ICON_WARN = '\u26A0\uFE0F'; // ⚠️ (Opsional jika butuh warning)
-
+        
         const running = data.running || [];
         const closed = data.closed || [];
         const total = running.length + closed.length;
@@ -36,15 +35,25 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
         t += `- Sisa Tiket Running : ${running.length} tiket\n`;
         t += `- Tiket Closed Hari Ini : ${closed.length} tiket\n\n`;
 
+        // --- HELPER FORMAT TEKNISI ---
+        const formatTeknisi = (tik) => {
+            let pic = tik.technician_name || tik.technician_names || '-';
+            // Jika ada partner, gabungkan text-nya
+            if (tik.partner_technicians) {
+                // Contoh output: "Budi (Support: Asep, Ujang)"
+                return `${pic}, ${tik.partner_technicians}`;
+            }
+            return pic;
+        };
+
         // --- LOOP CLOSED ---
         if (closed.length > 0) {
             t += `*)Closed : ${closed.length} tiket\n`;
             closed.forEach((tik, i) => {
-                // Gunakan ICON_CHECK
                 t += `${i + 1}. ${ICON_CHECK} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   RCA : ${tik.update_progres || 'Done'}\n`;
-                // Pastikan properti nama teknisi sesuai dengan API (technician_name / names)
-                t += `   Teknisi : ${tik.technician_name || tik.technician_names || '-'}\n\n`;
+                // Panggil helper formatTeknisi
+                t += `   Teknisi : ${formatTeknisi(tik)}\n\n`;
             });
         } else {
             t += `*)Closed : 0 tiket\n\n`;
@@ -54,12 +63,12 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
         if (running.length > 0) {
             t += `*).ON Progres : ${running.length} tiket\n`;
             running.forEach((tik, i) => {
-                // Tentukan Icon Pause atau Cross
                 const icon = tik.status === 'SC' ? ICON_PAUSE : ICON_CROSS; 
                 
                 t += `${i + 1}. ${icon} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   Update : ${tik.update_progres || 'Belum ada update'}\n`;
-                t += `   Teknisi : ${tik.technician_name || tik.technician_names || '-'}\n\n`;
+                // Panggil helper formatTeknisi
+                t += `   Teknisi : ${formatTeknisi(tik)}\n\n`;
             });
         } else {
             t += `*).ON Progres : 0 tiket\n`;

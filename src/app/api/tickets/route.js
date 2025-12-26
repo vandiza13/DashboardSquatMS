@@ -130,7 +130,7 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { category, subcategory, id_tiket, tiket_time, deskripsi, technician_niks } = body;
+        const { category, subcategory, id_tiket, tiket_time, deskripsi, technician_niks, partner_technicians } = body;
 
         if (!category || !subcategory || !id_tiket || !tiket_time || !deskripsi) {
             return NextResponse.json({ error: 'Semua field wajib diisi' }, { status: 400 });
@@ -140,9 +140,9 @@ export async function POST(request) {
 
         const [result] = await connection.query(
             `INSERT INTO tickets 
-            (category, subcategory, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time) 
-            VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW())`,
-            [category, subcategory, id_tiket, tiket_time, deskripsi, user.userId, user.userId]
+            (category, subcategory, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians) 
+            VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?)`,
+            [category, subcategory, id_tiket, tiket_time, deskripsi, user.userId, user.userId, partner_technicians]
         );
 
         const ticketId = result.insertId;

@@ -1,27 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaTimes, FaSpinner, FaHardHat } from 'react-icons/fa';
+import { FaTimes, FaSpinner, FaHardHat, FaUserPlus } from 'react-icons/fa';
 
 // --- KONFIGURASI KATEGORI ---
 const SUB_CATEGORIES = {
-    SQUAT: ['TSEL','OLO'],
+    SQUAT: ['TSEL', 'OLO'],
     MTEL: ['TIS', 'MMP', 'FIBERISASI'],
     UMT: ['UMT'],
     CENTRATAMA: ['FSI'],
 };
 
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
+    // State Form Utama
     const [formData, setFormData] = useState({
-        category: 'SQUAT',
+        category: 'SQUAT', 
         subcategory: '',
         id_tiket: '',
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
         update_progres: '',
-        technician_nik: '' // Ini yang akan mengontrol dropdown teknisi
+        technician_nik: '', // PIC Utama (NIK) - SEKARANG OPTIONAL
     });
+
+    // State Khusus Partner
+    const [partnerNiks, setPartnerNiks] = useState([]); 
+    const [tempPartner, setTempPartner] = useState('');
 
     const [technicians, setTechnicians] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -36,7 +41,31 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         return localDate.toISOString().slice(0, 16);
     };
 
-    // 1. Fetch Data Teknisi & Role User
+    // --- LOGIC PARTNER ---
+    const handleAddPartner = () => {
+        if (!tempPartner) return;
+        if (partnerNiks.length >= 4) {
+            alert("Maksimal 4 teknisi partner.");
+            return;
+        }
+        if (partnerNiks.includes(tempPartner)) {
+            alert("Teknisi ini sudah dipilih.");
+            return;
+        }
+        if (tempPartner === formData.technician_nik) {
+            alert("Teknisi ini sudah menjadi PIC Utama.");
+            return;
+        }
+
+        setPartnerNiks([...partnerNiks, tempPartner]);
+        setTempPartner(''); 
+    };
+
+    const handleRemovePartner = (nikToRemove) => {
+        setPartnerNiks(partnerNiks.filter(nik => nik !== nikToRemove));
+    };
+
+    // 1. Fetch Data
     useEffect(() => {
         if (isOpen) {
             setLoading(true);
@@ -53,40 +82,35 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         }
     }, [isOpen]);
 
-    // 2. SET DATA UNTUK EDIT (LOGIKA TEKNISI DIPERBAIKI DISINI)
-    // 2. SET DATA UNTUK EDIT (DIPERBAIKI)
+    // 2. SET DATA UNTUK EDIT
     useEffect(() => {
-        if (initialData) {
-            
-            // --- LOGIKA PENCARIAN TEKNISI YANG LEBIH KUAT ---
+        if (initialData && technicians.length > 0) {
             let selectedTech = '';
-
-            // Prioritas 1: Cek assigned_technician_niks (Biasanya hasil GROUP_CONCAT atau Array)
+            // Logika ambil PIC lama
             if (initialData.assigned_technician_niks) {
                 if (Array.isArray(initialData.assigned_technician_niks)) {
-                    // Jika data berupa Array: ['12345']
                     selectedTech = initialData.assigned_technician_niks[0];
                 } else {
-                    // Jika data berupa String: "12345" atau "12345,67890"
-                    // Kita ambil string sebelum koma pertama
                     selectedTech = String(initialData.assigned_technician_niks).split(',')[0].trim();
                 }
-            }
-            // Prioritas 2: Cek technician_nik (Kolom single)
-            else if (initialData.technician_nik) {
+            } else if (initialData.technician_nik) {
                 selectedTech = String(initialData.technician_nik).trim();
             }
-            // Prioritas 3: Cek nik_teknisi (Nama variabel alternatif umum)
-            else if (initialData.nik_teknisi) {
-                selectedTech = String(initialData.nik_teknisi).trim();
+            if (!selectedTech || selectedTech === 'null') selectedTech = '';
+
+            // Logika ambil Partner lama (Parse String -> NIK)
+            let loadedPartners = [];
+            if (initialData.partner_technicians) {
+                const rawStrings = initialData.partner_technicians.split(',');
+                rawStrings.forEach(rawStr => {
+                    const fullStr = rawStr.trim(); 
+                    const nameOnly = fullStr.split('(')[0].trim();
+                    const tech = technicians.find(t => t.name.toLowerCase() === nameOnly.toLowerCase());
+                    if (tech) loadedPartners.push(String(tech.nik));
+                });
             }
 
-            // Pastikan tidak undefined/null
-            if (!selectedTech || selectedTech === 'null' || selectedTech === 'undefined') {
-                selectedTech = '';
-            }
-
-            console.log("Teknisi terpilih untuk Edit:", selectedTech); // Cek hasil di console
+            setPartnerNiks(loadedPartners);
 
             setFormData({
                 category: initialData.category || 'SQUAT',
@@ -96,10 +120,10 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
                 update_progres: initialData.update_progres || '',
-                technician_nik: selectedTech // <--- INI KUNCINYA
+                technician_nik: selectedTech,
             });
         } else {
-            // Reset Form Data Baru
+            // Reset Form Baru
             setFormData({
                 category: 'SQUAT',
                 subcategory: '',
@@ -108,10 +132,12 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 deskripsi: '',
                 status: 'OPEN',
                 update_progres: '',
-                technician_nik: ''
+                technician_nik: '',
             });
+            setPartnerNiks([]);
+            setTempPartner('');
         }
-    }, [initialData, isOpen]);
+    }, [initialData, isOpen, technicians]);
 
     if (!isOpen) return null;
 
@@ -121,6 +147,12 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         e.preventDefault();
         setIsSubmitting(true);
 
+        // Format Partner jadi String
+        const partnerNames = partnerNiks.map(nik => {
+            const t = technicians.find(tech => String(tech.nik) === String(nik));
+            return t ? `${t.name} (${t.phone_number || '-'})` : '';
+        }).filter(n => n).join(', ');
+
         try {
             const url = initialData ? `/api/tickets/${initialData.id}` : '/api/tickets';
             const method = initialData ? 'PUT' : 'POST';
@@ -128,8 +160,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             const payload = {
                 ...formData,
                 tiket_time: formData.tiket_time ? new Date(formData.tiket_time).toISOString() : null,
-                // Kirim array NIK ke backend
-                technician_niks: formData.technician_nik ? [formData.technician_nik] : []
+                // Jika PIC kosong, kirim array kosong (Backend akan handle agar tidak error)
+                technician_niks: formData.technician_nik ? [formData.technician_nik] : [],
+                partner_technicians: partnerNames 
             };
 
             const res = await fetch(url, {
@@ -241,32 +274,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     <hr className="border-slate-100" />
 
-                    {/* Teknisi (Assignment) - YANG SUDAH DIPERBAIKI */}
-                    <div>
-    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teknisi (Sesuai Lensa)</label>
-    <div className="relative">
-        <select 
-            className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
-            // Tambahkan String() disini untuk memaksa tipe data sama
-            value={String(formData.technician_nik)} 
-            onChange={e => setFormData({...formData, technician_nik: e.target.value})}>
-            <option value="">- Pilih Teknisi -</option>
-            {technicians.map(t => (
-                // Pastikan value opsi juga string
-                <option key={t.nik} value={String(t.nik)}>
-                    {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
-                </option>
-            ))}
-        </select>
-        <FaHardHat className="absolute left-3 top-3 text-slate-400 pointer-events-none" />
-    </div>
-</div>
-
-                    {/* Status & Update (Hanya Edit) */}
+                    {/* --- AREA STATUS & UPDATE (DIPINDAHKAN KE ATAS TEKNISI) --- */}
                     {initialData && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                                <label className="block text-xs font-bold text-yellow-800 uppercase mb-1">Status Tiket</label>
                                 <select 
                                     className={`w-full rounded-lg border-slate-300 p-2.5 text-sm font-bold 
                                         ${formData.status === 'OPEN' ? 'text-red-600 bg-white' : 
@@ -281,17 +293,104 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Update Progress</label>
+                                <label className="block text-xs font-bold text-yellow-800 uppercase mb-1">Update Progress / RCA</label>
                                 <textarea 
                                     rows="3"
                                     className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                                     value={formData.update_progres} 
                                     onChange={e => setFormData({...formData, update_progres: e.target.value})}
-                                    placeholder="Tulis update..."
+                                    placeholder="Tulis update terbaru / Root Cause..."
                                 ></textarea>
                             </div>
                         </div>
                     )}
+
+                    {/* --- AREA TEKNISI (PIC & PARTNER) --- */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                        
+                        {/* 1. PIC UTAMA (TIDAK WAJIB / NOT REQUIRED) */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                Teknisi Utama (LENSA)
+                            </label>
+                            <div className="relative">
+                                <select 
+                                    className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-semibold text-slate-700"
+                                    value={String(formData.technician_nik)} 
+                                    onChange={e => setFormData({...formData, technician_nik: e.target.value})}
+                                    // 'required' DIHAPUS agar bisa kosong
+                                >
+                                    <option value="">- Pilih sesuai assign lensa -</option>
+                                    {technicians.map(t => (
+                                        <option key={t.nik} value={String(t.nik)}>
+                                            {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <FaHardHat className="absolute left-3 top-3 text-blue-500 pointer-events-none" />
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1 ml-1">*Poin produktivitas masuk ke teknisi ini. Boleh dikosongkan jika belum assign.</p>
+                        </div>
+
+                        {/* 2. PARTNER (MULTI SELECT) */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                Partner / Support (Max 4)
+                            </label>
+                            
+                            {/* Input Dropdown + Tombol Add */}
+                            <div className="flex gap-2 mb-2">
+                                <div className="relative flex-1">
+                                    <select 
+                                        className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                                        value={tempPartner}
+                                        onChange={e => setTempPartner(e.target.value)}
+                                        disabled={partnerNiks.length >= 4}
+                                    >
+                                        <option value="">- Tambah Partner -</option>
+                                        {technicians.map(t => (
+                                            (String(t.nik) !== String(formData.technician_nik) && !partnerNiks.includes(String(t.nik))) && (
+                                                <option key={t.nik} value={String(t.nik)}>
+                                                    {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
+                                                </option>
+                                            )
+                                        ))}
+                                    </select>
+                                </div>
+                                <button 
+                                    type="button" 
+                                    onClick={handleAddPartner}
+                                    disabled={!tempPartner || partnerNiks.length >= 4}
+                                    className="px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center"
+                                >
+                                    <FaUserPlus />
+                                </button>
+                            </div>
+
+                            {/* List Partner Terpilih */}
+                            {partnerNiks.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {partnerNiks.map(nik => {
+                                        const tech = technicians.find(t => String(t.nik) === String(nik));
+                                        return (
+                                            <span key={nik} className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm">
+                                                {tech ? `${tech.name} (${tech.phone_number || '-'})` : nik}
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => handleRemovePartner(nik)}
+                                                    className="ml-1 text-slate-400 hover:text-red-500"
+                                                >
+                                                    <FaTimes />
+                                                </button>
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-400 italic ml-1">Tidak ada partner.</p>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Tombol Simpan */}
                     <div className="pt-4 flex justify-end gap-3">
