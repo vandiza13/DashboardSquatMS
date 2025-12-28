@@ -77,25 +77,39 @@ export async function PUT(request, props) {
             ]
         );
 
-        // 2. Update Teknisi (Hapus lama -> Insert baru)
+        // 2. Update Teknisi
         let picName = '';  // Variabel untuk menyimpan Nama PIC (ke Excel)
         let picPhone = ''; // Variabel untuk menyimpan HP PIC (ke Excel)
 
-        if (body.technician_niks) {
+        // Skenario A: Ada update teknisi dari Client (Dropdown berubah)
+        if (body.technician_niks && Array.isArray(body.technician_niks) && body.technician_niks.length > 0) {
             await connection.query('DELETE FROM ticket_technicians WHERE ticket_id = ?', [id]);
             
-            if (Array.isArray(body.technician_niks) && body.technician_niks.length > 0) {
-                 const nik = body.technician_niks[0];
-                 if(nik) {
-                    await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, nik]);
-                    
-                    // --- 3. AMBIL INFO TEKNISI (Untuk dikirim ke Google Sheet) ---
-                    const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [nik]);
-                    if (techRows.length > 0) {
-                        picName = techRows[0].name;
-                        picPhone = techRows[0].phone_number;
-                    }
-                 }
+            const nik = body.technician_niks[0];
+            if(nik) {
+                await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, nik]);
+                
+                // Ambil info teknisi BARU untuk Sheet
+                const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [nik]);
+                if (techRows.length > 0) {
+                    picName = techRows[0].name;
+                    picPhone = techRows[0].phone_number;
+                }
+            }
+        } 
+        // Skenario B: Tidak ada update teknisi, tapi Tiket CLOSED. 
+        // Kita harus ambil teknisi eksisting di DB agar tidak "Belum Assign" di Sheet.
+        else if (body.status === 'CLOSED') {
+             const [existingTech] = await connection.query(`
+                SELECT t.name, t.phone_number 
+                FROM ticket_technicians tt
+                JOIN technicians t ON tt.technician_nik = t.nik
+                WHERE tt.ticket_id = ? LIMIT 1
+            `, [id]);
+            
+            if (existingTech.length > 0) {
+                picName = existingTech[0].name;
+                picPhone = existingTech[0].phone_number;
             }
         }
 
@@ -119,7 +133,8 @@ export async function PUT(request, props) {
         // 4. INTEGRASI GOOGLE SHEET (HANYA JIKA CLOSED & BUKAN DARI CLOSED SEBELUMNYA)
         // ==============================================================
         if (body.status === 'CLOSED' && oldStatus !== 'CLOSED') {
-            
+            console.log("🛠️ Memulai proses upload ke Google Sheet...");
+
             // Format Teknisi: "Budi (0812) | Partner: Asep (0856)"
             let fullTechInfo = picName ? `${picName} (${picPhone || '-'})` : 'Belum Assign';
             
@@ -139,8 +154,14 @@ export async function PUT(request, props) {
                 technician_full: fullTechInfo
             };
 
-            // Kirim ke background (jangan await agar UI tidak loading lama)
-            appendTicketToSheet(sheetData).catch(err => console.error("GSheet Error:", err));
+            // [PERBAIKAN] Tambahkan 'await' agar Vercel tidak mematikan proses
+            try {
+                await appendTicketToSheet(sheetData);
+                console.log("✅ Berhasil upload ke Google Sheet");
+            } catch (sheetError) {
+                console.error("❌ Exception Google Sheet:", sheetError);
+                // Kita tidak throw error agar response ke user tetap sukses
+            }
         }
         // ==============================================================
 

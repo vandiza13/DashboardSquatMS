@@ -1,21 +1,22 @@
 import { google } from 'googleapis';
-import path from 'path';
 
 export async function appendTicketToSheet(ticketData) {
     try {
-        // 1. SETUP AUTHENTICATION
-        // Pastikan file service-account.json ada di root folder project
-        const keyFile = path.join(process.cwd(), 'service-account.json');
-        
+        // 1. SETUP AUTHENTICATION (VERCEL COMPATIBLE)
+        // Menggunakan Environment Variables agar aman di serverless Vercel
         const auth = new google.auth.GoogleAuth({
-            keyFile,
+            credentials: {
+                client_email: process.env.GOOGLE_CLIENT_EMAIL,
+                // replace(/\\n/g, '\n') penting untuk menangani baris baru di env var Vercel
+                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
         const sheets = google.sheets({ version: 'v4', auth });
 
-        // ID SPREADSHEET (Sesuaikan dengan ID Spreadsheet Anda)
-        const SPREADSHEET_ID = '1Dto5IumIKqzD_cFePc3tH8vY_Lv_w9NLkuhxxZes0ak';
+        // ID SPREADSHEET (Gunakan Env Var jika ada, atau fallback ke ID hardcoded)
+        const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '1Dto5IumIKqzD_cFePc3tH8vY_Lv_w9NLkuhxxZes0ak';
 
         // Destructure Data
         const { 
@@ -58,16 +59,25 @@ export async function appendTicketToSheet(ticketData) {
         // Header di baris 3, jadi data pertama (No 1) ada di Baris 4.
         const nomorUrut = nextRow - 3; 
 
-        // 3. FORMAT WAKTU (YYYY-MM-DD HH:mm:ss)
+        // 3. FORMAT WAKTU (FIX TIMEZONE WIB - ASIA/JAKARTA)
+        // Server Vercel menggunakan UTC. Kita paksa ke format lokal Indonesia (WIB).
         const formatDate = (dateString) => {
             if (!dateString) return '';
             const d = new Date(dateString);
-            return d.getFullYear() + '-' +
-                   String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                   String(d.getDate()).padStart(2, '0') + ' ' +
-                   String(d.getHours()).padStart(2, '0') + ':' +
-                   String(d.getMinutes()).padStart(2, '0') + ':' +
-                   String(d.getSeconds()).padStart(2, '0');
+            if (isNaN(d.getTime())) return ''; // Handle invalid date
+
+            return new Intl.DateTimeFormat('id-ID', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                timeZone: 'Asia/Jakarta' // Paksa zona waktu WIB
+            }).format(d)
+              .replace(/\./g, ':') // Ganti titik dengan titik dua (jika locale ID pakai titik)
+              .replace(/\//g, '-'); // Ganti slash dengan dash (opsional sesuai preferensi)
         };
 
         // 4. SUSUN DATA (MAPPING KOLOM BERBEDA UNTUK TSEL & OLO)
@@ -85,14 +95,14 @@ export async function appendTicketToSheet(ticketData) {
                 '',                     // F: Gamas
                 '',                     // G: Material
                 '',                     // H: Gaul
-                formatDate(tiket_time), // I: ACTUAL START
-                formatDate(close_time), // J: ACTUAL CLOSED
+                formatDate(tiket_time), // I: ACTUAL START (Format WIB)
+                formatDate(close_time), // J: ACTUAL CLOSED (Format WIB)
                 '',                     // K: MTTR REG
                 '',                     // L: C / NC
                 technician_full,        // M: Teknisi (Lensa + Partner)
                 'CLOSED',               // N: TICKET TSEL (Status)
                 root_cause,             // O: ROOT CAUSE
-                ''                  // P: ACTION
+                ''                      // P: ACTION
             ];
         } else if (sheetName === 'OLO') {
             // --- MAPPING OLO ---
@@ -104,14 +114,14 @@ export async function appendTicketToSheet(ticketData) {
                 sto || '',              // D: STO (DATA BARU)
                 '',                     // E: GAMAS
                 '',                     // F: GAUL
-                formatDate(tiket_time), // G: ACTUAL START
-                formatDate(close_time), // H: ACTUAL CLOSED
+                formatDate(tiket_time), // G: ACTUAL START (Format WIB)
+                formatDate(close_time), // H: ACTUAL CLOSED (Format WIB)
                 '',                     // I: MTTR REG
                 '',                     // J: C / NC
                 technician_full,        // K: Teknisi (Lensa + Partner)
                 'CLOSED',               // L: TICKET OLO (Status)
                 root_cause,             // M: ROOT CAUSE
-                ''                  // N: ACTION
+                ''                      // N: ACTION
             ];
         }
 
