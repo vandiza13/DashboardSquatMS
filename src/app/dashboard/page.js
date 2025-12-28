@@ -425,7 +425,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* --- TABEL TIKET TERBARU --- */}
+            {/* --- TABEL TIKET TERBARU (RESPONSIVE) --- */}
             <div className="rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden">
                 <div className="flex items-center justify-between border-b bg-slate-50/50 px-6 py-4">
                     <h3 className="font-bold text-slate-700">5 Tiket Terbaru Masuk</h3>
@@ -433,7 +433,9 @@ export default function DashboardPage() {
                         Lihat Semua <FaArrowRight size={10} />
                     </Link>
                 </div>
-                <div className="overflow-x-auto">
+                
+                {/* 1. TAMPILAN TABLE (DESKTOP) */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-white text-slate-500 border-b border-slate-100">
                             <tr>
@@ -447,7 +449,6 @@ export default function DashboardPage() {
                             {data?.recent?.map((t) => (
                                 <tr key={t.id_tiket} className="hover:bg-slate-50/80 transition-colors">
                                     <td className="px-6 py-4 font-bold text-slate-700">{t.id_tiket}</td>
-                                    {/* FIX: GANTI toLocaleDateString JADI toLocaleString AGAR BISA PAKAI timeStyle */}
                                     <td className="px-6 py-4 text-slate-500 text-xs">{new Date(t.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</td>
                                     <td className="px-6 py-4">
                                         <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-bold border border-blue-100">{t.category}</span>
@@ -465,6 +466,28 @@ export default function DashboardPage() {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* 2. TAMPILAN LIST CARD (MOBILE) */}
+                <div className="md:hidden">
+                    {data?.recent?.map((t) => (
+                        <div key={t.id_tiket} className="p-4 border-b border-slate-50 last:border-0 flex flex-col gap-2">
+                            <div className="flex justify-between items-start">
+                                <span className="font-bold text-slate-700 text-sm">{t.id_tiket}</span>
+                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                                    t.status === 'OPEN' ? 'text-red-600 bg-red-50 border-red-100' : 
+                                    t.status === 'SC' ? 'text-yellow-600 bg-yellow-50 border-yellow-100' : 
+                                    'text-emerald-600 bg-emerald-50 border-emerald-100'
+                                }`}>
+                                    {t.status}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs text-slate-500">
+                                <span>{new Date(t.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold">{t.category}</span>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
