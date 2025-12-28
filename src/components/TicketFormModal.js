@@ -195,11 +195,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn overflow-y-auto">
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto relative">
                 
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                {/* Header (Sticky di Mobile agar tidak hilang saat scroll) */}
+                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 sticky top-0 z-10">
                     <h3 className="font-bold text-lg text-slate-800">
                         {initialData ? 'Edit Tiket' : 'Buat Tiket Baru'}
                     </h3>
@@ -208,11 +208,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     </button>
                 </div>
 
-                {/* Form Body */}
-                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5">
+                {/* Form Body - Responsive Grid */}
+                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5 max-h-[80vh]">
                     
-                    {/* Baris 1: Kategori */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Baris 1: Kategori (Grid 1 di Mobile, 2 di Desktop) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
                             <select 
@@ -262,8 +262,8 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     )}
 
-                    {/* Baris 2: ID & Waktu */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Baris 2: ID & Waktu (Grid 1 di Mobile, 2 di Desktop) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID Tiket</label>
                             <input 
@@ -304,7 +304,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     <hr className="border-slate-100" />
 
-                    {/* --- AREA STATUS & UPDATE (HANYA SAAT EDIT) --- */}
+                    {/* --- AREA STATUS & UPDATE (HANYA SAAT EDIT - Responsive Grid) --- */}
                     {initialData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
                             <div>
@@ -367,8 +367,8 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 Partner / Support (Max 4)
                             </label>
                             
-                            {/* Input Dropdown + Tombol Add */}
-                            <div className="flex gap-2 mb-2">
+                            {/* Input Dropdown + Tombol Add (Responsive) */}
+                            <div className="flex gap-2 mb-2 flex-col md:flex-row">
                                 <div className="relative flex-1">
                                     <select 
                                         className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
@@ -390,9 +390,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     type="button" 
                                     onClick={handleAddPartner}
                                     disabled={!tempPartner || partnerNiks.length >= 4}
-                                    className="px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center"
+                                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
                                 >
-                                    <FaUserPlus />
+                                    <FaUserPlus /> <span>Tambah</span>
                                 </button>
                             </div>
 
@@ -421,14 +421,14 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
-                    {/* Tombol Simpan */}
-                    <div className="pt-4 flex justify-end gap-3">
+                    {/* Tombol Simpan (Sticky di Bawah pada Mobile) */}
+                    <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-2 border-t border-slate-100 md:static md:border-none md:py-0">
                         <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
                             Batal
                         </button>
                         <button type="submit" disabled={isSubmitting || loading} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition disabled:opacity-70 flex items-center gap-2">
                             {(isSubmitting || loading) && <FaSpinner className="animate-spin" />}
-                            {initialData ? 'Simpan Perubahan' : 'Buat Tiket'}
+                            {initialData ? 'Simpan' : 'Buat Tiket'}
                         </button>
                     </div>
                 </form>
