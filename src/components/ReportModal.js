@@ -11,10 +11,9 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
 
     // --- LOGIC GENERATOR TEKS ---
     const generateText = (data) => {
-        // 1. DEFINISI ICON UNICODE (Agar terbaca benar di WA)
-        const ICON_CHECK  = '\u2705'; // ✅ (Centang Hijau)
-        const ICON_CROSS  = '\u274C'; // ❌ (Silang Merah)
-        const ICON_PAUSE  = '\u23F8'; // ⏸️ (Pause/SC)
+        const ICON_CHECK  = '\u2705'; 
+        const ICON_CROSS  = '\u274C'; 
+        const ICON_PAUSE  = '\u23F8'; 
         
         const running = data.running || [];
         const closed = data.closed || [];
@@ -35,39 +34,31 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
         t += `- Sisa Tiket Running : ${running.length} tiket\n`;
         t += `- Tiket Closed Hari Ini : ${closed.length} tiket\n\n`;
 
-        // --- HELPER FORMAT TEKNISI ---
         const formatTeknisi = (tik) => {
             let pic = tik.technician_name || tik.technician_names || '-';
-            // Jika ada partner, gabungkan text-nya
             if (tik.partner_technicians) {
-                // Contoh output: "Budi (Support: Asep, Ujang)"
                 return `${pic}, ${tik.partner_technicians}`;
             }
             return pic;
         };
 
-        // --- LOOP CLOSED ---
         if (closed.length > 0) {
             t += `*)Closed : ${closed.length} tiket\n`;
             closed.forEach((tik, i) => {
                 t += `${i + 1}. ${ICON_CHECK} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   RCA : ${tik.update_progres || 'Done'}\n`;
-                // Panggil helper formatTeknisi
                 t += `   Teknisi : ${formatTeknisi(tik)}\n\n`;
             });
         } else {
             t += `*)Closed : 0 tiket\n\n`;
         }
 
-        // --- LOOP RUNNING ---
         if (running.length > 0) {
             t += `*).ON Progres : ${running.length} tiket\n`;
             running.forEach((tik, i) => {
                 const icon = tik.status === 'SC' ? ICON_PAUSE : ICON_CROSS; 
-                
                 t += `${i + 1}. ${icon} ${tik.id_tiket}  ${tik.deskripsi || '-'}\n`;
                 t += `   Update : ${tik.update_progres || 'Belum ada update'}\n`;
-                // Panggil helper formatTeknisi
                 t += `   Teknisi : ${formatTeknisi(tik)}\n\n`;
             });
         } else {
@@ -123,12 +114,12 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
                 <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[90vh]">
                     
                     {/* --- HEADER --- */}
-                    <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 flex justify-between items-center text-white border-b border-slate-700 shrink-0">
-                        <h3 className="font-bold text-lg flex items-center gap-3">
+                    <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-4 py-3 md:px-6 md:py-4 flex justify-between items-center text-white border-b border-slate-700 shrink-0">
+                        <h3 className="font-bold text-base md:text-lg flex items-center gap-3">
                             <div className="bg-white/10 p-2 rounded-lg">
                                 <FaFileAlt className="text-blue-400" />
                             </div>
-                            Generator Laporan Harian
+                            Generator Laporan
                         </h3>
                         <button onClick={onClose} className="text-slate-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all">
                             <FaTimes size={18} />
@@ -137,8 +128,8 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
 
                     {/* --- BODY --- */}
                     <div className="p-0 flex-1 overflow-hidden flex flex-col relative bg-slate-50">
-                        <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 text-xs text-blue-800 font-medium flex items-center gap-2 shrink-0">
-                            <span>ℹ️</span> Silakan review laporan sebelum dikirim. Anda bisa mengedit teks di bawah ini jika diperlukan.
+                        <div className="bg-blue-50 border-b border-blue-100 px-4 py-2 md:px-6 md:py-3 text-[10px] md:text-xs text-blue-800 font-medium flex items-center gap-2 shrink-0">
+                            <span>ℹ️</span> Silakan review laporan sebelum dikirim.
                         </div>
 
                         <div className="flex-1 relative h-full">
@@ -150,7 +141,7 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
                             ) : null}
 
                             <textarea 
-                                className="w-full h-full resize-none border-none p-6 font-mono text-sm text-slate-700 bg-slate-50 focus:ring-0 focus:outline-none leading-relaxed custom-scrollbar"
+                                className="w-full h-full resize-none border-none p-4 md:p-6 font-mono text-xs md:text-sm text-slate-700 bg-slate-50 focus:ring-0 focus:outline-none leading-relaxed custom-scrollbar"
                                 value={reportText}
                                 onChange={(e) => setReportText(e.target.value)}
                                 spellCheck="false"
@@ -158,20 +149,23 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
                         </div>
                     </div>
 
-                    {/* --- FOOTER --- */}
-                    <div className="p-5 bg-white border-t border-slate-200 flex justify-between items-center gap-4 shrink-0">
+                    {/* --- FOOTER (MOBILE RESPONSIVE) --- */}
+                    <div className="p-4 md:p-5 bg-white border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-3 shrink-0">
+                        
+                        {/* TOMBOL BATAL (ORDER 2 DI HP, 1 DI DESKTOP) */}
                         <button 
                             onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                            className="w-full md:w-auto px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors order-2 md:order-1"
                         >
                             Batal
                         </button>
                         
-                        <div className="flex gap-3">
+                        {/* GROUP TOMBOL AKSI (ORDER 1 DI HP, 2 DI DESKTOP) */}
+                        <div className="flex flex-col md:flex-row gap-2 md:gap-3 w-full md:w-auto order-1 md:order-2">
                             <button 
                                 onClick={handleCopy}
                                 disabled={loading || !reportText}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 border border-slate-200 transition-all active:scale-95 disabled:opacity-50"
+                                className="w-full md:w-auto flex justify-center items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 border border-slate-200 transition-all active:scale-95 disabled:opacity-50"
                             >
                                 <FaCopy /> Salin
                             </button>
@@ -179,7 +173,7 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
                             <button 
                                 onClick={handleSendTelegram}
                                 disabled={loading || !reportText}
-                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold hover:shadow-lg hover:shadow-sky-500/30 transition-all active:scale-95 disabled:opacity-50"
+                                className="w-full md:w-auto flex justify-center items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold hover:shadow-lg hover:shadow-sky-500/30 transition-all active:scale-95 disabled:opacity-50"
                             >
                                 <FaTelegramPlane className="text-lg" /> Telegram
                             </button>
@@ -187,7 +181,7 @@ export default function ReportModal({ isOpen, onClose, categoryFilter = 'ALL' })
                             <button 
                                 onClick={handleSendWA}
                                 disabled={loading || !reportText}
-                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:shadow-lg hover:shadow-green-500/30 transition-all active:scale-95 disabled:opacity-50"
+                                className="w-full md:w-auto flex justify-center items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:shadow-lg hover:shadow-green-500/30 transition-all active:scale-95 disabled:opacity-50"
                             >
                                 <FaWhatsapp className="text-lg" /> WhatsApp
                             </button>
