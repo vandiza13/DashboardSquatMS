@@ -11,17 +11,26 @@ const SUB_CATEGORIES = {
     CENTRATAMA: ['FSI'],
 };
 
+// --- DATA STO (URUT ABJAD) ---
+const STO_LIST = [
+    'BBL', 'BEK', 'BGG', 'CBG', 'CBR', 'CIB', 'CIK', 
+    'DNI', 'EJI', 'GDM', 'JBB', 'KLB', 'KRA', 'LMA', 
+    'MGB', 'PBY', 'PDE', 'PKY', 'SMH', 'STN', 'SUE', 
+    'TAR', 'TBL'
+].sort();
+
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
     // State Form Utama
     const [formData, setFormData] = useState({
         category: 'SQUAT', 
         subcategory: '',
         id_tiket: '',
+        sto: '', // State untuk STO
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
         update_progres: '',
-        technician_nik: '', // PIC Utama (NIK) - SEKARANG OPTIONAL
+        technician_nik: '', // PIC Utama (NIK) - OPTIONAL
     });
 
     // State Khusus Partner
@@ -116,6 +125,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 category: initialData.category || 'SQUAT',
                 subcategory: initialData.subcategory || '',
                 id_tiket: initialData.id_tiket || '',
+                sto: initialData.sto || '', // Load STO
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
@@ -128,6 +138,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 category: 'SQUAT',
                 subcategory: '',
                 id_tiket: '',
+                sto: '', // Reset STO
                 tiket_time: '',
                 deskripsi: '',
                 status: 'OPEN',
@@ -232,6 +243,25 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
+                    {/* --- INPUT STO (DROPDOWN KHUSUS SQUAT) --- */}
+                    {formData.category === 'SQUAT' && (
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <label className="block text-xs font-bold text-blue-800 uppercase mb-1">
+                                Pilih STO (SQUAT Only)
+                            </label>
+                            <select 
+                                className="w-full rounded-lg border-blue-200 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700"
+                                value={formData.sto} 
+                                onChange={e => setFormData({...formData, sto: e.target.value})}
+                            >
+                                <option value="">- Pilih Kode STO -</option>
+                                {STO_LIST.map((sto) => (
+                                    <option key={sto} value={sto}>{sto}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     {/* Baris 2: ID & Waktu */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -274,7 +304,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     <hr className="border-slate-100" />
 
-                    {/* --- AREA STATUS & UPDATE (DIPINDAHKAN KE ATAS TEKNISI) --- */}
+                    {/* --- AREA STATUS & UPDATE (HANYA SAAT EDIT) --- */}
                     {initialData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
                             <div>
@@ -308,7 +338,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     {/* --- AREA TEKNISI (PIC & PARTNER) --- */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
                         
-                        {/* 1. PIC UTAMA (TIDAK WAJIB / NOT REQUIRED) */}
+                        {/* 1. PIC UTAMA (OPTIONAL) */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                                 Teknisi Utama (LENSA)
@@ -318,9 +348,8 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-semibold text-slate-700"
                                     value={String(formData.technician_nik)} 
                                     onChange={e => setFormData({...formData, technician_nik: e.target.value})}
-                                    // 'required' DIHAPUS agar bisa kosong
                                 >
-                                    <option value="">- Pilih sesuai assign lensa -</option>
+                                    <option value="">- Pilih Sesuai Assign Lensa -</option>
                                     {technicians.map(t => (
                                         <option key={t.nik} value={String(t.nik)}>
                                             {t.name} {t.phone_number ? `(${t.phone_number})` : ''}

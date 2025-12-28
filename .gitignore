@@ -44,3 +44,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ==========================================
+# ⛔ SECURITY & CREDENTIALS (TAMBAHAN WAJIB)
+# ==========================================
+# File kunci akses Google Cloud (JANGAN DIHAPUS DARI SINI)
+service-account.json
+
+# File database lokal (jika ada backup manual)
+*.sql
+*.db

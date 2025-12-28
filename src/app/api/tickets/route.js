@@ -118,10 +118,10 @@ export async function GET(request) {
     }
 }
 
-// --- POST: BUAT TIKET BARU (TIDAK PERLU DIUBAH, SUDAH AMAN) ---
 export async function POST(request) {
     const connection = await db.getConnection(); 
     try {
+        // ... auth check ...
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         
@@ -130,37 +130,42 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { category, subcategory, id_tiket, tiket_time, deskripsi, technician_niks, partner_technicians } = body;
+        
+        // 1. AMBIL DATA (Tambah sto)
+        const { 
+            category, subcategory, id_tiket, tiket_time, deskripsi, 
+            technician_niks, partner_technicians, sto // <--- TAMBAH STO
+        } = body;
 
-        if (!category || !subcategory || !id_tiket || !tiket_time || !deskripsi) {
-            return NextResponse.json({ error: 'Semua field wajib diisi' }, { status: 400 });
-        }
+        // ... validasi ...
 
         await connection.beginTransaction();
 
+        // 2. INSERT (Tambah sto)
         const [result] = await connection.query(
             `INSERT INTO tickets 
-            (category, subcategory, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians) 
-            VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?)`,
-            [category, subcategory, id_tiket, tiket_time, deskripsi, user.userId, user.userId, partner_technicians]
+            (category, subcategory, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
+            VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`, 
+            [
+                category, subcategory, id_tiket, tiket_time, deskripsi, 
+                user.userId, user.userId, 
+                partner_technicians, 
+                sto || null // <--- Masukkan STO (Null jika kosong)
+            ]
         );
 
+        // ... insert technician (sama) ...
         const ticketId = result.insertId;
-
         if (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) {
             const nik = technician_niks[0]; 
             if (nik) {
-                await connection.query(
-                    `INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)`,
-                    [ticketId, nik]
-                );
+                await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [ticketId, nik]);
             }
         }
 
+        // ... history & commit (sama) ...
         await connection.query(
-            `INSERT INTO ticket_history 
-            (ticket_id, change_details, changed_by, change_timestamp) 
-            VALUES (?, ?, ?, NOW())`,
+            `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
             [ticketId, `Tiket dibuat dengan status OPEN`, user.username]
         );
 

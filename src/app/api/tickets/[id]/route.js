@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
+import { appendTicketToSheet } from '@/lib/googleSheets'; // <--- 1. IMPORT HELPER
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +11,17 @@ export async function GET(request, props) {
     const { id } = params;
 
     try {
+        // --- 2. UPDATE QUERY GET (Agar dapat Nama & No HP Teknisi) ---
         const [rows] = await db.query(`
             SELECT t.*, 
-                   -- UBAH ALIAS INI AGAR KONSISTEN DENGAN API UTAMA
-                   GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks 
+                   u.username as updater_name,
+                   GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks,
+                   tech.name as technician_name,
+                   tech.phone_number as technician_phone
             FROM tickets t
+            LEFT JOIN users u ON t.updated_by_user_id = u.id
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
+            LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
             WHERE t.id = ?
             GROUP BY t.id
         `, [id]);
@@ -30,7 +36,7 @@ export async function GET(request, props) {
 
 // PUT: UPDATE TIKET (TRANSACTIONAL)
 export async function PUT(request, props) {
-    const params = await props.params; // FIX: Await Params
+    const params = await props.params; 
     const { id } = params;
 
     const connection = await db.getConnection();
@@ -45,7 +51,7 @@ export async function PUT(request, props) {
 
         const body = await request.json();
         
-        // Ambil data lama (Untuk history)
+        // Ambil data lama (Untuk history & Cek perubahan status)
         const [oldData] = await connection.query('SELECT status, update_progres FROM tickets WHERE id = ?', [id]);
         if (oldData.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
         
@@ -55,18 +61,26 @@ export async function PUT(request, props) {
         // === MULAI TRANSAKSI ===
         await connection.beginTransaction();
 
-        // 1. Update Tabel Tiket
+        // 1. Update Tabel Tiket (TAMBAH STO)
         await connection.query(
             `UPDATE tickets SET 
                 category = ?, subcategory = ?, id_tiket = ?, tiket_time = ?, deskripsi = ?, 
-                status = ?, update_progres = ?, updated_by_user_id = ?, last_update_time = NOW(), partner_technicians = ? WHERE id = ?`,
+                status = ?, update_progres = ?, updated_by_user_id = ?, last_update_time = NOW(), 
+                partner_technicians = ?, sto = ? 
+            WHERE id = ?`,
             [
                 body.category, body.subcategory, body.id_tiket, body.tiket_time, body.deskripsi, 
-                body.status, body.update_progres, user.userId, body.partner_technicians, id
+                body.status, body.update_progres, user.userId, 
+                body.partner_technicians, 
+                body.sto || null, // <--- UPDATE KOLOM STO
+                id
             ]
         );
 
         // 2. Update Teknisi (Hapus lama -> Insert baru)
+        let picName = '';  // Variabel untuk menyimpan Nama PIC (ke Excel)
+        let picPhone = ''; // Variabel untuk menyimpan HP PIC (ke Excel)
+
         if (body.technician_niks) {
             await connection.query('DELETE FROM ticket_technicians WHERE ticket_id = ?', [id]);
             
@@ -74,6 +88,13 @@ export async function PUT(request, props) {
                  const nik = body.technician_niks[0];
                  if(nik) {
                     await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, nik]);
+                    
+                    // --- 3. AMBIL INFO TEKNISI (Untuk dikirim ke Google Sheet) ---
+                    const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [nik]);
+                    if (techRows.length > 0) {
+                        picName = techRows[0].name;
+                        picPhone = techRows[0].phone_number;
+                    }
                  }
             }
         }
@@ -93,6 +114,36 @@ export async function PUT(request, props) {
 
         // === COMMIT ===
         await connection.commit();
+
+        // ==============================================================
+        // 4. INTEGRASI GOOGLE SHEET (HANYA JIKA CLOSED & BUKAN DARI CLOSED SEBELUMNYA)
+        // ==============================================================
+        if (body.status === 'CLOSED' && oldStatus !== 'CLOSED') {
+            
+            // Format Teknisi: "Budi (0812) | Partner: Asep (0856)"
+            let fullTechInfo = picName ? `${picName} (${picPhone || '-'})` : 'Belum Assign';
+            
+            if (body.partner_technicians) {
+                fullTechInfo += ` | Partner: ${body.partner_technicians}`;
+            }
+
+            const sheetData = {
+                category: body.category,       // SQUAT
+                subcategory: body.subcategory, // TSEL / OLO
+                id_tiket: body.id_tiket,
+                deskripsi: body.deskripsi,
+                sto: body.sto,                 // <--- KIRIM STO KE HELPER
+                tiket_time: body.tiket_time,   
+                close_time: new Date().toISOString(), 
+                root_cause: body.update_progres,      
+                technician_full: fullTechInfo
+            };
+
+            // Kirim ke background (jangan await agar UI tidak loading lama)
+            appendTicketToSheet(sheetData).catch(err => console.error("GSheet Error:", err));
+        }
+        // ==============================================================
+
         return NextResponse.json({ message: 'Berhasil update tiket' });
 
     } catch (error) {
@@ -106,7 +157,7 @@ export async function PUT(request, props) {
 
 // DELETE: HAPUS TIKET (TRANSACTIONAL)
 export async function DELETE(request, props) {
-    const params = await props.params; // FIX: Await Params
+    const params = await props.params; 
     const { id } = params;
 
     const connection = await db.getConnection();
