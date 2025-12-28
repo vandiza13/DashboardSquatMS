@@ -117,12 +117,14 @@ export default function TicketsPage() {
             const formattedData = dataToExport.map(t => ({
                 'ID Tiket': t.id_tiket, 'Kategori': t.category, 'Sub Kategori': t.subcategory,
                 'Deskripsi': t.deskripsi, 
+                'Status': t.status,
+                'Update Progress': t.update_progres || '-',
                 'Teknisi PIC': t.technician_name || '-', 
                 'No HP PIC': t.technician_phone || '-',
-                'Tim Support': t.partner_technicians || '-', 
+                'Tim Support': t.partner_technicians || '-',
+                'STO': t.sto || '-', 
                 'Waktu Buat': new Date(t.tiket_time).toLocaleString('id-ID'),
                 'Update Terakhir': t.last_update_time ? new Date(t.last_update_time).toLocaleString('id-ID') : '-',
-                'Status': t.status
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(formattedData);
@@ -134,15 +136,20 @@ export default function TicketsPage() {
 
     const getCategoryColor = (cat) => CATEGORY_COLORS[cat] || CATEGORY_COLORS.DEFAULT;
 
-    // --- KOMPONEN KARTU MOBILE (HANYA MUNCUL DI HP) ---
+    // --- 1. KOMPONEN KARTU MOBILE (HP) ---
     const MobileTicketCard = ({ ticket }) => (
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 relative">
-            {/* Header: ID, Kategori, Status */}
+            {/* Header: Kategori & Status */}
             <div className="flex justify-between items-start">
                 <div>
                     <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>
                         {ticket.category} - {ticket.subcategory}
                     </span>
+                    {ticket.sto && (
+                        <span className="ml-2 inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-100 text-slate-600">
+                            STO: {ticket.sto}
+                        </span>
+                    )}
                     <div className="font-bold text-slate-800 text-sm mt-1">{ticket.id_tiket}</div>
                     <div className="text-[10px] text-slate-400">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                 </div>
@@ -158,36 +165,47 @@ export default function TicketsPage() {
             </div>
 
             {/* Update / RCA */}
-            <div className="text-slate-700 text-xs">
-                 <span className="font-semibold text-slate-500 text-[10px] uppercase">Update / RCA:</span>
-                 <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1 rounded border-l-2 border-yellow-300">{ticket.update_progres || '-'}</p>
-            </div>
+            {ticket.update_progres && (
+                <div className="text-slate-700 text-xs">
+                    <span className="font-semibold text-slate-500 text-[10px] uppercase">
+                        {ticket.status === 'CLOSED' ? 'Root Cause (RCA):' : 'Update Progress:'}
+                    </span>
+                    <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1.5 rounded border-l-2 border-yellow-300">{ticket.update_progres}</p>
+                </div>
+            )}
 
             {/* Teknisi Info */}
             <div className="border-t border-dashed border-slate-200 pt-2">
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded">PIC</span>
+                    <span className="text-[10px] bg-slate-100 text-blue-600 px-1.5 rounded font-bold border border-blue-200">LENSA</span>
                     <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
                 </div>
+                {/* Tombol WA di Mobile */}
+                {ticket.technician_phone && (
+                    <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded w-fit border border-green-100 active:scale-95 transition-transform hover:bg-green-100 mb-1">
+                        <FaWhatsapp /> {ticket.technician_phone}
+                    </a>
+                )}
                 {ticket.partner_technicians && (
-                    <div className="text-[10px] text-slate-500 pl-8">
-                        <span className="font-bold">Partner:</span> {ticket.partner_technicians}
+                    <div className="text-[10px] text-slate-500 pl-9">
+                        <span className="font-bold text-slate-400">Support:</span> 
+                        <div className="mt-0.5">{ticket.partner_technicians}</div>
                     </div>
                 )}
             </div>
 
             {/* Actions Toolbar */}
-            <div className="flex justify-end items-center gap-2 mt-1 pt-2 border-t border-slate-100">
+            <div className="flex justify-end items-center gap-2 mt-1 pt-3 border-t border-slate-100">
                  {userRole !== 'View' && (
-                    <button onClick={() => handleEditClick(ticket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
+                    <button onClick={() => handleEditClick(ticket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-100">
                         <FaEdit /> Edit
                     </button>
                 )}
-                <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition">
+                <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-100">
                     <FaHistory /> Log
                 </button>
                  {userRole === 'Admin' && (
-                    <button onClick={() => handleDeleteClick(ticket.id)} className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100">
+                    <button onClick={() => handleDeleteClick(ticket.id)} className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 border border-red-100">
                         <FaTrash />
                     </button>
                 )}
@@ -196,12 +214,12 @@ export default function TicketsPage() {
     );
 
     return (
-        <div className="space-y-6 pb-20 md:pb-0"> {/* Extra padding bawah untuk Mobile */}
+        <div className="space-y-6 pb-24 md:pb-0"> 
             <TicketFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTickets} initialData={editingTicket} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
 
-            {/* --- HEADER RESPONSIVE --- */}
+            {/* HEADER RESPONSIVE */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-xl md:text-2xl font-bold text-slate-800">Manajemen Tiket</h2>
@@ -215,13 +233,13 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* --- TABS RESPONSIVE --- */}
+            {/* TABS RESPONSIVE */}
             <div className="grid grid-cols-2 rounded-xl bg-slate-200 p-1 md:w-96 shadow-inner w-full">
                 <button onClick={() => setActiveTab('RUNNING')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'RUNNING' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaRunning /> RUNNING</button>
                 <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaCheckCircle /> CLOSED</button>
             </div>
 
-            {/* --- FILTERS RESPONSIVE --- */}
+            {/* FILTERS RESPONSIVE */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-white p-4 shadow-sm border border-slate-100">
                 <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
                     {CATEGORY_TABS.map((cat) => (
@@ -245,9 +263,9 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* --- CONTENT AREA (CARD vs TABLE) --- */}
+            {/* --- LIST TIKET --- */}
             
-            {/* 1. TAMPILAN MOBILE (Card View - Hanya muncul di HP) */}
+            {/* 1. TAMPILAN MOBILE (Card View) */}
             <div className="md:hidden space-y-4">
                 {loading ? (
                     <div className="text-center py-12 text-slate-500 text-sm"><FaSpinner className="animate-spin mx-auto mb-2 text-2xl text-blue-500"/>Memuat data...</div>
@@ -258,16 +276,16 @@ export default function TicketsPage() {
                 )}
             </div>
 
-            {/* 2. TAMPILAN DESKTOP (Table View - Hanya muncul di Tablet/PC) */}
+            {/* 2. TAMPILAN DESKTOP (Table View) */}
             <div className="hidden md:block overflow-hidden rounded-xl bg-white shadow-sm border border-slate-100">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider font-semibold border-b text-xs">
                             <tr>
                                 <th className="px-6 py-4">Info Tiket</th>
-                                <th className="px-6 py-4">Deskripsi</th>
-                                <th className="px-6 py-4">Update & Status</th>
+                                <th className="px-6 py-4">Deskripsi & Update</th>
                                 <th className="px-6 py-4">Teknisi</th>
+                                <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4">Waktu Update</th>
                                 <th className="px-6 py-4 text-center">Aksi</th>
                             </tr>
@@ -280,31 +298,33 @@ export default function TicketsPage() {
                             ) : (
                                 tickets.map((ticket) => (
                                     <tr key={ticket.id} className="hover:bg-slate-50 transition group">
+                                        
+                                        {/* INFO TIKET */}
                                         <td className="px-6 py-4 align-top">
                                             <div className="font-bold text-slate-800 text-xs">{ticket.id_tiket}</div>
                                             <span className={`inline-block mt-1 rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>{ticket.category} - {ticket.subcategory}</span>
+                                            {ticket.sto && (
+                                                <span className="ml-1 inline-block mt-1 rounded px-1.5 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-50 text-slate-500">
+                                                    STO: {ticket.sto}
+                                                </span>
+                                            )}
                                             <div className="text-[10px] text-slate-400 mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                                         </td>
                                         
-                                        <td className="px-6 py-4 align-top max-w-xs">
-                                            <div className="text-slate-700 text-xs line-clamp-3" title={ticket.deskripsi}>{ticket.deskripsi}</div>
-                                        </td>
-                                        
-                                        <td className="px-6 py-4 align-top">
-                                            <div className="flex flex-col gap-2">
-                                                <div>
-                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase ${ticket.status === 'OPEN' ? 'bg-red-100 text-red-700 border-red-200' : ticket.status === 'SC' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200'}`}>{ticket.status}</span>
+                                        {/* DESKRIPSI & UPDATE */}
+                                        <td className="px-6 py-4 align-top max-w-sm">
+                                            <div className="text-slate-700 text-xs line-clamp-3 mb-2" title={ticket.deskripsi}>{ticket.deskripsi}</div>
+                                            {ticket.update_progres && (
+                                                <div className="text-[10px] text-slate-600 bg-yellow-50 p-2 rounded border border-yellow-100 flex items-start gap-1">
+                                                    <span className="font-bold text-yellow-700 shrink-0">
+                                                        {ticket.status === 'CLOSED' ? 'RCA:' : 'Update:'}
+                                                    </span> 
+                                                    <span className="italic">{ticket.update_progres}</span>
                                                 </div>
-                                                {ticket.update_progres ? (
-                                                    <div className="text-[10px] text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-200 italic">
-                                                        "{ticket.update_progres}"
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-[10px] text-slate-300 italic">- Belum ada update -</span>
-                                                )}
-                                            </div>
+                                            )}
                                         </td>
                                         
+                                        {/* TEKNISI */}
                                         <td className="px-6 py-4 align-top">
                                             {ticket.technician_name ? (
                                                 <div className="flex flex-col gap-2">
@@ -335,6 +355,14 @@ export default function TicketsPage() {
                                             ) : (<span className="text-xs text-slate-400 italic">Belum assign</span>)}
                                         </td>
 
+                                        {/* STATUS */}
+                                        <td className="px-6 py-4 align-top">
+                                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold border uppercase ${ticket.status === 'OPEN' ? 'bg-red-100 text-red-700 border-red-200' : ticket.status === 'SC' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                                                {ticket.status}
+                                            </span>
+                                        </td>
+
+                                        {/* WAKTU UPDATE */}
                                         <td className="px-6 py-4 align-top">
                                             <div className="flex flex-col">
                                                 <span className="text-xs font-medium text-slate-700">{new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}</span>
@@ -342,6 +370,7 @@ export default function TicketsPage() {
                                             </div>
                                         </td>
 
+                                        {/* AKSI */}
                                         <td className="px-6 py-4 align-top text-center">
                                             <div className="flex items-center justify-center gap-1">
                                                 {userRole !== 'View' && (
@@ -361,7 +390,7 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* Pagination (Shared for Mobile & Desktop) */}
+            {/* Pagination */}
             {!loading && tickets.length > 0 && (
                 <div className="flex items-center justify-between border-t border-slate-100 px-4 py-4 bg-white md:bg-slate-50 rounded-lg md:rounded-none">
                     <span className="text-xs text-slate-500">Hal {pagination.currentPage} dari {pagination.totalPages}</span>
