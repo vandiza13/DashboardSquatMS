@@ -176,26 +176,38 @@ export default function TicketsPage() {
 
             {/* Teknisi Info */}
             <div className="border-t border-dashed border-slate-200 pt-2">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] bg-slate-100 text-blue-600 px-1.5 rounded font-bold border border-blue-200">LENSA</span>
-                    <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-slate-100 text-blue-600 px-1.5 rounded font-bold border border-blue-200">LENSA</span>
+                        <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
+                    </div>
+                    
+                    {/* Tombol WA di Mobile */}
+                    {ticket.technician_phone && (
+                        <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="ml-9 flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded w-fit border border-green-100 active:scale-95 transition-transform hover:bg-green-100 mb-1">
+                            <FaWhatsapp /> {ticket.technician_phone}
+                        </a>
+                    )}
                 </div>
-                {/* Tombol WA di Mobile */}
-                {ticket.technician_phone && (
-                    <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded w-fit border border-green-100 active:scale-95 transition-transform hover:bg-green-100 mb-1">
-                        <FaWhatsapp /> {ticket.technician_phone}
-                    </a>
-                )}
                 {ticket.partner_technicians && (
-                    <div className="text-[10px] text-slate-500 pl-9">
+                    <div className="text-[10px] text-slate-500 pl-9 mt-1">
                         <span className="font-bold text-slate-400">Support:</span> 
                         <div className="mt-0.5">{ticket.partner_technicians}</div>
                     </div>
                 )}
             </div>
 
+            {/* Last Update Info (BARU: Ditambahkan disini) */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-400">
+                <span className="flex items-center gap-1">
+                    <FaHistory /> 
+                    {new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}
+                </span>
+                <span className="italic">by {ticket.updater_name || 'System'}</span>
+            </div>
+
             {/* Actions Toolbar */}
-            <div className="flex justify-end items-center gap-2 mt-1 pt-3 border-t border-slate-100">
+            <div className="flex justify-end items-center gap-2 mt-1 pt-2">
                  {userRole !== 'View' && (
                     <button onClick={() => handleEditClick(ticket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-100">
                         <FaEdit /> Edit
