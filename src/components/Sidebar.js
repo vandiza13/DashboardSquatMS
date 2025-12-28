@@ -47,14 +47,14 @@ export default function Sidebar({ isOpen, onClose }) {
 
     return (
         <>
-            {/* OVERLAY GELAP (Hanya muncul di Mobile saat sidebar terbuka) */}
+            {/* OVERLAY GELAP (Klik untuk tutup sidebar di HP) */}
             <div 
-                className={`fixed inset-0 bg-black/50 z-30 transition-opacity duration-300 md:hidden ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+                className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 md:hidden ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
                 onClick={onClose}
             />
 
-            {/* SIDEBAR UTAMA */}
-            <aside className={`fixed left-0 top-0 z-40 h-screen w-64 bg-slate-900 text-white transition-transform duration-300 shadow-2xl border-r border-slate-800 
+            {/* SIDEBAR */}
+            <aside className={`fixed left-0 top-0 z-50 h-screen w-64 bg-slate-900 text-white transition-transform duration-300 shadow-2xl border-r border-slate-800 
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
             >
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
@@ -72,13 +72,13 @@ export default function Sidebar({ isOpen, onClose }) {
                                 </h1>
                             </div>
                         </div>
-                        {/* TOMBOL CLOSE (Hanya di Mobile) */}
-                        <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white">
-                            <FaTimes size={24} />
+                        {/* TOMBOL CLOSE (X) DI HP */}
+                        <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition">
+                            <FaTimes size={20} />
                         </button>
                     </div>
 
-                    {/* MENU NAVIGATION */}
+                    {/* MENU */}
                     <nav className="flex-1 space-y-1 px-4 overflow-y-auto custom-scrollbar">
                         <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 mt-2">Main Menu</p>
                         {menuItems.map((item) => {
@@ -87,7 +87,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    onClick={() => onClose()} // Tutup sidebar saat menu diklik (UX Mobile)
+                                    onClick={() => onClose()} // Tutup sidebar otomatis saat menu diklik
                                     className={`group relative flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-300 ${
                                         isActive
                                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 translate-x-1'
@@ -102,7 +102,7 @@ export default function Sidebar({ isOpen, onClose }) {
                         })}
                     </nav>
 
-                    {/* USER PROFILE & LOGOUT */}
+                    {/* PROFILE */}
                     <div className="p-4 m-4 rounded-2xl bg-slate-800/50 border border-slate-700 backdrop-blur-sm">
                         <Link href="/dashboard/profile" onClick={() => onClose()} className="flex items-center gap-3 mb-4 group cursor-pointer">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 text-white font-bold shadow-md group-hover:scale-105 transition-transform">
@@ -116,18 +116,9 @@ export default function Sidebar({ isOpen, onClose }) {
                             </div>
                         </Link>
 
-                        <button
-                            onClick={handleLogout}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                        >
+                        <button onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500 hover:text-white transition-all active:scale-95">
                             <FaSignOutAlt /> Logout
                         </button>
-
-                        <div className="mt-4 text-center pt-4 border-t border-slate-700/50">
-                            <p className="text-[10px] text-slate-500">
-                                Created by <a href="https://www.vandiza.my.id" target="_blank" rel="noopener noreferrer" className="text-slate-400 font-bold hover:text-blue-400 cursor-pointer transition-colors underline decoration-dotted underline-offset-2">Vandiza</a>
-                            </p>
-                        </div>
                     </div>
                 </div>
             </aside>

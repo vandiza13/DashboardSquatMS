@@ -141,19 +141,21 @@ export default function TicketsPage() {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 relative">
             {/* Header: Kategori & Status */}
             <div className="flex justify-between items-start">
-                <div>
-                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>
-                        {ticket.category} - {ticket.subcategory}
-                    </span>
-                    {ticket.sto && (
-                        <span className="ml-2 inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-100 text-slate-600">
-                            STO: {ticket.sto}
+                <div className="flex-1 min-w-0"> {/* min-w-0 penting agar flex item bisa shrink */}
+                    <div className="flex flex-wrap gap-1 mb-1">
+                        <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>
+                            {ticket.category} - {ticket.subcategory}
                         </span>
-                    )}
-                    <div className="font-bold text-slate-800 text-sm mt-1">{ticket.id_tiket}</div>
+                        {ticket.sto && (
+                            <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-100 text-slate-600">
+                                STO: {ticket.sto}
+                            </span>
+                        )}
+                    </div>
+                    <div className="font-bold text-slate-800 text-sm">{ticket.id_tiket}</div>
                     <div className="text-[10px] text-slate-400">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                 </div>
-                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold border uppercase ${ticket.status === 'OPEN' ? 'bg-red-100 text-red-700 border-red-200' : ticket.status === 'SC' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold border uppercase ${ticket.status === 'OPEN' ? 'bg-red-100 text-red-700 border-red-200' : ticket.status === 'SC' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
                     {ticket.status}
                 </span>
             </div>
@@ -170,7 +172,9 @@ export default function TicketsPage() {
                     <span className="font-semibold text-slate-500 text-[10px] uppercase">
                         {ticket.status === 'CLOSED' ? 'Root Cause (RCA):' : 'Update Progress:'}
                     </span>
-                    <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1.5 rounded border-l-2 border-yellow-300">{ticket.update_progres}</p>
+                    <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1.5 rounded border-l-2 border-yellow-300 break-words">
+                        {ticket.update_progres}
+                    </p>
                 </div>
             )}
 
@@ -178,7 +182,7 @@ export default function TicketsPage() {
             <div className="border-t border-dashed border-slate-200 pt-2">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] bg-slate-100 text-blue-600 px-1.5 rounded font-bold border border-blue-200">LENSA</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded font-bold border border-slate-200">PIC</span>
                         <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
                     </div>
                     
@@ -197,7 +201,7 @@ export default function TicketsPage() {
                 )}
             </div>
 
-            {/* Last Update Info (BARU: Ditambahkan disini) */}
+            {/* Last Update Info (Mobile) */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-400">
                 <span className="flex items-center gap-1">
                     <FaHistory /> 
@@ -226,7 +230,8 @@ export default function TicketsPage() {
     );
 
     return (
-        <div className="space-y-6 pb-24 md:pb-0"> 
+        // PERBAIKAN UTAMA: max-w-[100vw] dan overflow-x-hidden untuk mencegah scroll horizontal halaman
+        <div className="space-y-6 pb-24 md:pb-0 w-full max-w-[100vw] overflow-x-hidden"> 
             <TicketFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTickets} initialData={editingTicket} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
@@ -251,20 +256,30 @@ export default function TicketsPage() {
                 <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaCheckCircle /> CLOSED</button>
             </div>
 
-            {/* FILTERS RESPONSIVE */}
+            {/* FILTERS RESPONSIVE (DIPERBAIKI) */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-white p-4 shadow-sm border border-slate-100">
+                {/* 1. Category Tabs (Horizontal Scroll) */}
                 <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
                     {CATEGORY_TABS.map((cat) => (
                         <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${activeCategory === cat ? 'bg-slate-800 text-white shadow' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{cat}</button>
                     ))}
                 </div>
+
+                {/* 2. Date & Search (Stack di HP, Row di Tablet+) */}
                 <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
-                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
-                        <FaCalendarAlt className="text-slate-400 text-xs" />
-                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-xs text-slate-600 focus:outline-none w-full" />
-                        <span className="text-slate-300">-</span>
-                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs text-slate-600 focus:outline-none w-full" />
+                    {/* Date Picker: Di HP jadi Vertical (flex-col), di md jadi Row */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
+                        <div className="flex items-center gap-2">
+                            <FaCalendarAlt className="text-slate-400 text-xs hidden sm:block" />
+                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-xs text-slate-600 focus:outline-none w-full sm:w-auto p-1" />
+                        </div>
+                        <span className="text-slate-300 hidden sm:block">-</span>
+                        <div className="flex items-center gap-2 border-t sm:border-t-0 border-slate-200 pt-1 sm:pt-0">
+                             <span className="text-[10px] text-slate-400 sm:hidden">Sampai:</span>
+                             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs text-slate-600 focus:outline-none w-full sm:w-auto p-1" />
+                        </div>
                     </div>
+
                     <div className="relative w-full md:w-auto">
                         <FaSearch className="absolute left-3 top-2.5 text-slate-400 text-xs" />
                         <input type="text" placeholder="Cari ID / Deskripsi..." className="w-full md:w-48 rounded-lg border border-slate-200 pl-9 pr-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -329,7 +344,7 @@ export default function TicketsPage() {
                                             {ticket.update_progres && (
                                                 <div className="text-[10px] text-slate-600 bg-yellow-50 p-2 rounded border border-yellow-100 flex items-start gap-1">
                                                     <span className="font-bold text-yellow-700 shrink-0">
-                                                        {ticket.status === 'CLOSED' ? 'RCA:' : 'Update:'}
+                                                        {ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}
                                                     </span> 
                                                     <span className="italic">{ticket.update_progres}</span>
                                                 </div>
