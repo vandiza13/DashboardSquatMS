@@ -4,18 +4,17 @@ export async function appendTicketToSheet(ticketData) {
     try {
         console.log("🛠️ [GSheet] Memulai proses input...");
 
-        // 1. SETUP AUTH (Aman untuk Vercel)
+        // 1. SETUP AUTH (VERCEL COMPATIBLE)
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                // Handle newlines di Private Key Vercel
+                // Handle newlines untuk Private Key di Vercel
                 private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
         const sheets = google.sheets({ version: 'v4', auth });
-        // Gunakan Env Var atau Fallback ID
         const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '19OIHJz9U0KsCpeNcy0faoOuQzIvu6ChsZ4CpZQqOTCw';
 
         // Destructure Data
@@ -25,8 +24,6 @@ export async function appendTicketToSheet(ticketData) {
         // 2. TENTUKAN NAMA SHEET (TAB)
         // ==========================================================
         let sheetName = '';
-
-        // Hapus filter 'if (category !== SQUAT)' agar kategori lain bisa masuk
 
         if (category === 'SQUAT') {
             if (subcategory === 'TSEL') sheetName = 'TSEL';
@@ -39,34 +36,52 @@ export async function appendTicketToSheet(ticketData) {
             sheetName = 'UMT';
         } 
         else if (category === 'CENTRATAMA') {
-            // Centratama (Sub FSI) masuk ke sheet 'FSI'
-            // Jika nanti ada sub lain, sesuaikan di sini. Default ke FSI.
+            // Masuk ke sheet FSI (Subkategori FSI atau default)
             sheetName = 'FSI'; 
         }
 
-        // Validasi: Jika sheetName tidak ditemukan (misal kategori tidak dikenal)
+        // Validasi: Jika sheetName tidak ditemukan
         if (!sheetName) {
-            console.log(`⚠️ [GSheet] Skip: Kategori ${category} - ${subcategory} tidak punya Sheet tujuan.`);
+            console.log(`⚠️ [GSheet] Skip: Kategori ${category} tidak punya Sheet tujuan.`);
             return false;
         }
 
         // ==========================================================
-        // 3. CEK BARIS KOSONG
+        // 3. LOGIKA NOMOR URUT OTOMATIS (FIX)
         // ==========================================================
-        // Cek kolom B (ID TIKET) untuk mencari baris kosong terakhir
-        const response = await sheets.spreadsheets.values.get({
+        
+        // A. Cek Baris Kosong Berdasarkan Kolom B (ID Tiket)
+        // Kita pakai kolom B untuk menentukan di baris mana kita akan MENULIS (nextRow)
+        const responseB = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!B:B`,
         });
+        const rowsB = responseB.data.values || [];
+        const nextRow = rowsB.length + 1;
 
-        const rows = response.data.values || [];
-        const nextRow = rows.length + 1;
+        // B. Cek Nomor Terakhir di Kolom A (No)
+        // Kita baca Kolom A untuk menentukan ANGKA NOMOR URUT (agar continue)
+        const responseA = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A:A`,
+        });
+        const rowsA = responseA.data.values || [];
         
-        // Nomor Urut: 
-        // Asumsi data mulai baris 5 (Header di baris 4), maka Nomor 1 adalah Baris 5.
-        // Rumus: Baris Target - 4
-        // (Sesuaikan angka 4 ini jika ternyata nomor urutnya meleset)
-        const nomorUrut = nextRow - 4; 
+        let lastNumber = 0;
+        // Loop dari bawah ke atas untuk mencari angka valid terakhir
+        // Ini berguna jika baris terakhir ternyata kosong di kolom A atau berisi footer
+        for (let i = rowsA.length - 1; i >= 0; i--) {
+            const val = rowsA[i][0];
+            // Cek apakah nilai tersebut angka valid
+            if (val && !isNaN(parseInt(val))) {
+                lastNumber = parseInt(val);
+                break; // Ketemu angka terakhir, stop loop
+            }
+        }
+        
+        // Nomor Urut Baru = Angka Terakhir + 1
+        const nomorUrut = lastNumber + 1;
+
 
         // 4. FORMAT WAKTU (WIB)
         const formatDate = (dateString) => {
@@ -81,48 +96,46 @@ export async function appendTicketToSheet(ticketData) {
         };
 
         // ==========================================================
-        // 5. MAPPING DATA (SUSUN KOLOM SESUAI REAL SHEET)
+        // 5. MAPPING DATA (SUSUN KOLOM)
         // ==========================================================
         let rowValues = [];
 
         if (sheetName === 'TSEL') {
-            // Sheet TSEL: A=NO, B=ID, C=Desc, D=STO ... I=Start, J=Close ... N=Status
+            // Sheet TSEL: A=NO, B=ID, C=Desc, D=STO ... I=Start, J=Close
             rowValues = [
                 nomorUrut, id_tiket, deskripsi, sto || '', 
-                '', '', '', '', // E-H Kosong (Prio, Gamas, Material, Gaul)
+                '', '', '', '', // E-H Kosong
                 formatDate(tiket_time), formatDate(close_time), 
                 '', '', technician_full, 'CLOSED', root_cause, ''
             ];
         
         } else if (sheetName === 'OLO') {
-            // Sheet OLO: A=NO, B=ID, C=Desc, D=STO ... G=Start, H=Close ... L=Status
+            // Sheet OLO: A=NO, B=ID, C=Desc, D=STO ... G=Start, H=Close
             rowValues = [
                 nomorUrut, id_tiket, deskripsi, sto || '', 
-                '', '', // E-F Kosong (Gamas, Gaul)
+                '', '', // E-F Kosong
                 formatDate(tiket_time), formatDate(close_time), 
                 '', '', technician_full, 'CLOSED', root_cause, ''
             ];
 
         } else if (sheetName === 'MTEL') {
-            // Sheet MTEL: 
-            // A=NO, B=ID, C=Desc, D=TTR(Empty), E=JENIS TIKET, F=Start, G=Close, H=Status, I=Teknisi, J=Root, K=Action
+            // Sheet MTEL: E=JENIS TIKET
             rowValues = [
                 nomorUrut,              // A
                 id_tiket,               // B
                 deskripsi,              // C
-                '',                     // D: TTR JAM (Dikosongkan)
+                '',                     // D: TTR JAM (Kosong)
                 subcategory || '',      // E: JENIS TIKET (TIS/MMP/FIBERISASI)
                 formatDate(tiket_time), // F
                 formatDate(close_time), // G
-                'CLOSED',               // H: STATUS TIKET
+                'CLOSED',               // H: STATUS
                 technician_full,        // I: TEKNISI
                 root_cause,             // J: ROOT CAUSE
                 ''                      // K: ACTION
             ];
 
         } else if (sheetName === 'UMT' || sheetName === 'FSI') {
-            // Sheet UMT & FSI (Centratama):
-            // A=NO, B=ID, C=Desc, D=TTR(Empty), E=Start, F=Close, G=Status, H=Teknisi, I=Root, J=Action
+            // Sheet UMT & FSI: Standard
             rowValues = [
                 nomorUrut,              // A
                 id_tiket,               // B
@@ -130,7 +143,7 @@ export async function appendTicketToSheet(ticketData) {
                 '',                     // D: TTR JAM
                 formatDate(tiket_time), // E
                 formatDate(close_time), // F
-                'CLOSED',               // G: STATUS TIKET
+                'CLOSED',               // G: STATUS
                 technician_full,        // H: TEKNISI
                 root_cause,             // I: ROOT CAUSE
                 ''                      // J: ACTION
@@ -145,7 +158,7 @@ export async function appendTicketToSheet(ticketData) {
             requestBody: { values: [rowValues] },
         });
 
-        console.log(`✅ [GSheet] SUKSES input ${id_tiket} ke Tab ${sheetName}`);
+        console.log(`✅ [GSheet] SUKSES input ${id_tiket} ke Tab ${sheetName} (No. ${nomorUrut})`);
         return true;
 
     } catch (error) {
