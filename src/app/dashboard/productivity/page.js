@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { 
-    FaChartLine, FaTrophy, FaSpinner, FaMedal, FaTicketAlt, FaFilter, FaCalendarAlt 
+    FaChartLine, FaTrophy, FaMedal, FaTicketAlt, FaFilter, FaTimes, FaExternalLinkAlt, 
+    FaCalendarAlt, FaUserCircle, FaClock 
 } from 'react-icons/fa';
 import { 
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement 
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import Link from 'next/link';
 
 // Registrasi Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -20,6 +22,13 @@ const CATEGORY_COLORS = {
     SQUAT: '#EF4444',      // Merah
 };
 
+const CATEGORY_BG_COLORS = {
+    MTEL: 'bg-blue-50 text-blue-700 border-blue-200',
+    UMT: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    CENTRATAMA: 'bg-green-50 text-green-700 border-green-200',
+    SQUAT: 'bg-red-50 text-red-700 border-red-200',
+};
+
 export default function ProductivityPage() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,6 +37,14 @@ export default function ProductivityPage() {
     const currentDate = new Date();
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); 
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());    
+
+    // --- STATE MODAL DETAIL ---
+    const [showModal, setShowModal] = useState(false);
+    const [modalLoading, setModalLoading] = useState(false);
+    const [ticketDetails, setTicketDetails] = useState([]);
+    const [selectedTechName, setSelectedTechName] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedNik, setSelectedNik] = useState('');
 
     const months = [
         { value: 1, label: 'Januari' }, { value: 2, label: 'Februari' }, { value: 3, label: 'Maret' },
@@ -38,7 +55,7 @@ export default function ProductivityPage() {
 
     const years = [currentDate.getFullYear(), currentDate.getFullYear() - 1, currentDate.getFullYear() - 2];
 
-    // --- FETCH DATA ---
+    // --- FETCH DATA UTAMA ---
     useEffect(() => {
         setLoading(true);
         fetch(`/api/productivity?month=${selectedMonth}&year=${selectedYear}`)
@@ -57,6 +74,30 @@ export default function ProductivityPage() {
             });
     }, [selectedMonth, selectedYear]); 
 
+    // --- FUNGSI KLIK ANGKA (FETCH DETAIL) ---
+    const handleNumberClick = async (nik, name, category, count) => {
+        if (count === 0) return;
+
+        setSelectedTechName(name);
+        setSelectedCategory(category);
+        setSelectedNik(nik);
+        setShowModal(true);
+        setModalLoading(true);
+        setTicketDetails([]); 
+
+        try {
+            const res = await fetch(`/api/productivity/details?nik=${nik}&month=${selectedMonth}&year=${selectedYear}&category=${category}`);
+            const result = await res.json();
+            if (Array.isArray(result)) {
+                setTicketDetails(result);
+            }
+        } catch (error) {
+            console.error("Gagal ambil detail:", error);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
     // --- LOGIC PERHITUNGAN CHART ---
     const chartData = useMemo(() => {
         if (!data.length) return null;
@@ -64,41 +105,20 @@ export default function ProductivityPage() {
         const topTechs = data.slice(0, 10); 
         const barLabels = topTechs.map(t => t.name.split(' ')[0]); 
         
-        // Stacked Bar Dataset
         const stackedBarDatasets = [
-            {
-                label: 'MTEL',
-                data: topTechs.map(t => t.mtel),
-                backgroundColor: CATEGORY_COLORS.MTEL,
-            },
-            {
-                label: 'UMT',
-                data: topTechs.map(t => t.umt),
-                backgroundColor: CATEGORY_COLORS.UMT,
-            },
-            {
-                label: 'CENTRATAMA',
-                data: topTechs.map(t => t.centratama),
-                backgroundColor: CATEGORY_COLORS.CENTRATAMA,
-            },
-            {
-                label: 'SQUAT',
-                data: topTechs.map(t => t.squat),
-                backgroundColor: CATEGORY_COLORS.SQUAT,
-            },
+            { label: 'MTEL', data: topTechs.map(t => t.mtel), backgroundColor: CATEGORY_COLORS.MTEL },
+            { label: 'UMT', data: topTechs.map(t => t.umt), backgroundColor: CATEGORY_COLORS.UMT },
+            { label: 'CENTRATAMA', data: topTechs.map(t => t.centratama), backgroundColor: CATEGORY_COLORS.CENTRATAMA },
+            { label: 'SQUAT', data: topTechs.map(t => t.squat), backgroundColor: CATEGORY_COLORS.SQUAT },
         ];
 
-        // Donut Data
         const totalMtel = data.reduce((acc, curr) => acc + parseInt(curr.mtel), 0);
         const totalUmt = data.reduce((acc, curr) => acc + parseInt(curr.umt), 0);
         const totalCentratama = data.reduce((acc, curr) => acc + parseInt(curr.centratama), 0);
         const totalSquat = data.reduce((acc, curr) => acc + parseInt(curr.squat), 0);
 
         return {
-            bar: {
-                labels: barLabels,
-                datasets: stackedBarDatasets, 
-            },
+            bar: { labels: barLabels, datasets: stackedBarDatasets },
             donut: {
                 labels: ['MTEL', 'UMT', 'CENTRATAMA', 'SQUAT'],
                 datasets: [{
@@ -113,28 +133,40 @@ export default function ProductivityPage() {
         };
     }, [data]);
 
-    const getTrophyColor = (index) => {
-        if (index === 0) return 'text-yellow-400 drop-shadow-sm'; 
-        if (index === 1) return 'text-slate-400 drop-shadow-sm';   
-        if (index === 2) return 'text-amber-700 drop-shadow-sm';  
-        return null;
-    };
-
     const stackedBarOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-            x: { stacked: true }, 
-            y: { stacked: true }  
-        },
-        plugins: {
-            legend: { display: true, position: 'top' } 
-        }
+        scales: { x: { stacked: true }, y: { stacked: true } },
+        plugins: { legend: { display: true, position: 'top' } }
+    };
+
+    // Helper: Formatter Tanggal Cantik (12 Jan • 14:30)
+    const formatDateTime = (dateString) => {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('id-ID', {
+            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+        }).format(date).replace('.', ':'); // Ubah pemisah jam titik jadi titik dua jika perlu
+    };
+
+    const ClickableCount = ({ count, nik, name, category, color }) => {
+        if (count <= 0) return <span className="text-slate-300 font-normal">-</span>;
+        
+        return (
+            <button 
+                onClick={() => handleNumberClick(nik, name, category, count)}
+                className="font-bold hover:underline hover:scale-110 transition-transform cursor-pointer focus:outline-none"
+                style={{ color: color || 'inherit' }}
+                title="Klik untuk lihat detail"
+            >
+                {count}
+            </button>
+        );
     };
 
     return (
-        <div className="space-y-8 pb-20 md:pb-10 animate-fade-in">
-            {/* --- HEADER & FILTER (RESPONSIVE) --- */}
+        <div className="space-y-8 pb-20 md:pb-10 animate-fade-in relative">
+            {/* --- HEADER & FILTER --- */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">Produktifitas Tim</h2>
@@ -175,23 +207,16 @@ export default function ProductivityPage() {
                     {/* --- SUMMARY CARDS --- */}
                     {chartData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {/* Card Total */}
                             <div className="flex items-center gap-4 rounded-xl bg-white p-5 shadow-sm border border-slate-100 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 p-3 opacity-5">
-                                    <FaTicketAlt className="text-6xl" />
-                                </div>
+                                <div className="absolute right-0 top-0 p-3 opacity-5"><FaTicketAlt className="text-6xl" /></div>
                                 <div className="rounded-full bg-blue-50 p-3 text-blue-600 relative z-10"><FaTicketAlt size={20} /></div>
                                 <div className="relative z-10">
                                     <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Total Closed</p>
                                     <h3 className="text-3xl font-extrabold text-slate-800">{chartData.grandTotal}</h3>
                                 </div>
                             </div>
-
-                            {/* Card Top Performer */}
                             <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 p-5 shadow-lg shadow-amber-200 text-white col-span-1 md:col-span-2 lg:col-span-1 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 p-3 opacity-10">
-                                    <FaMedal className="text-6xl transform rotate-12" />
-                                </div>
+                                <div className="absolute right-0 top-0 p-3 opacity-10"><FaMedal className="text-6xl transform rotate-12" /></div>
                                 <div className="rounded-full bg-white/20 p-3 relative z-10"><FaMedal size={20} /></div>
                                 <div className="relative z-10 overflow-hidden">
                                     <p className="text-xs text-white/90 uppercase font-bold tracking-wider">Top Performer</p>
@@ -202,9 +227,8 @@ export default function ProductivityPage() {
                         </div>
                     )}
 
-                    {/* --- SECTION 1: GRAFIK (Grid 1 di HP, 3 di Desktop) --- */}
+                    {/* --- CHARTS --- */}
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        {/* Grafik Batang */}
                         <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-2">
                             <h3 className="mb-6 text-base font-bold text-slate-800 flex items-center gap-2">
                                 <FaChartLine className="text-blue-500"/> Top 10 Teknisi ({months[selectedMonth-1].label})
@@ -219,8 +243,6 @@ export default function ProductivityPage() {
                                 )}
                             </div>
                         </div>
-
-                        {/* Grafik Donut */}
                         <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
                             <h3 className="mb-6 text-base font-bold text-slate-800 text-center">Share Kategori</h3>
                             <div className="h-64 flex items-center justify-center relative">
@@ -241,13 +263,13 @@ export default function ProductivityPage() {
                         </div>
                     </div>
 
-                    {/* --- SECTION 2: TABEL DETAIL (RESPONSIVE SCROLL) --- */}
+                    {/* --- TABEL --- */}
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm mt-8">
                         <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
                             <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><FaTrophy /></div>
                             <div>
                                 <h3 className="font-bold text-slate-800 text-sm md:text-base">Leaderboard Teknisi</h3>
-                                <p className="text-xs text-slate-500 hidden md:block">Rincian detail pencapaian per kategori</p>
+                                <p className="text-xs text-slate-500 hidden md:block">Klik angka untuk melihat detail tiket</p>
                             </div>
                         </div>
 
@@ -271,33 +293,34 @@ export default function ProductivityPage() {
                                         data.map((item, index) => (
                                             <tr key={item.nik} className="hover:bg-slate-50 transition-colors group">
                                                 <td className="px-6 py-4 text-center font-bold text-slate-500">{index + 1}</td>
-                                                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 md:static border-r border-slate-100 md:border-none shadow-sm md:shadow-none">
+                                                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 md:static border-r border-slate-100 md:border-none">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs transition-all ${index < 3 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${index < 3 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                                                             {index < 3 ? <FaMedal /> : item.name.charAt(0)}
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-bold text-slate-700 text-xs md:text-sm">{item.name}</span>
-                                                            </div>
+                                                            <span className="font-bold text-slate-700 text-xs md:text-sm">{item.name}</span>
                                                             <span className="text-[10px] text-slate-400 font-mono">{item.nik}</span>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-bold" style={{ color: CATEGORY_COLORS.MTEL }}>
-                                                    {item.mtel > 0 ? item.mtel : <span className="text-slate-300 font-normal">-</span>}
-                                                </td>
-                                                <td className="px-6 py-4 text-center font-bold" style={{ color: CATEGORY_COLORS.UMT }}>
-                                                    {item.umt > 0 ? item.umt : <span className="text-slate-300 font-normal">-</span>}
-                                                </td>
-                                                <td className="px-6 py-4 text-center font-bold" style={{ color: CATEGORY_COLORS.CENTRATAMA }}>
-                                                    {item.centratama > 0 ? item.centratama : <span className="text-slate-300 font-normal">-</span>}
-                                                </td>
-                                                <td className="px-6 py-4 text-center font-bold" style={{ color: CATEGORY_COLORS.SQUAT }}>
-                                                    {item.squat > 0 ? item.squat : <span className="text-slate-300 font-normal">-</span>}
+                                                <td className="px-6 py-4 text-center">
+                                                    <ClickableCount count={item.mtel} nik={item.nik} name={item.name} category="MTEL" color={CATEGORY_COLORS.MTEL} />
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <div className="mx-auto flex h-6 w-10 items-center justify-center rounded bg-slate-800 text-xs font-bold text-white shadow-sm">{item.total}</div>
+                                                    <ClickableCount count={item.umt} nik={item.nik} name={item.name} category="UMT" color={CATEGORY_COLORS.UMT} />
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <ClickableCount count={item.centratama} nik={item.nik} name={item.name} category="CENTRATAMA" color={CATEGORY_COLORS.CENTRATAMA} />
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <ClickableCount count={item.squat} nik={item.nik} name={item.name} category="SQUAT" color={CATEGORY_COLORS.SQUAT} />
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <div className="mx-auto flex h-6 w-10 items-center justify-center rounded bg-slate-800 text-xs font-bold text-white shadow-sm cursor-pointer hover:bg-slate-700 hover:scale-105 transition-transform"
+                                                         onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', item.total)}>
+                                                        {item.total}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -307,6 +330,127 @@ export default function ProductivityPage() {
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* --- MODAL DETAIL TIKET (REDESIGNED) --- */}
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div 
+                        className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-scale-up overflow-hidden"
+                        onClick={(e) => e.stopPropagation()} // Prevent close on modal click
+                    >
+                        {/* 1. HEADER */}
+                        <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-start sticky top-0 z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border-2 border-white shadow-sm">
+                                    <FaUserCircle size={28} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-slate-800 leading-tight">Detail Pekerjaan</h3>
+                                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1">
+                                        <span className="text-sm font-semibold text-slate-700">{selectedTechName}</span>
+                                        <span className="text-slate-300 text-xs">•</span>
+                                        <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{selectedNik}</span>
+                                        <span className="text-slate-300 text-xs">•</span>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${selectedCategory === 'TOTAL' ? 'bg-slate-800 text-white border-transparent' : CATEGORY_BG_COLORS[selectedCategory] || 'bg-slate-100'}`}>
+                                            {selectedCategory}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowModal(false)} 
+                                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-all duration-200"
+                                title="Tutup Modal"
+                            >
+                                <FaTimes size={18} />
+                            </button>
+                        </div>
+
+                        {/* 2. CONTENT LIST */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+                            {modalLoading ? (
+                                <div className="py-24 flex flex-col items-center justify-center gap-3">
+                                    <FaTicketAlt className="animate-bounce text-blue-200 text-5xl" />
+                                    <span className="text-sm font-medium text-slate-400 animate-pulse">Memuat riwayat pekerjaan...</span>
+                                </div>
+                            ) : ticketDetails.length === 0 ? (
+                                <div className="py-20 text-center flex flex-col items-center justify-center gap-2">
+                                    <div className="bg-slate-100 p-4 rounded-full text-slate-300 mb-2"><FaFilter size={24} /></div>
+                                    <p className="text-slate-500 font-medium">Tidak ada data tiket.</p>
+                                    <p className="text-xs text-slate-400 max-w-xs mx-auto">Pastikan filter periode sudah benar atau cek status tiket teknisi ini.</p>
+                                </div>
+                            ) : (
+                                <div className="bg-white min-h-full">
+                                    {ticketDetails.map((ticket, i) => (
+                                        <div 
+                                            key={ticket.id} 
+                                            className="group relative flex items-start gap-4 p-5 border-b border-slate-50 hover:bg-blue-50/30 transition-all duration-200"
+                                        >
+                                            {/* Bar warna indikator kategori di kiri */}
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                                                ticket.category === 'MTEL' ? 'bg-blue-500' :
+                                                ticket.category === 'UMT' ? 'bg-yellow-500' :
+                                                ticket.category === 'CENTRATAMA' ? 'bg-green-500' : 'bg-red-500'
+                                            } opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+
+                                            {/* Nomor Urut */}
+                                            <div className="flex flex-col items-center gap-1 min-w-[24px] pt-1">
+                                                <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500 font-medium transition-colors">
+                                                    {(i + 1).toString().padStart(2, '0')}
+                                                </span>
+                                            </div>
+
+                                            {/* Konten Utama */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center flex-wrap gap-2 mb-1.5">
+                                                    {/* Badge Kategori Kecil */}
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${CATEGORY_BG_COLORS[ticket.category] || 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                                                        {ticket.category}
+                                                    </span>
+                                                    {/* Nomor Tiket */}
+                                                    <span className="text-xs font-mono text-slate-400 tracking-wide">
+                                                        #{ticket.ticket_number}
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Subject */}
+                                                <h4 className="text-sm font-semibold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-blue-700 transition-colors">
+                                                    {ticket.subject}
+                                                </h4>
+
+                                                {/* Tanggal */}
+                                                <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 w-fit px-2 py-1 rounded">
+                                                    <FaCalendarAlt size={10} className="text-slate-300" />
+                                                    <span className="font-medium">{formatDateTime(ticket.last_update_time).split('•')[0]}</span>
+                                                    <span className="text-slate-300">|</span>
+                                                    <FaClock size={10} className="text-slate-300" />
+                                                    <span>{formatDateTime(ticket.last_update_time).split('•')[1] || formatDateTime(ticket.last_update_time).split(' ')[3] || ''}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Tombol Aksi */}
+                                            <Link 
+                                                href={`/dashboard/tickets/${ticket.id}`} 
+                                                target="_blank" 
+                                                className="mt-1 p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+                                                title="Buka detail tiket di tab baru"
+                                            >
+                                                <FaExternalLinkAlt size={14} />
+                                            </Link>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* 3. FOOTER */}
+                        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
+                            <span>Periode: <b>{months[selectedMonth-1].label} {selectedYear}</b></span>
+                            <span>Total: <b>{ticketDetails.length}</b> tiket</span>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
