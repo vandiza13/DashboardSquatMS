@@ -41,10 +41,10 @@ export default function Sidebar({ isOpen, onClose }) {
     // --- MENU 2: DASHBOARD TACC ---
     const taccItems = [
         { name: 'VIRTUAL TACC', href: 'https://virtual.tacc.id/login' },
-        { name: 'UMT TACC', href: 'https://virtual.tacc.id/login' },
-        { name: 'MTEL TACC', href: 'https://virtual.tacc.id/login' },
-        { name: 'CENTRATAMA TACC', href: 'https://virtual.tacc.id/login' },
-        { name: 'NODE-B TACC', href: 'https://virtual.tacc.id/login' },
+        { name: 'UMT TACC', href: 'https://umt.tacc.id/login' },
+        { name: 'MTEL TACC', href: 'https://mtel.tacc.id/login' },
+        { name: 'CENTRATAMA TACC', href: 'https://centratama.tacc.id/login' },
+        { name: 'NODE-B TACC', href: 'https://nodeb.tacc.id/login' },
     ];
 
     return (
