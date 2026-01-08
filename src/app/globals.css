@@ -25,3 +25,20 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Animasi Running Text yang Elegan */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  /* UBAH DI SINI: Ganti 30s menjadi 80s atau 100s */
+  animation: marquee 80s linear infinite; 
+}
+
+/* Efek Pause saat mouse diarahkan */
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

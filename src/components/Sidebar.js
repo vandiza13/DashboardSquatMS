@@ -1,18 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { 
-    FaHome, FaTicketAlt, FaUsers, FaChartLine, FaSignOutAlt, FaUserCircle, FaUserCog, FaBuilding, FaTimes 
+    FaHome, FaTicketAlt, FaUsers, FaChartLine, 
+    FaUserCog, FaBuilding, FaTimes, 
+    FaDesktop, FaChevronDown, FaChevronRight, FaNetworkWired, FaExternalLinkAlt 
 } from 'react-icons/fa';
 
 export default function Sidebar({ isOpen, onClose }) {
     const pathname = usePathname();
-    const router = useRouter();
-    
     const [user, setUser] = useState({ username: 'Loading...', role: '' });
+    const [isTaccOpen, setIsTaccOpen] = useState(false);
 
+    // Kita tetap butuh fetch user hanya untuk cek Role (Admin/Bukan)
     useEffect(() => {
         fetch('/api/me')
             .then(res => res.json())
@@ -20,16 +22,7 @@ export default function Sidebar({ isOpen, onClose }) {
             .catch(() => setUser({ username: 'Guest', role: '' }));
     }, []);
 
-    const handleLogout = async () => {
-        try {
-            await fetch('/api/logout', { method: 'POST' });
-            router.push('/login'); 
-            router.refresh(); 
-        } catch (error) {
-            console.error('Logout error', error);
-        }
-    };
-
+    // --- MENU 1: NAVIGATION INTERNAL ---
     const menuItems = [
         { name: 'Dashboard', href: '/dashboard', icon: FaHome },
         { name: 'Manajemen Tiket', href: '/dashboard/tickets', icon: FaTicketAlt },
@@ -45,9 +38,18 @@ export default function Sidebar({ isOpen, onClose }) {
         });
     }
 
+    // --- MENU 2: DASHBOARD TACC ---
+    const taccItems = [
+        { name: 'VIRTUAL TACC', href: 'https://virtual.tacc.id/login' },
+        { name: 'UMT TACC', href: 'https://virtual.tacc.id/login' },
+        { name: 'MTEL TACC', href: 'https://virtual.tacc.id/login' },
+        { name: 'CENTRATAMA TACC', href: 'https://virtual.tacc.id/login' },
+        { name: 'NODE-B TACC', href: 'https://virtual.tacc.id/login' },
+    ];
+
     return (
         <>
-            {/* OVERLAY GELAP (Klik untuk tutup sidebar di HP) */}
+            {/* OVERLAY GELAP (Mobile) */}
             <div 
                 className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 md:hidden ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
                 onClick={onClose}
@@ -55,71 +57,89 @@ export default function Sidebar({ isOpen, onClose }) {
 
             {/* SIDEBAR */}
             <aside className={`fixed left-0 top-0 z-50 h-screen w-64 bg-slate-900 text-white transition-transform duration-300 shadow-2xl border-r border-slate-800 
-                ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+                ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}
             >
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
-
-                <div className="flex h-full flex-col relative z-10">
-                    {/* LOGO AREA */}
-                    <div className="flex items-center justify-between px-6 py-6 mb-2">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-xl font-bold text-white shadow-lg shadow-blue-500/30">
-                                <FaBuilding />
-                            </div>
-                            <div>
-                                <h1 className="text-lg font-bold tracking-wide text-white leading-tight">
-                                    DASHBOARD <br/><span className="text-blue-400 font-extrabold text-sm tracking-wider">SQUAT & MS</span>
-                                </h1>
-                            </div>
+                {/* LOGO HEADER */}
+                <div className="flex h-16 items-center justify-between px-6 bg-slate-900 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+                            <FaBuilding size={14} />
                         </div>
-                        {/* TOMBOL CLOSE (X) DI HP */}
-                        <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition">
-                            <FaTimes size={20} />
-                        </button>
+                        <h1 className="text-sm font-bold tracking-wide text-white leading-tight">
+                            DASHBOARD <br/><span className="text-blue-400 font-extrabold text-[10px] tracking-widest">SQUAT & MS</span>
+                        </h1>
                     </div>
+                    <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white">
+                        <FaTimes />
+                    </button>
+                </div>
 
-                    {/* MENU */}
-                    <nav className="flex-1 space-y-1 px-4 overflow-y-auto custom-scrollbar">
-                        <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 mt-2">Main Menu</p>
-                        {menuItems.map((item) => {
-                            const isActive = pathname === item.href;
-                            return (
-                                <Link
+                {/* SCROLLABLE MENU */}
+                <nav className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-1">
+                    
+                    {/* Main Menu */}
+                    <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-2">Menu Utama</p>
+                    {menuItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                onClick={() => onClose()}
+                                className={`group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 ${
+                                    isActive
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 translate-x-1'
+                                        : 'text-slate-400 hover:bg-slate-800 hover:text-white hover:translate-x-1'
+                                }`}
+                            >
+                                <item.icon className={`text-lg transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                                {item.name}
+                            </Link>
+                        );
+                    })}
+
+                    {/* External Menu TACC */}
+                    <div className="my-4 border-t border-slate-800 mx-2"></div>
+                    <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Eksternal Link</p>
+                    
+                    <button 
+                        onClick={() => setIsTaccOpen(!isTaccOpen)}
+                        className={`w-full group relative flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 
+                            ${isTaccOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <FaDesktop className={`text-lg transition-colors ${isTaccOpen ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                            <span>Dashboard TACC</span>
+                        </div>
+                        {isTaccOpen ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />}
+                    </button>
+
+                    {isTaccOpen && (
+                        <div className="mt-1 space-y-1 pl-4 relative">
+                            <div className="absolute left-6 top-0 bottom-0 w-[1px] bg-slate-800"></div>
+                            {taccItems.map((item) => (
+                                <a
                                     key={item.name}
                                     href={item.href}
-                                    onClick={() => onClose()} // Tutup sidebar otomatis saat menu diklik
-                                    className={`group relative flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-300 ${
-                                        isActive
-                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 translate-x-1'
-                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white hover:translate-x-1'
-                                    }`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => onClose()}
+                                    className="relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200"
                                 >
-                                    {isActive && <div className="absolute left-0 h-6 w-1 rounded-r-full bg-white/30" />}
-                                    <item.icon className={`text-lg transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                                    <FaNetworkWired className="text-slate-600" size={10} />
                                     {item.name}
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                                    <FaExternalLinkAlt className="ml-auto opacity-30 text-[9px]" />
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                </nav>
 
-                    {/* PROFILE */}
-                    <div className="p-4 m-4 rounded-2xl bg-slate-800/50 border border-slate-700 backdrop-blur-sm">
-                        <Link href="/dashboard/profile" onClick={() => onClose()} className="flex items-center gap-3 mb-4 group cursor-pointer">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 text-white font-bold shadow-md group-hover:scale-105 transition-transform">
-                                <FaUserCircle />
-                            </div>
-                            <div className="overflow-hidden">
-                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Login as :</p>
-                                <p className="truncate text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
-                                    {user.username}
-                                </p>
-                            </div>
-                        </Link>
-
-                        <button onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500 hover:text-white transition-all active:scale-95">
-                            <FaSignOutAlt /> Logout
-                        </button>
-                    </div>
+                {/* FOOTER SIDEBAR (Hanya teks copyright kecil agar tidak kosong melompong) */}
+                <div className="p-4 border-t border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-600">
+                        &copy; 2026 Dashboard SQUAT & MS <br/>v2.0.0
+                    </p>
                 </div>
             </aside>
         </>
