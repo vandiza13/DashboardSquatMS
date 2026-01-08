@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
     FaChartLine, FaTrophy, FaMedal, FaTicketAlt, FaFilter, FaTimes, FaExternalLinkAlt, 
-    FaCalendarAlt, FaUserCircle, FaClock 
+    FaCalendarAlt, FaUserCircle, FaClock, FaSearch 
 } from 'react-icons/fa';
 import { 
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement 
@@ -33,10 +33,11 @@ export default function ProductivityPage() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // --- STATE FILTER PERIODE ---
+    // --- STATE FILTER & SEARCH ---
     const currentDate = new Date();
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); 
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());    
+    const [searchTerm, setSearchTerm] = useState(''); // <--- State Pencarian Baru
 
     // --- STATE MODAL DETAIL ---
     const [showModal, setShowModal] = useState(false);
@@ -74,6 +75,16 @@ export default function ProductivityPage() {
             });
     }, [selectedMonth, selectedYear]); 
 
+    // --- FILTER DATA SEARCH (Real-time) ---
+    // Kita filter data hanya untuk Tabel, agar Chart tetap menampilkan statistik Global
+    const filteredData = useMemo(() => {
+        if (!searchTerm) return data;
+        return data.filter(item => 
+            item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.nik.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [data, searchTerm]);
+
     // --- FUNGSI KLIK ANGKA (FETCH DETAIL) ---
     const handleNumberClick = async (nik, name, category, count) => {
         if (count === 0) return;
@@ -98,7 +109,7 @@ export default function ProductivityPage() {
         }
     };
 
-    // --- LOGIC PERHITUNGAN CHART ---
+    // --- LOGIC PERHITUNGAN CHART (Tetap pakai 'data' asli agar chart tidak berubah saat search) ---
     const chartData = useMemo(() => {
         if (!data.length) return null;
 
@@ -140,13 +151,12 @@ export default function ProductivityPage() {
         plugins: { legend: { display: true, position: 'top' } }
     };
 
-    // Helper: Formatter Tanggal Cantik (12 Jan • 14:30)
     const formatDateTime = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
         return new Intl.DateTimeFormat('id-ID', {
             day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-        }).format(date).replace('.', ':'); // Ubah pemisah jam titik jadi titik dua jika perlu
+        }).format(date).replace('.', ':');
     };
 
     const ClickableCount = ({ count, nik, name, category, color }) => {
@@ -175,23 +185,39 @@ export default function ProductivityPage() {
                     </p>
                 </div>
                 
-                <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
-                    <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
-                    <select 
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                        className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
-                    >
-                        {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
-                    </select>
-                    <span className="text-slate-300">|</span>
-                    <select 
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
-                    >
-                        {years.map((y) => (<option key={y} value={y}>{y}</option>))}
-                    </select>
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    {/* INPUT SEARCH BARU */}
+                    <div className="relative w-full md:w-64">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <FaSearch className="text-slate-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Cari nama atau NIK..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-white"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
+                        <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
+                        <select 
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                        >
+                            {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+                        </select>
+                        <span className="text-slate-300">|</span>
+                        <select 
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                        >
+                            {years.map((y) => (<option key={y} value={y}>{y}</option>))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -265,12 +291,19 @@ export default function ProductivityPage() {
 
                     {/* --- TABEL --- */}
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm mt-8">
-                        <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-                            <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><FaTrophy /></div>
-                            <div>
-                                <h3 className="font-bold text-slate-800 text-sm md:text-base">Leaderboard Teknisi</h3>
-                                <p className="text-xs text-slate-500 hidden md:block">Klik angka untuk melihat detail tiket</p>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><FaTrophy /></div>
+                                <div>
+                                    <h3 className="font-bold text-slate-800 text-sm md:text-base">Leaderboard Teknisi</h3>
+                                    <p className="text-xs text-slate-500 hidden md:block">Klik angka untuk melihat detail tiket</p>
+                                </div>
                             </div>
+                            {searchTerm && (
+                                <div className="text-xs text-slate-500 bg-yellow-50 border border-yellow-200 px-3 py-1 rounded-full">
+                                    Hasil pencarian: <b>{filteredData.length}</b> teknisi ditemukan
+                                </div>
+                            )}
                         </div>
 
                         <div className="overflow-x-auto custom-scrollbar">
@@ -287,16 +320,19 @@ export default function ProductivityPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-sm">
-                                    {data.length === 0 ? (
-                                        <tr><td colSpan="7" className="p-8 text-center text-slate-400 italic">Tidak ada data tiket closed pada periode ini.</td></tr>
+                                    {filteredData.length === 0 ? (
+                                        <tr><td colSpan="7" className="p-8 text-center text-slate-400 italic">
+                                            {searchTerm ? `Tidak ditemukan teknisi dengan nama "${searchTerm}"` : 'Tidak ada data tiket closed pada periode ini.'}
+                                        </td></tr>
                                     ) : (
-                                        data.map((item, index) => (
+                                        // Gunakan filteredData di sini
+                                        filteredData.map((item, index) => (
                                             <tr key={item.nik} className="hover:bg-slate-50 transition-colors group">
                                                 <td className="px-6 py-4 text-center font-bold text-slate-500">{index + 1}</td>
                                                 <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 md:static border-r border-slate-100 md:border-none">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${index < 3 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                            {index < 3 ? <FaMedal /> : item.name.charAt(0)}
+                                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${index < 3 && !searchTerm ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {index < 3 && !searchTerm ? <FaMedal /> : item.name.charAt(0)}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-slate-700 text-xs md:text-sm">{item.name}</span>
@@ -332,14 +368,14 @@ export default function ProductivityPage() {
                 </>
             )}
 
-            {/* --- MODAL DETAIL TIKET (REDESIGNED) --- */}
+            {/* --- MODAL DETAIL TIKET --- */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div 
                         className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-scale-up overflow-hidden"
-                        onClick={(e) => e.stopPropagation()} // Prevent close on modal click
+                        onClick={(e) => e.stopPropagation()} 
                     >
-                        {/* 1. HEADER */}
+                        {/* HEADER */}
                         <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-start sticky top-0 z-10">
                             <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border-2 border-white shadow-sm">
@@ -361,13 +397,12 @@ export default function ProductivityPage() {
                             <button 
                                 onClick={() => setShowModal(false)} 
                                 className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-all duration-200"
-                                title="Tutup Modal"
                             >
                                 <FaTimes size={18} />
                             </button>
                         </div>
 
-                        {/* 2. CONTENT LIST */}
+                        {/* CONTENT LIST */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
                             {modalLoading ? (
                                 <div className="py-24 flex flex-col items-center justify-center gap-3">
@@ -387,39 +422,32 @@ export default function ProductivityPage() {
                                             key={ticket.id} 
                                             className="group relative flex items-start gap-4 p-5 border-b border-slate-50 hover:bg-blue-50/30 transition-all duration-200"
                                         >
-                                            {/* Bar warna indikator kategori di kiri */}
                                             <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                                                 ticket.category === 'MTEL' ? 'bg-blue-500' :
                                                 ticket.category === 'UMT' ? 'bg-yellow-500' :
                                                 ticket.category === 'CENTRATAMA' ? 'bg-green-500' : 'bg-red-500'
                                             } opacity-0 group-hover:opacity-100 transition-opacity`}></div>
 
-                                            {/* Nomor Urut */}
                                             <div className="flex flex-col items-center gap-1 min-w-[24px] pt-1">
                                                 <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500 font-medium transition-colors">
                                                     {(i + 1).toString().padStart(2, '0')}
                                                 </span>
                                             </div>
 
-                                            {/* Konten Utama */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                                    {/* Badge Kategori Kecil */}
                                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${CATEGORY_BG_COLORS[ticket.category] || 'bg-slate-100 border-slate-200 text-slate-500'}`}>
                                                         {ticket.category}
                                                     </span>
-                                                    {/* Nomor Tiket */}
                                                     <span className="text-xs font-mono text-slate-400 tracking-wide">
                                                         #{ticket.ticket_number}
                                                     </span>
                                                 </div>
                                                 
-                                                {/* Subject */}
                                                 <h4 className="text-sm font-semibold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-blue-700 transition-colors">
                                                     {ticket.subject}
                                                 </h4>
 
-                                                {/* Tanggal */}
                                                 <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 w-fit px-2 py-1 rounded">
                                                     <FaCalendarAlt size={10} className="text-slate-300" />
                                                     <span className="font-medium">{formatDateTime(ticket.last_update_time).split('•')[0]}</span>
@@ -429,7 +457,6 @@ export default function ProductivityPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Tombol Aksi */}
                                             <Link 
                                                 href={`/dashboard/tickets/${ticket.id}`} 
                                                 target="_blank" 
@@ -444,7 +471,7 @@ export default function ProductivityPage() {
                             )}
                         </div>
                         
-                        {/* 3. FOOTER */}
+                        {/* FOOTER */}
                         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
                             <span>Periode: <b>{months[selectedMonth-1].label} {selectedYear}</b></span>
                             <span>Total: <b>{ticketDetails.length}</b> tiket</span>
