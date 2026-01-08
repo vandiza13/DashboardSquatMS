@@ -37,7 +37,7 @@ export default function ProductivityPage() {
     const currentDate = new Date();
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); 
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());    
-    const [searchTerm, setSearchTerm] = useState(''); // <--- State Pencarian Baru
+    const [searchTerm, setSearchTerm] = useState(''); // State Pencarian
 
     // --- STATE MODAL DETAIL ---
     const [showModal, setShowModal] = useState(false);
@@ -76,7 +76,7 @@ export default function ProductivityPage() {
     }, [selectedMonth, selectedYear]); 
 
     // --- FILTER DATA SEARCH (Real-time) ---
-    // Kita filter data hanya untuk Tabel, agar Chart tetap menampilkan statistik Global
+    // Filter ini HANYA mempengaruhi tabel, tidak mempengaruhi chart (sesuai best practice dashboard)
     const filteredData = useMemo(() => {
         if (!searchTerm) return data;
         return data.filter(item => 
@@ -95,6 +95,7 @@ export default function ProductivityPage() {
         setShowModal(true);
         setModalLoading(true);
         setTicketDetails([]); 
+        setShowModal(true); // Tampilkan modal segera
 
         try {
             const res = await fetch(`/api/productivity/details?nik=${nik}&month=${selectedMonth}&year=${selectedYear}&category=${category}`);
@@ -109,7 +110,7 @@ export default function ProductivityPage() {
         }
     };
 
-    // --- LOGIC PERHITUNGAN CHART (Tetap pakai 'data' asli agar chart tidak berubah saat search) ---
+    // --- LOGIC PERHITUNGAN CHART ---
     const chartData = useMemo(() => {
         if (!data.length) return null;
 
@@ -176,7 +177,7 @@ export default function ProductivityPage() {
 
     return (
         <div className="space-y-8 pb-20 md:pb-10 animate-fade-in relative">
-            {/* --- HEADER & FILTER --- */}
+            {/* --- HEADER UTAMA (Hanya Judul & Filter Tanggal) --- */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">Produktifitas Tim</h2>
@@ -185,39 +186,23 @@ export default function ProductivityPage() {
                     </p>
                 </div>
                 
-                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                    {/* INPUT SEARCH BARU */}
-                    <div className="relative w-full md:w-64">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <FaSearch className="text-slate-400" />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Cari nama atau NIK..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-white"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
-                        <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
-                        <select 
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
-                        >
-                            {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
-                        </select>
-                        <span className="text-slate-300">|</span>
-                        <select 
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(Number(e.target.value))}
-                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
-                        >
-                            {years.map((y) => (<option key={y} value={y}>{y}</option>))}
-                        </select>
-                    </div>
+                <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
+                    <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
+                    <select 
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                    >
+                        {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+                    </select>
+                    <span className="text-slate-300">|</span>
+                    <select 
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                    >
+                        {years.map((y) => (<option key={y} value={y}>{y}</option>))}
+                    </select>
                 </div>
             </div>
 
@@ -289,21 +274,31 @@ export default function ProductivityPage() {
                         </div>
                     </div>
 
-                    {/* --- TABEL --- */}
+                    {/* --- TABEL + SEARCH BAR DI ATASNYA --- */}
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm mt-8">
+                        {/* HEADER TABEL: Judul di Kiri, Search di Kanan */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
                             <div className="flex items-center gap-3">
                                 <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><FaTrophy /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 text-sm md:text-base">Leaderboard Teknisi</h3>
-                                    <p className="text-xs text-slate-500 hidden md:block">Klik angka untuk melihat detail tiket</p>
+                                    <p className="text-xs text-slate-500 hidden md:block">Rincian detail pencapaian per kategori</p>
                                 </div>
                             </div>
-                            {searchTerm && (
-                                <div className="text-xs text-slate-500 bg-yellow-50 border border-yellow-200 px-3 py-1 rounded-full">
-                                    Hasil pencarian: <b>{filteredData.length}</b> teknisi ditemukan
+                            
+                            {/* SEARCH BAR */}
+                            <div className="relative w-full md:w-64">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <FaSearch className="text-slate-400" />
                                 </div>
-                            )}
+                                <input
+                                    type="text"
+                                    placeholder="Cari nama atau NIK..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-white"
+                                />
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto custom-scrollbar">
@@ -325,17 +320,18 @@ export default function ProductivityPage() {
                                             {searchTerm ? `Tidak ditemukan teknisi dengan nama "${searchTerm}"` : 'Tidak ada data tiket closed pada periode ini.'}
                                         </td></tr>
                                     ) : (
-                                        // Gunakan filteredData di sini
                                         filteredData.map((item, index) => (
                                             <tr key={item.nik} className="hover:bg-slate-50 transition-colors group">
                                                 <td className="px-6 py-4 text-center font-bold text-slate-500">{index + 1}</td>
-                                                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 md:static border-r border-slate-100 md:border-none">
+                                                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 md:static border-r border-slate-100 md:border-none shadow-sm md:shadow-none">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${index < 3 && !searchTerm ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                                                             {index < 3 && !searchTerm ? <FaMedal /> : item.name.charAt(0)}
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-700 text-xs md:text-sm">{item.name}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-slate-700 text-xs md:text-sm">{item.name}</span>
+                                                            </div>
                                                             <span className="text-[10px] text-slate-400 font-mono">{item.nik}</span>
                                                         </div>
                                                     </div>
@@ -368,14 +364,14 @@ export default function ProductivityPage() {
                 </>
             )}
 
-            {/* --- MODAL DETAIL TIKET --- */}
+            {/* --- MODAL DETAIL TIKET (POPUP) --- */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div 
                         className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-scale-up overflow-hidden"
                         onClick={(e) => e.stopPropagation()} 
                     >
-                        {/* HEADER */}
+                        {/* HEADER MODAL */}
                         <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-start sticky top-0 z-10">
                             <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border-2 border-white shadow-sm">
@@ -402,7 +398,7 @@ export default function ProductivityPage() {
                             </button>
                         </div>
 
-                        {/* CONTENT LIST */}
+                        {/* CONTENT LIST MODAL */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
                             {modalLoading ? (
                                 <div className="py-24 flex flex-col items-center justify-center gap-3">
@@ -471,7 +467,7 @@ export default function ProductivityPage() {
                             )}
                         </div>
                         
-                        {/* FOOTER */}
+                        {/* FOOTER MODAL */}
                         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
                             <span>Periode: <b>{months[selectedMonth-1].label} {selectedYear}</b></span>
                             <span>Total: <b>{ticketDetails.length}</b> tiket</span>
