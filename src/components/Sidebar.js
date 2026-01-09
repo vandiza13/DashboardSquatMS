@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { 
     FaHome, FaTicketAlt, FaUsers, FaChartLine, 
     FaUserCog, FaBuilding, FaTimes, 
-    FaDesktop, FaChevronDown, FaChevronRight, FaNetworkWired, FaExternalLinkAlt 
+    FaDesktop, FaChevronDown, FaChevronRight, FaNetworkWired, FaExternalLinkAlt, FaCode 
 } from 'react-icons/fa';
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -14,7 +14,6 @@ export default function Sidebar({ isOpen, onClose }) {
     const [user, setUser] = useState({ username: 'Loading...', role: '' });
     const [isTaccOpen, setIsTaccOpen] = useState(false);
 
-    // Kita tetap butuh fetch user hanya untuk cek Role (Admin/Bukan)
     useEffect(() => {
         fetch('/api/me')
             .then(res => res.json())
@@ -60,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}
             >
                 {/* LOGO HEADER */}
-                <div className="flex h-16 items-center justify-between px-6 bg-slate-900 border-b border-slate-800">
+                <div className="flex h-16 items-center justify-between px-6 bg-slate-900 border-b border-slate-800 shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/30">
                             <FaBuilding size={14} />
@@ -135,12 +134,23 @@ export default function Sidebar({ isOpen, onClose }) {
                     )}
                 </nav>
 
-                {/* FOOTER SIDEBAR (Hanya teks copyright kecil agar tidak kosong melompong) */}
-                <div className="p-4 border-t border-slate-800 text-center">
-                    <p className="text-[10px] text-slate-600">
-                        &copy; 2026 Dashboard SQUAT & MS <br/>v2.0.0
-                    </p>
+                {/* --- FOOTER CREDITS (VANDIZA) --- */}
+                <div className="p-4 border-t border-slate-800 bg-slate-900/50 mt-auto shrink-0">
+                    <a
+                        href="https://www.vandiza.my.id"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex flex-col items-center justify-center gap-1 rounded-xl p-3 hover:bg-slate-800/50 transition-all duration-300 border border-transparent hover:border-slate-700/50"
+                    >
+                        <p className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 group-hover:text-slate-300 transition-colors">
+                            Crafted with <span className="text-red-500 animate-pulse">❤</span> by
+                        </p>
+                        <div className="flex items-center gap-2 text-slate-400 group-hover:text-blue-400 transition-colors">
+                             <span className="text-xs font-extrabold tracking-[0.2em] group-hover:tracking-[0.25em] transition-all duration-500">VANDIZA</span>
+                        </div>
+                    </a>
                 </div>
+
             </aside>
         </>
     );

@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import { 
     FaSearch, FaSpinner, FaChevronLeft, FaChevronRight, FaPlus, 
     FaEdit, FaTrash, FaFileAlt, FaRunning, FaCheckCircle, 
-    FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel, FaCalendarAlt 
+    FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel, 
+    FaCalendarAlt, FaInbox, FaFolderOpen 
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx'; 
 import TicketFormModal from '@/components/TicketFormModal';
 import ReportModal from '@/components/ReportModal';
 import HistoryModal from '@/components/HistoryModal'; 
+import StatusBadge from '@/components/StatusBadge';
+import Skeleton from '@/components/Skeleton';
+import EmptyState from '@/components/EmptyState'; // Pastikan file ini sudah dibuat (lihat instruksi sebelumnya)
 
 const CATEGORY_TABS = ['ALL', 'MTEL', 'SQUAT', 'UMT', 'CENTRATAMA'];
 
@@ -19,6 +23,67 @@ const CATEGORY_COLORS = {
     UMT: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     CENTRATAMA: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     DEFAULT: 'bg-slate-100 text-slate-700 border-slate-200'
+};
+
+// --- KOMPONEN SKELETON (LOADING STATE) ---
+
+// 1. Skeleton untuk Tabel Desktop
+const TicketTableSkeleton = () => {
+    return (
+        [...Array(5)].map((_, index) => (
+            <tr key={index} className="border-b border-slate-50">
+                <td className="px-6 py-4 align-top">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-3 w-16" />
+                </td>
+                <td className="px-6 py-4 align-top">
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-3 w-3/4" />
+                </td>
+                <td className="px-6 py-4 align-top">
+                    <div className="flex flex-col gap-2">
+                        <Skeleton className="h-3 w-24" />
+                        <Skeleton className="h-3 w-32" />
+                    </div>
+                </td>
+                <td className="px-6 py-4 align-top">
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                </td>
+                <td className="px-6 py-4 align-top">
+                    <Skeleton className="h-3 w-24 mb-1" />
+                    <Skeleton className="h-2 w-16" />
+                </td>
+                <td className="px-6 py-4 text-center align-top">
+                    <div className="flex justify-center gap-2">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                    </div>
+                </td>
+            </tr>
+        ))
+    );
+};
+
+// 2. Skeleton untuk Kartu HP (Mobile)
+const MobileCardSkeleton = () => {
+    return (
+        [...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-2 w-2/3">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-3 w-1/4" />
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <div className="border-t border-slate-100 pt-3 flex gap-2">
+                    <Skeleton className="h-8 w-16 rounded" />
+                    <Skeleton className="h-8 w-16 rounded" />
+                </div>
+            </div>
+        ))
+    );
 };
 
 export default function TicketsPage() {
@@ -136,7 +201,7 @@ export default function TicketsPage() {
 
     const getCategoryColor = (cat) => CATEGORY_COLORS[cat] || CATEGORY_COLORS.DEFAULT;
 
-    // --- 1. KOMPONEN KARTU MOBILE (HP) ---
+    // --- KOMPONEN KARTU MOBILE (HP) ---
     const MobileTicketCard = ({ ticket }) => (
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 relative">
             {/* Header: Kategori & Status */}
@@ -152,12 +217,10 @@ export default function TicketsPage() {
                             </span>
                         )}
                     </div>
-                    <div className="font-bold text-slate-800 text-sm">{ticket.id_tiket}</div>
+                    {/* Menggunakan StatusBadge */}
+                    <div className="shrink-0 mb-1"><StatusBadge status={ticket.status} /></div>
                     <div className="text-[10px] text-slate-400">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                 </div>
-                <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold border uppercase ${ticket.status === 'OPEN' ? 'bg-red-100 text-red-700 border-red-200' : ticket.status === 'SC' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
-                    {ticket.status}
-                </span>
             </div>
 
             {/* Deskripsi */}
@@ -230,7 +293,6 @@ export default function TicketsPage() {
     );
 
     return (
-        // PERBAIKAN UTAMA: max-w-[100vw] dan overflow-x-hidden untuk mencegah scroll horizontal halaman
         <div className="space-y-6 pb-24 md:pb-0 w-full max-w-[100vw] overflow-x-hidden"> 
             <TicketFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTickets} initialData={editingTicket} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
@@ -256,18 +318,17 @@ export default function TicketsPage() {
                 <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaCheckCircle /> CLOSED</button>
             </div>
 
-            {/* FILTERS RESPONSIVE (DIPERBAIKI) */}
+            {/* FILTERS RESPONSIVE */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-white p-4 shadow-sm border border-slate-100">
-                {/* 1. Category Tabs (Horizontal Scroll) */}
+                {/* 1. Category Tabs */}
                 <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
                     {CATEGORY_TABS.map((cat) => (
                         <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${activeCategory === cat ? 'bg-slate-800 text-white shadow' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{cat}</button>
                     ))}
                 </div>
 
-                {/* 2. Date & Search (Stack di HP, Row di Tablet+) */}
+                {/* 2. Date & Search */}
                 <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
-                    {/* Date Picker: Di HP jadi Vertical (flex-col), di md jadi Row */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
                         <div className="flex items-center gap-2">
                             <FaCalendarAlt className="text-slate-400 text-xs hidden sm:block" />
@@ -294,10 +355,21 @@ export default function TicketsPage() {
             
             {/* 1. TAMPILAN MOBILE (Card View) */}
             <div className="md:hidden space-y-4">
+                {/* LOGIKA LOADING: SKELETON */}
                 {loading ? (
-                    <div className="text-center py-12 text-slate-500 text-sm"><FaSpinner className="animate-spin mx-auto mb-2 text-2xl text-blue-500"/>Memuat data...</div>
+                    <MobileCardSkeleton /> 
                 ) : tickets.length === 0 ? (
-                    <div className="text-center py-12 text-slate-400 text-sm"><FaLayerGroup className="mx-auto mb-2 text-3xl opacity-20"/>Tidak ada tiket ditemukan.</div>
+                    /* LOGIKA KOSONG: EMPTY STATE (Search vs Kosong Biasa) */
+                    <EmptyState 
+                        title={search ? "Tidak Ditemukan" : "Belum Ada Tiket"}
+                        message={search 
+                            ? `Pencarian untuk "${search}" tidak memberikan hasil.` 
+                            : `Belum ada tiket dengan status ${activeTab} di kategori ${activeCategory}.`
+                        }
+                        icon={search ? FaSearch : FaFolderOpen}
+                        actionLabel={!search && userRole !== 'View' && activeTab === 'RUNNING' ? "Buat Tiket Baru" : null}
+                        onAction={!search && userRole !== 'View' && activeTab === 'RUNNING' ? handleCreateClick : null}
+                    />
                 ) : (
                     tickets.map(ticket => <MobileTicketCard key={ticket.id} ticket={ticket} />)
                 )}
@@ -318,10 +390,26 @@ export default function TicketsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
+                            {/* LOGIKA LOADING: SKELETON */}
                             {loading ? (
-                                <tr><td colSpan="6" className="py-12 text-center text-slate-500"><FaSpinner className="mx-auto mb-2 animate-spin text-2xl text-blue-500" />Sedang memuat data...</td></tr>
+                                <TicketTableSkeleton />
                             ) : tickets.length === 0 ? (
-                                <tr><td colSpan="6" className="py-12 text-center text-slate-400"><FaLayerGroup className="mb-2 text-4xl opacity-20 mx-auto" /><p>Tidak ada tiket ditemukan.</p></td></tr>
+                                /* LOGIKA KOSONG: EMPTY STATE DALAM TABEL */
+                                <tr>
+                                    <td colSpan="6" className="p-8">
+                                        <EmptyState 
+                                            title={search ? "Pencarian Tidak Ditemukan" : "List Tiket Kosong"}
+                                            message={search 
+                                                ? `Tidak ada tiket yang cocok dengan kata kunci "${search}".` 
+                                                : "Saat ini belum ada data tiket yang tersedia untuk ditampilkan."
+                                            }
+                                            icon={search ? FaSearch : FaInbox}
+                                            actionLabel={!search && userRole !== 'View' && activeTab === 'RUNNING' ? "Buat Tiket Baru" : null}
+                                            onAction={!search && userRole !== 'View' && activeTab === 'RUNNING' ? handleCreateClick : null}
+                                            className="border-none bg-transparent shadow-none"
+                                        />
+                                    </td>
+                                </tr>
                             ) : (
                                 tickets.map((ticket) => (
                                     <tr key={ticket.id} className="hover:bg-slate-50 transition group">
@@ -384,9 +472,7 @@ export default function TicketsPage() {
 
                                         {/* STATUS */}
                                         <td className="px-6 py-4 align-top">
-                                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold border uppercase ${ticket.status === 'OPEN' ? 'bg-red-100 text-red-700 border-red-200' : ticket.status === 'SC' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
-                                                {ticket.status}
-                                            </span>
+                                            <StatusBadge status={ticket.status} />
                                         </td>
 
                                         {/* WAKTU UPDATE */}

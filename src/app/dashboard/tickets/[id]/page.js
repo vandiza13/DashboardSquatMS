@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, use } from 'react'; // Pastikan 'use' di-import
+import { useState, useEffect, use } from 'react'; 
 import { 
     FaArrowLeft, FaCalendarAlt, FaUserCircle, FaWhatsapp, 
     FaHistory, FaExclamationCircle, FaTools 
 } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import StatusBadge from '@/components/StatusBadge';
+import Skeleton from '@/components/Skeleton'; // Import komponen Skeleton
 
 export default function TicketDetailPage({ params }) {
-    // PERBAIKAN: Gunakan `use(params)` untuk unwrap Promise params di Next.js 15+
+    // Unwrap params untuk Next.js 15+
     const unwrappedParams = use(params);
     const id = unwrappedParams.id;
     
@@ -46,13 +48,86 @@ export default function TicketDetailPage({ params }) {
         if (id) fetchData();
     }, [id]);
 
+    // --- TAMPILAN SKELETON (SAAT LOADING) ---
     if (loading) return (
-        <div className="flex flex-col items-center justify-center min-h-screen text-slate-500">
-            <div className="h-10 w-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
-            <p>Memuat detail tiket...</p>
+        <div className="max-w-5xl mx-auto pb-20 animate-pulse">
+            {/* Header Skeleton */}
+            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <Skeleton className="h-8 w-24 rounded-lg" /> {/* Tombol Kembali */}
+                <Skeleton className="h-8 w-40 rounded-full" /> {/* ID Database */}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* KOLOM KIRI SKELETON */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Kartu Header Tiket */}
+                    <div className="bg-white rounded-xl h-auto border border-slate-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-start">
+                            <div className="space-y-3 w-full">
+                                <div className="flex gap-2">
+                                    <Skeleton className="h-6 w-20 rounded-full" /> {/* Status */}
+                                    <Skeleton className="h-6 w-16 rounded" />      {/* Kategori */}
+                                </div>
+                                <Skeleton className="h-8 w-3/4" />                 {/* ID Tiket Besar */}
+                                <Skeleton className="h-4 w-1/2" />                 {/* Subkategori */}
+                            </div>
+                            <Skeleton className="h-16 w-20 rounded-lg ml-4" />     {/* Kotak STO */}
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <Skeleton className="h-5 w-40" />                      {/* Judul Deskripsi */}
+                            <Skeleton className="h-24 w-full rounded-xl" />        {/* Isi Deskripsi */}
+                        </div>
+                    </div>
+
+                    {/* History Skeleton */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
+                        <Skeleton className="h-5 w-48" /> {/* Judul History */}
+                        <div className="space-y-4 ml-2">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="flex gap-4">
+                                    <div className="mt-1 h-3 w-3 rounded-full bg-slate-200" />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex justify-between">
+                                            <Skeleton className="h-3 w-24" />
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                        <Skeleton className="h-10 w-full rounded" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* KOLOM KANAN SKELETON */}
+                <div className="space-y-6">
+                    {/* Teknisi Skeleton */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+                        <Skeleton className="h-4 w-32" />
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-12 w-12 rounded-full" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-20" />
+                            </div>
+                        </div>
+                        <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
+
+                    {/* Waktu Skeleton */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+                        <Skeleton className="h-4 w-32" />
+                        <div className="space-y-3">
+                            <Skeleton className="h-10 w-full rounded" />
+                            <Skeleton className="h-10 w-full rounded" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 
+    // --- TAMPILAN ERROR ---
     if (error || !ticket) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
             <div className="bg-red-50 p-4 rounded-full text-red-500 mb-3"><FaExclamationCircle size={32} /></div>
@@ -64,13 +139,7 @@ export default function TicketDetailPage({ params }) {
         </div>
     );
 
-    // Helper Warna Status
-    const getStatusColor = (status) => {
-        if (status === 'OPEN') return 'bg-red-100 text-red-700 border-red-200';
-        if (status === 'SC') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-        return 'bg-green-100 text-green-700 border-green-200';
-    };
-
+    // --- TAMPILAN UTAMA (DATA LOADED) ---
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in">
             {/* --- HEADER --- */}
@@ -91,9 +160,7 @@ export default function TicketDetailPage({ params }) {
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-start">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
-                                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border uppercase ${getStatusColor(ticket.status)}`}>
-                                        {ticket.status}
-                                    </span>
+                                    <StatusBadge status={ticket.status} />
                                     <span className="text-xs font-bold text-slate-500 px-2 py-0.5 bg-slate-200 rounded border border-slate-300">
                                         {ticket.category}
                                     </span>

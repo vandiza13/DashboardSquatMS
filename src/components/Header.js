@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { 
     FaBars, FaUserCircle, FaSignOutAlt, FaUser, FaChevronDown, FaBell, FaQuoteLeft 
 } from 'react-icons/fa';
+import Skeleton from '@/components/Skeleton';
 
 export default function Header({ onMenuClick }) {
     const router = useRouter();
@@ -100,13 +101,18 @@ export default function Header({ onMenuClick }) {
                         className="flex items-center gap-3 focus:outline-none group"
                     >
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
-                                {user.username}
-                            </p>
-                            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                                {user.role || 'User'}
-                            </p>
-                        </div>
+                        {user.username === 'Loading...' ? (
+                        <>
+                        <Skeleton className="h-4 w-24 mb-1 ml-auto" /> {/* Untuk Nama */}
+                        </>
+                        ) : (
+                        <>
+                        <p className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                        {user.username}
+                        </p>
+                        </>
+                        )}
+                    </div>
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                             <FaUserCircle size={24} />
                         </div>
