@@ -208,90 +208,103 @@ export default function TicketsPage() {
     // --- KOMPONEN KARTU MOBILE (HP) ---
     const MobileTicketCard = ({ ticket }) => (
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 relative">
-            {/* Header: Kategori & Status */}
-            <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0"> {/* min-w-0 penting agar flex item bisa shrink */}
-                    <div className="flex flex-wrap gap-1 mb-1">
-                        <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>
-                            {ticket.category} - {ticket.subcategory}
-                        </span>
-                        {ticket.sto && (
-                            <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-100 text-slate-600">
-                                STO: {ticket.sto}
-                            </span>
-                        )}
-                    </div>
-                    {/* Menggunakan StatusBadge */}
-                    <div className="shrink-0 mb-1"><StatusBadge status={ticket.status} /></div>
-                    <div className="text-[10px] text-slate-400">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+            
+            {/* 1. Header Atas: ID Tiket & Status (PERBAIKAN DISINI) */}
+            <div className="flex justify-between items-start border-b border-slate-50 pb-2 mb-1">
+                <div className="flex flex-col">
+                    <span className="font-extrabold text-slate-800 text-base">
+                        {ticket.id_tiket}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                        {new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                </div>
+                <div className="shrink-0">
+                    <StatusBadge status={ticket.status} />
                 </div>
             </div>
 
-            {/* Deskripsi */}
-            <div className="text-slate-700 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                <span className="font-semibold block mb-1 text-[10px] text-slate-500 uppercase">Deskripsi:</span>
-                {ticket.deskripsi}
+            {/* 2. Label Kategori & STO */}
+            <div className="flex flex-wrap gap-1">
+                <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>
+                    {ticket.category} - {ticket.subcategory}
+                </span>
+                {ticket.sto && (
+                    <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-100 text-slate-600">
+                        STO: {ticket.sto}
+                    </span>
+                )}
             </div>
 
-            {/* Update / RCA */}
+            {/* 3. Deskripsi */}
+            <div className="text-slate-700 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                <span className="font-semibold block mb-1 text-[10px] text-slate-500 uppercase">Deskripsi:</span>
+                <span className="line-clamp-3">{ticket.deskripsi}</span>
+            </div>
+
+            {/* 4. Update / RCA */}
             {ticket.update_progres && (
                 <div className="text-slate-700 text-xs">
                     <span className="font-semibold text-slate-500 text-[10px] uppercase">
                         {ticket.status === 'CLOSED' ? 'Root Cause (RCA):' : 'Update Progress:'}
                     </span>
-                    <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1.5 rounded border-l-2 border-yellow-300 break-words">
+                    <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1.5 rounded border-l-2 border-yellow-300 break-words text-[11px]">
                         {ticket.update_progres}
                     </p>
                 </div>
             )}
 
-            {/* Teknisi Info */}
-            <div className="border-t border-dashed border-slate-200 pt-2">
+            {/* 5. Teknisi Info */}
+            <div className="border-t border-dashed border-slate-200 pt-2 mt-1">
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded font-bold border border-slate-200">PIC</span>
-                        <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded font-bold border border-slate-200">PIC</span>
+                            <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
+                        </div>
+                        
+                        {/* Tombol WA (Compact) */}
+                        {ticket.technician_phone && (
+                            <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100 active:scale-95 transition-transform hover:bg-green-100">
+                                <FaWhatsapp size={14} /> Hubungi
+                            </a>
+                        )}
                     </div>
-                    
-                    {/* Tombol WA di Mobile */}
-                    {ticket.technician_phone && (
-                        <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="ml-9 flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded w-fit border border-green-100 active:scale-95 transition-transform hover:bg-green-100 mb-1">
-                            <FaWhatsapp /> {ticket.technician_phone}
-                        </a>
-                    )}
                 </div>
                 {ticket.partner_technicians && (
-                    <div className="text-[10px] text-slate-500 pl-9 mt-1">
-                        <span className="font-bold text-slate-400">Support:</span> 
-                        <div className="mt-0.5">{ticket.partner_technicians}</div>
+                    <div className="text-[10px] text-slate-500 mt-2 bg-slate-50/80 p-1.5 rounded border border-slate-100">
+                        <span className="font-bold text-slate-400 block mb-0.5">Support Team:</span> 
+                        {ticket.partner_technicians}
                     </div>
                 )}
             </div>
 
-            {/* Last Update Info (Mobile) */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-400">
-                <span className="flex items-center gap-1">
-                    <FaHistory /> 
-                    {new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}
-                </span>
-                <span className="italic">by {ticket.updater_name || 'System'}</span>
-            </div>
+            {/* 6. Footer: Last Update & Actions */}
+            <div className="flex flex-col gap-3 pt-3 mt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                        <FaHistory /> 
+                        Updated: {new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}
+                    </span>
+                    <span className="italic">by {ticket.updater_name || 'System'}</span>
+                </div>
 
-            {/* Actions Toolbar */}
-            <div className="flex justify-end items-center gap-2 mt-1 pt-2">
-                 {userRole !== 'View' && (
-                    <button onClick={() => handleEditClick(ticket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-100">
-                        <FaEdit /> Edit
+                {/* Action Buttons (Full Width on Mobile for easier tap) */}
+                <div className="grid grid-cols-3 gap-2">
+                     {userRole !== 'View' && (
+                        <button onClick={() => handleEditClick(ticket)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-100">
+                            <FaEdit /> Edit
+                        </button>
+                    )}
+                    <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className={`flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-100 ${userRole === 'View' ? 'col-span-3' : ''}`}>
+                        <FaHistory /> Log
                     </button>
-                )}
-                <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-100">
-                    <FaHistory /> Log
-                </button>
-                 {userRole === 'Admin' && (
-                    <button onClick={() => handleDeleteClick(ticket.id)} className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 border border-red-100">
-                        <FaTrash />
-                    </button>
-                )}
+                     {userRole === 'Admin' && (
+                        <button onClick={() => handleDeleteClick(ticket.id)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition border border-red-100">
+                            <FaTrash /> Hapus
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
