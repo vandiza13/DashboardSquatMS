@@ -9,7 +9,8 @@ import {
     FaChartBar,       
     FaSpinner,
     FaExclamationCircle,
-    FaTools
+    FaTools,
+    FaClock
 } from 'react-icons/fa';
 import { 
     Chart as ChartJS, 
@@ -66,7 +67,8 @@ export default function DashboardPage() {
                             closedTodayBySub: [],
                             monthlyType: [],
                             dailyTrend: [],
-                            recent: []
+                            recent: [],
+                            aging: [] 
                         });
                     } else {
                         setData(result);
@@ -102,7 +104,50 @@ export default function DashboardPage() {
             }],
         };
 
-        // Stacked Bar Data
+        // --- AGING CHART DATA (BY CATEGORY) ---
+        const agingRaw = data.aging || [];
+        const uniqueAgingCats = [...new Set(agingRaw.map(item => item.category))];
+        if (uniqueAgingCats.length === 0) uniqueAgingCats.push('No Data');
+
+        const barThicknessSetting = 60; 
+
+        const agingDatasets = [
+            {
+                label: '< 4 Jam (Aman)',
+                data: uniqueAgingCats.map(cat => agingRaw.find(d => d.category === cat && d.age_group === 'less_4h')?.count || 0),
+                backgroundColor: '#22c55e', 
+                borderRadius: 4,
+                maxBarThickness: barThicknessSetting,
+            },
+            {
+                label: '4-12 Jam (Warning)',
+                data: uniqueAgingCats.map(cat => agingRaw.find(d => d.category === cat && d.age_group === '4h_12h')?.count || 0),
+                backgroundColor: '#eab308', 
+                borderRadius: 4,
+                maxBarThickness: barThicknessSetting,
+            },
+            {
+                label: '12-24 Jam (Urgent)',
+                data: uniqueAgingCats.map(cat => agingRaw.find(d => d.category === cat && d.age_group === '12h_24h')?.count || 0),
+                backgroundColor: '#f97316', 
+                borderRadius: 4,
+                maxBarThickness: barThicknessSetting,
+            },
+            {
+                label: '> 24 Jam (Kritis)',
+                data: uniqueAgingCats.map(cat => agingRaw.find(d => d.category === cat && d.age_group === 'more_24h')?.count || 0),
+                backgroundColor: '#ef4444', 
+                borderRadius: 4,
+                maxBarThickness: barThicknessSetting,
+            }
+        ];
+
+        const agingBarData = {
+            labels: uniqueAgingCats,
+            datasets: agingDatasets
+        };
+
+        // Stacked Bar Data (Sub-Category)
         const uniqueMonths = [...new Set(data.monthlyType?.map(item => item.month) || [])];
         const uniqueSubsMonthly = [...new Set(data.monthlyType?.map(item => item.subcategory) || [])];
         
@@ -115,7 +160,8 @@ export default function DashboardPage() {
                     return found ? found.count : 0;
                 }),
                 backgroundColor: color,
-                barThickness: 20, 
+                // [UBAH DISINI]: Ganti barThickness jadi maxBarThickness agar responsif & lebih tebal
+                maxBarThickness: 80, 
                 borderRadius: 4,  
             };
         });
@@ -170,7 +216,8 @@ export default function DashboardPage() {
             stackedBarData,
             lineData,
             uniqueSubsMonthly,
-            uniqueCatsLine
+            uniqueCatsLine,
+            agingBarData 
         };
     }, [data, trendFilter]); 
 
@@ -197,6 +244,31 @@ export default function DashboardPage() {
         }
     };
 
+    const agingOptions = {
+        responsive: true, maintainAspectRatio: false,
+        scales: { 
+            x: { 
+                stacked: true, 
+                grid: { display: false }, 
+                ticks: { font: {family: 'inherit', weight: 'bold'} } 
+            }, 
+            y: { 
+                stacked: true, 
+                beginAtZero: true, 
+                grid: { color: '#f1f5f9' }, 
+                ticks: { stepSize: 1 } 
+            } 
+        },
+        plugins: { 
+            legend: { 
+                display: true, 
+                position: 'bottom',
+                labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 } }
+            },
+            tooltip: { mode: 'index', intersect: false }
+        } 
+    };
+
     const lineOptions = {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#cbd5e1' } },
@@ -218,7 +290,7 @@ export default function DashboardPage() {
         );
     }
 
-    const { stats, totalRunning, donutStatusData, stackedBarData, lineData, uniqueCatsLine } = processedData;
+    const { stats, totalRunning, donutStatusData, stackedBarData, lineData, uniqueCatsLine, agingBarData } = processedData;
 
     return (
         <div className="space-y-8 animate-fade-in pb-12">
@@ -237,17 +309,12 @@ export default function DashboardPage() {
 
             {/* --- 4 KARTU UTAMA --- */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                
                 {/* CARD 1: RUNNING */}
                 <Link href="/dashboard/tickets?status=RUNNING" className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <FaBolt className="text-6xl text-blue-600 transform rotate-12" />
-                    </div>
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FaBolt className="text-6xl text-blue-600 transform rotate-12" /></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                                <FaExclamationCircle />
-                            </div>
+                            <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><FaExclamationCircle /></div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tiket Running</span>
                         </div>
                         <h3 className="text-4xl font-extrabold text-slate-800">{totalRunning}</h3>
@@ -257,68 +324,48 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </Link>
-
                 {/* CARD 2: CLOSED TODAY */}
                 <Link href="/dashboard/tickets?status=CLOSED" className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <FaCheckCircle className="text-6xl text-emerald-600 transform rotate-12" />
-                    </div>
+                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FaCheckCircle className="text-6xl text-emerald-600 transform rotate-12" /></div>
                     <div className="relative z-10">
                          <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-                                <FaCheckCircle />
-                            </div>
+                            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><FaCheckCircle /></div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Closed Hari Ini</span>
                         </div>
                         <h3 className="text-4xl font-extrabold text-slate-800">{stats.closed_today}</h3>
-                        <p className="mt-4 text-xs font-medium text-emerald-600 flex items-center gap-1">
-                            <FaArrowRight size={10} /> Target Harian
-                        </p>
+                        <p className="mt-4 text-xs font-medium text-emerald-600 flex items-center gap-1"><FaArrowRight size={10} /> Target Harian</p>
                     </div>
                 </Link>
-
                 {/* CARD 3: CLOSED MONTH */}
                 <Link href="/dashboard/tickets?status=CLOSED" className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <FaCalendarAlt className="text-6xl text-violet-600 transform rotate-12" />
-                    </div>
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FaCalendarAlt className="text-6xl text-violet-600 transform rotate-12" /></div>
                     <div className="relative z-10">
                          <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-violet-50 rounded-lg text-violet-600">
-                                <FaCalendarAlt />
-                            </div>
+                            <div className="p-2 bg-violet-50 rounded-lg text-violet-600"><FaCalendarAlt /></div>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Closed Bulan Ini</span>
                         </div>
                         <h3 className="text-4xl font-extrabold text-slate-800">{stats.closed_month}</h3>
-                        <p className="mt-4 text-xs font-medium text-violet-600 flex items-center gap-1">
-                            <FaArrowRight size={10} /> Akumulasi
-                        </p>
+                        <p className="mt-4 text-xs font-medium text-violet-600 flex items-center gap-1"><FaArrowRight size={10} /> Akumulasi</p>
                     </div>
                 </Link>
-
                 {/* CARD 4: TOTAL */}
                 <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 text-white shadow-lg shadow-slate-300 hover:shadow-2xl transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <FaChartBar className="text-6xl text-white transform rotate-12" />
-                    </div>
+                    <div className="absolute top-0 right-0 p-4 opacity-10"><FaChartBar className="text-6xl text-white transform rotate-12" /></div>
                     <div className="relative z-10">
                          <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
-                                <FaChartBar />
-                            </div>
+                            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm"><FaChartBar /></div>
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Tiket</span>
                         </div>
                         <h3 className="text-4xl font-extrabold text-white">{stats.total}</h3>
-                        <p className="mt-4 text-xs font-medium text-slate-400">
-                           Semua Kategori
-                        </p>
+                        <p className="mt-4 text-xs font-medium text-slate-400">Semua Kategori</p>
                     </div>
                 </div>
             </div>
 
-            {/* --- SECTION LIST: RUNNING & CLOSED TODAY --- */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {/* List Running */}
+            {/* --- AREA 1: RUNNING & AGING (BERSAMPINGAN) --- */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                
+                {/* 1. LIST TIKET RUNNING */}
                 <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 flex flex-col h-96">
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-50">
                         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700 flex items-center gap-2">
@@ -327,10 +374,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
                         {data?.runningBySub?.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                <FaCheckCircle className="text-4xl mb-2 opacity-20" />
-                                <p className="text-sm italic">Tidak ada tiket running</p>
-                            </div>
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400"><FaCheckCircle className="text-4xl mb-2 opacity-20" /><p className="text-sm italic">Tidak ada tiket running</p></div>
                         ) : (
                             data?.runningBySub?.map((item) => (
                                 <div key={item.subcategory} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors group">
@@ -342,7 +386,28 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* List Closed Today */}
+                {/* 2. AGING CHART (BARU) */}
+                <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 flex flex-col h-96">
+                    <div className="mb-4 flex items-center gap-2 pb-2">
+                         <div className="p-1.5 bg-orange-50 rounded-lg text-orange-600">
+                             <FaClock size={16} />
+                         </div>
+                         <div>
+                            <h3 className="text-base font-bold text-slate-800">Umur Tiket (Aging)</h3>
+                            <p className="text-xs text-slate-400">Per Kategori</p>
+                         </div>
+                    </div>
+                    <div className="flex-1 min-h-0"> 
+                        <Bar data={agingBarData} options={agingOptions} />
+                    </div>
+                </div>
+
+            </div>
+
+            {/* --- AREA 2: CLOSED TODAY & STATUS DONUT (BERSAMPINGAN) --- */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                
+                {/* 1. LIST CLOSED TODAY */}
                 <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 flex flex-col h-96">
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-50">
                         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700 flex items-center gap-2">
@@ -351,10 +416,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
                         {data?.closedTodayBySub?.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                <FaTools className="text-4xl mb-2 opacity-20" />
-                                <p className="text-sm italic">Belum ada closed hari ini</p>
-                            </div>
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400"><FaTools className="text-4xl mb-2 opacity-20" /><p className="text-sm italic">Belum ada closed hari ini</p></div>
                         ) : (
                             data?.closedTodayBySub?.map((item) => (
                                 <div key={item.subcategory} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors group">
@@ -365,39 +427,41 @@ export default function DashboardPage() {
                         )}
                     </div>
                 </div>
-            </div>
 
-            {/* --- GRAFIK: BAR & DONUT --- */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-                    <div className="mb-6">
-                        <h3 className="text-base font-bold text-slate-800">Distribusi Sub-Kategori</h3>
-                        <p className="text-xs text-slate-400">Statistik bulanan per kategori</p>
-                    </div>
-                    <div className="h-72">
-                         <Bar data={stackedBarData} options={stackedBarOptions} />
-                    </div>
-                </div>
-                <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-                    <div className="mb-6">
+                {/* 2. DONUT STATUS */}
+                <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 flex flex-col h-96">
+                    <div className="mb-4">
                         <h3 className="text-base font-bold text-slate-800">Status Keseluruhan</h3>
                         <p className="text-xs text-slate-400">Proporsi Open vs Closed vs SC</p>
                     </div>
-                    <div className="h-72 flex items-center justify-center relative">
-                         <Doughnut data={donutStatusData} options={donutOptions} />
-                         {/* Center Text Trick */}
+                    <div className="flex-1 flex items-center justify-center relative min-h-0">
+                         <div className="h-64 w-full">
+                            <Doughnut data={donutStatusData} options={donutOptions} />
+                         </div>
                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-50">
                             <span className="text-xs font-bold uppercase">Total</span>
                          </div>
                     </div>
                 </div>
+
             </div>
 
-            {/* --- LINE CHART (TREN) --- */}
+            {/* --- AREA 3: DISTRIBUSI (FULL WIDTH) --- */}
+            <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
+                <div className="mb-6">
+                    <h3 className="text-base font-bold text-slate-800">Distribusi Sub-Kategori</h3>
+                    <p className="text-xs text-slate-400">Statistik bulanan per kategori</p>
+                </div>
+                <div className="h-72">
+                        <Bar data={stackedBarData} options={stackedBarOptions} />
+                </div>
+            </div>
+
+            {/* --- AREA 4: LINE CHART TREN (FULL WIDTH) --- */}
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
                 <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h3 className="text-base font-bold text-slate-800">Tren Tiket Closed (30 Hari)</h3>
+                        <h3 className="text-base font-bold text-slate-800">Tren Closed (30 Hari)</h3>
                         <p className="text-xs text-slate-400">Analisa performa harian</p>
                     </div>
                     <div className="flex flex-wrap gap-2">

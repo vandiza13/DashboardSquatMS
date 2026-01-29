@@ -5,7 +5,8 @@ import {
     FaSearch, FaSpinner, FaChevronLeft, FaChevronRight, FaPlus, 
     FaEdit, FaTrash, FaFileAlt, FaRunning, FaCheckCircle, 
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel, 
-    FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload
+    FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
+    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch 
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx'; 
 import TicketFormModal from '@/components/TicketFormModal';
@@ -27,62 +28,93 @@ const CATEGORY_COLORS = {
     DEFAULT: 'bg-slate-100 text-slate-700 border-slate-200'
 };
 
-// --- KOMPONEN SKELETON (LOADING STATE) ---
+// --- HELPER 1: MENGHITUNG LOGIKA AGING (Jam/Hari) ---
+const getTicketAging = (ticketTime, status) => {
+    if (status === 'CLOSED') return null;
 
-// 1. Skeleton untuk Tabel Desktop
+    const now = new Date();
+    const created = new Date(ticketTime);
+    const diffMs = now - created;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 4) {
+        return {
+            label: '< 4 Jam',
+            text: `${diffHours} Jam`,
+            className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+            icon: <FaStopwatch />
+        };
+    } else if (diffHours >= 4 && diffHours <= 12) {
+        return {
+            label: '4-12 Jam',
+            text: `${diffHours} Jam`,
+            className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+            icon: <FaHourglassHalf />
+        };
+    } else if (diffHours > 12 && diffHours <= 24) {
+        return {
+            label: '12-24 Jam',
+            text: `${diffHours} Jam`,
+            className: 'bg-orange-100 text-orange-700 border-orange-200',
+            icon: <FaExclamationCircle />
+        };
+    } else {
+        const days = Math.floor(diffHours / 24);
+        return {
+            label: '> 24 Jam',
+            text: `${days} Hari+`,
+            className: 'bg-red-100 text-red-700 border-red-200 animate-pulse',
+            icon: <FaFire />
+        };
+    }
+};
+
+// --- HELPER 2: MENENTUKAN WARNA BACKGROUND BARIS/KARTU ---
+const getRowSeverityStyle = (ticketTime, status) => {
+    // Tiket Closed selalu putih bersih
+    if (status === 'CLOSED') return 'bg-white border-slate-200 hover:bg-slate-50';
+
+    const now = new Date();
+    const created = new Date(ticketTime);
+    const diffMs = now - created;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+    // > 24 Jam: Merah (Kritis)
+    if (diffHours > 24) return 'bg-red-100 border-red-300 hover:bg-red-200'; 
+    
+    // > 12 Jam: Orange (Warning)
+    if (diffHours > 12) return 'bg-orange-100 border-orange-300 hover:bg-orange-200';
+    
+    // Default (Aman/Normal): Putih
+    return 'bg-white border-slate-200 hover:bg-slate-50';
+};
+
+// --- KOMPONEN SKELETON ---
 const TicketTableSkeleton = () => {
     return (
         [...Array(5)].map((_, index) => (
             <tr key={index} className="border-b border-slate-50">
-                <td className="px-6 py-4 align-top">
-                    <Skeleton className="h-4 w-24 mb-2" />
-                    <Skeleton className="h-3 w-16" />
-                </td>
-                <td className="px-6 py-4 align-top">
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-3 w-3/4" />
-                </td>
-                <td className="px-6 py-4 align-top">
-                    <div className="flex flex-col gap-2">
-                        <Skeleton className="h-3 w-24" />
-                        <Skeleton className="h-3 w-32" />
-                    </div>
-                </td>
-                <td className="px-6 py-4 align-top">
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                </td>
-                <td className="px-6 py-4 align-top">
-                    <Skeleton className="h-3 w-24 mb-1" />
-                    <Skeleton className="h-2 w-16" />
-                </td>
-                <td className="px-6 py-4 text-center align-top">
-                    <div className="flex justify-center gap-2">
-                        <Skeleton className="h-8 w-8 rounded" />
-                        <Skeleton className="h-8 w-8 rounded" />
-                    </div>
-                </td>
+                <td className="px-6 py-4 align-top"><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-3 w-16" /></td>
+                <td className="px-6 py-4 align-top"><Skeleton className="h-4 w-full mb-2" /><Skeleton className="h-3 w-3/4" /></td>
+                <td className="px-6 py-4 align-top"><div className="flex flex-col gap-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-3 w-32" /></div></td>
+                <td className="px-6 py-4 align-top"><div className="flex flex-col gap-2"><Skeleton className="h-6 w-20 rounded-full" /><Skeleton className="h-5 w-16 rounded" /></div></td>
+                <td className="px-6 py-4 align-top"><Skeleton className="h-3 w-24 mb-1" /><Skeleton className="h-2 w-16" /></td>
+                <td className="px-6 py-4 text-center align-top"><div className="flex justify-center gap-2"><Skeleton className="h-8 w-8 rounded" /><Skeleton className="h-8 w-8 rounded" /></div></td>
             </tr>
         ))
     );
 };
 
-// 2. Skeleton untuk Kartu HP (Mobile)
 const MobileCardSkeleton = () => {
     return (
         [...Array(3)].map((_, i) => (
             <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-start">
-                    <div className="space-y-2 w-2/3">
-                        <Skeleton className="h-4 w-1/3" />
-                        <Skeleton className="h-3 w-1/4" />
-                    </div>
+                    <div className="space-y-2 w-2/3"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-3 w-1/4" /></div>
                     <Skeleton className="h-6 w-16 rounded-full" />
                 </div>
                 <Skeleton className="h-16 w-full rounded-lg" />
-                <div className="border-t border-slate-100 pt-3 flex gap-2">
-                    <Skeleton className="h-8 w-16 rounded" />
-                    <Skeleton className="h-8 w-16 rounded" />
-                </div>
+                <div className="border-t border-slate-100 pt-3 flex gap-2"><Skeleton className="h-8 w-16 rounded" /><Skeleton className="h-8 w-16 rounded" /></div>
             </div>
         ))
     );
@@ -114,10 +146,7 @@ export default function TicketsPage() {
     const [isMultiRowModalOpen, setIsMultiRowModalOpen] = useState(false);
 
     useEffect(() => {
-        fetch('/api/me')
-            .then(res => res.json())
-            .then(data => setUserRole(data.role))
-            .catch(err => console.error(err));
+        fetch('/api/me').then(res => res.json()).then(data => setUserRole(data.role)).catch(err => console.error(err));
     }, []);
 
     const fetchTickets = async () => {
@@ -139,9 +168,7 @@ export default function TicketsPage() {
 
     useEffect(() => { setPage(1); }, [activeTab, activeCategory, startDate, endDate]);
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            fetchTickets();
-        }, 500);
+        const timeoutId = setTimeout(() => { fetchTickets(); }, 500);
         return () => clearTimeout(timeoutId);
     }, [page, search, activeTab, activeCategory, startDate, endDate]);
 
@@ -185,13 +212,9 @@ export default function TicketsPage() {
 
             const formattedData = dataToExport.map(t => ({
                 'ID Tiket': t.id_tiket, 'Kategori': t.category, 'Sub Kategori': t.subcategory,
-                'Deskripsi': t.deskripsi, 
-                'Status': t.status,
-                'Update Progress': t.update_progres || '-',
-                'Teknisi PIC': t.technician_name || '-', 
-                'No HP PIC': t.technician_phone || '-',
-                'Tim Support': t.partner_technicians || '-',
-                'STO': t.sto || '-', 
+                'Deskripsi': t.deskripsi, 'Status': t.status, 'Update Progress': t.update_progres || '-',
+                'Teknisi PIC': t.technician_name || '-', 'No HP PIC': t.technician_phone || '-',
+                'Tim Support': t.partner_technicians || '-', 'STO': t.sto || '-', 
                 'Waktu Buat': new Date(t.tiket_time).toLocaleString('id-ID'),
                 'Update Terakhir': t.last_update_time ? new Date(t.last_update_time).toLocaleString('id-ID') : '-',
             }));
@@ -207,63 +230,65 @@ export default function TicketsPage() {
 
     // --- KOMPONEN KARTU MOBILE (HP) ---
     const MobileTicketCard = ({ ticket }) => (
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 relative">
+        // [PERBAIKAN] Tidak ada 'bg-white' disini agar warna severity muncul
+        <div className={`p-4 rounded-xl border shadow-sm flex flex-col gap-3 relative transition-colors ${getRowSeverityStyle(ticket.tiket_time, ticket.status)}`}>
             
-            {/* 1. Header Atas: ID Tiket & Status (PERBAIKAN DISINI) */}
-            <div className="flex justify-between items-start border-b border-slate-50 pb-2 mb-1">
+            <div className="flex justify-between items-start border-b border-black/5 pb-2 mb-1">
                 <div className="flex flex-col">
-                    <span className="font-extrabold text-slate-800 text-base">
-                        {ticket.id_tiket}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">
+                    <span className="font-extrabold text-slate-800 text-base">{ticket.id_tiket}</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">
                         {new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                     </span>
                 </div>
-                <div className="shrink-0">
+                <div className="flex flex-col items-end gap-1">
                     <StatusBadge status={ticket.status} />
+                    {/* Badge Aging */}
+                    {ticket.status !== 'CLOSED' && (() => {
+                        const aging = getTicketAging(ticket.tiket_time, ticket.status);
+                        return aging ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-white ${aging.className}`}>
+                                {aging.icon} {aging.text}
+                            </span>
+                        ) : null;
+                    })()}
                 </div>
             </div>
 
-            {/* 2. Label Kategori & STO */}
             <div className="flex flex-wrap gap-1">
-                <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>
+                <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-white ${getCategoryColor(ticket.category)}`}>
                     {ticket.category} - {ticket.subcategory}
                 </span>
                 {ticket.sto && (
-                    <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-100 text-slate-600">
+                    <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-white text-slate-600">
                         STO: {ticket.sto}
                     </span>
                 )}
             </div>
 
-            {/* 3. Deskripsi */}
-            <div className="text-slate-700 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            {/* Background deskripsi dibuat semi-transparan agar warna kartu terlihat */}
+            <div className="text-slate-700 text-xs bg-white/60 p-2.5 rounded-lg border border-black/5">
                 <span className="font-semibold block mb-1 text-[10px] text-slate-500 uppercase">Deskripsi:</span>
                 <span className="line-clamp-3">{ticket.deskripsi}</span>
             </div>
 
-            {/* 4. Update / RCA */}
             {ticket.update_progres && (
                 <div className="text-slate-700 text-xs">
                     <span className="font-semibold text-slate-500 text-[10px] uppercase">
                         {ticket.status === 'CLOSED' ? 'Root Cause (RCA):' : 'Update Progress:'}
                     </span>
-                    <p className="italic text-slate-600 mt-0.5 bg-yellow-50/50 p-1.5 rounded border-l-2 border-yellow-300 break-words text-[11px]">
+                    <p className="italic text-slate-600 mt-0.5 bg-yellow-100/50 p-1.5 rounded border-l-2 border-yellow-300 break-words text-[11px]">
                         {ticket.update_progres}
                     </p>
                 </div>
             )}
 
-            {/* 5. Teknisi Info */}
-            <div className="border-t border-dashed border-slate-200 pt-2 mt-1">
+            <div className="border-t border-black/5 pt-2 mt-1">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded font-bold border border-slate-200">PIC</span>
+                            <span className="text-[10px] bg-white/80 text-slate-600 px-1.5 rounded font-bold border border-black/10">PIC</span>
                             <span className="text-xs font-bold text-slate-700">{ticket.technician_name || 'Belum assign'}</span>
                         </div>
-                        
-                        {/* Tombol WA (Compact) */}
                         {ticket.technician_phone && (
                             <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100 active:scale-95 transition-transform hover:bg-green-100">
                                 <FaWhatsapp size={14} /> Hubungi
@@ -272,15 +297,14 @@ export default function TicketsPage() {
                     </div>
                 </div>
                 {ticket.partner_technicians && (
-                    <div className="text-[10px] text-slate-500 mt-2 bg-slate-50/80 p-1.5 rounded border border-slate-100">
+                    <div className="text-[10px] text-slate-500 mt-2 bg-white/50 p-1.5 rounded border border-black/5">
                         <span className="font-bold text-slate-400 block mb-0.5">Support Team:</span> 
                         {ticket.partner_technicians}
                     </div>
                 )}
             </div>
 
-            {/* 6. Footer: Last Update & Actions */}
-            <div className="flex flex-col gap-3 pt-3 mt-1 border-t border-slate-100">
+            <div className="flex flex-col gap-3 pt-3 mt-1 border-t border-black/5">
                 <div className="flex items-center justify-between text-[10px] text-slate-400">
                     <span className="flex items-center gap-1">
                         <FaHistory /> 
@@ -288,19 +312,17 @@ export default function TicketsPage() {
                     </span>
                     <span className="italic">by {ticket.updater_name || 'System'}</span>
                 </div>
-
-                {/* Action Buttons (Full Width on Mobile for easier tap) */}
                 <div className="grid grid-cols-3 gap-2">
                      {userRole !== 'View' && (
-                        <button onClick={() => handleEditClick(ticket)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-100">
+                        <button onClick={() => handleEditClick(ticket)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-white hover:bg-blue-50 rounded-lg transition border border-blue-100 shadow-sm">
                             <FaEdit /> Edit
                         </button>
                     )}
-                    <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className={`flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-100 ${userRole === 'View' ? 'col-span-3' : ''}`}>
+                    <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className={`flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 bg-white hover:bg-purple-50 rounded-lg transition border border-purple-100 shadow-sm ${userRole === 'View' ? 'col-span-3' : ''}`}>
                         <FaHistory /> Log
                     </button>
                      {userRole === 'Admin' && (
-                        <button onClick={() => handleDeleteClick(ticket.id)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition border border-red-100">
+                        <button onClick={() => handleDeleteClick(ticket.id)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-white hover:bg-red-50 rounded-lg transition border border-red-100 shadow-sm">
                             <FaTrash /> Hapus
                         </button>
                     )}
@@ -317,7 +339,7 @@ export default function TicketsPage() {
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
 
-            {/* HEADER RESPONSIVE */}
+            {/* HEADER */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-xl md:text-2xl font-bold text-slate-800">Manajemen Tiket</h2>
@@ -327,25 +349,9 @@ export default function TicketsPage() {
                     <button onClick={() => setIsReportModalOpen(true)} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Laporan</button>
                     {userRole !== 'View' && (
                     <div className="flex gap-2 bg-indigo-50 p-1 rounded-lg border border-indigo-100">
-                        {/* Tombol Input Massal (Multi-Row) */}
-                        <button 
-                            onClick={() => setIsMultiRowModalOpen(true)} 
-                            className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition"
-                            title="Input banyak data manual"
-                        >
-                            <FaPlus /> Input Massal
-                        </button>
-                        
+                        <button onClick={() => setIsMultiRowModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition" title="Input banyak data manual"><FaPlus /> Input Massal</button>
                         <div className="w-[1px] bg-indigo-200 my-1"></div>
-
-                        {/* Tombol Upload Excel */}
-                        <button 
-                            onClick={() => setIsBulkModalOpen(true)} 
-                            className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition"
-                            title="Upload via Excel"
-                        >
-                            <FaFileUpload /> Import Excel
-                        </button>
+                        <button onClick={() => setIsBulkModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition" title="Upload via Excel"><FaFileUpload /> Import Excel</button>
                     </div>
                 )}
                     {userRole !== 'View' && (
@@ -354,22 +360,19 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* TABS RESPONSIVE */}
+            {/* TABS */}
             <div className="grid grid-cols-2 rounded-xl bg-slate-200 p-1 md:w-96 shadow-inner w-full">
                 <button onClick={() => setActiveTab('RUNNING')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'RUNNING' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaRunning /> RUNNING</button>
                 <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaCheckCircle /> CLOSED</button>
             </div>
 
-            {/* FILTERS RESPONSIVE */}
+            {/* FILTERS */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-white p-4 shadow-sm border border-slate-100">
-                {/* 1. Category Tabs */}
                 <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
                     {CATEGORY_TABS.map((cat) => (
                         <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${activeCategory === cat ? 'bg-slate-800 text-white shadow' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{cat}</button>
                     ))}
                 </div>
-
-                {/* 2. Date & Search */}
                 <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
                         <div className="flex items-center gap-2">
@@ -382,7 +385,6 @@ export default function TicketsPage() {
                              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs text-slate-600 focus:outline-none w-full sm:w-auto p-1" />
                         </div>
                     </div>
-
                     <div className="relative w-full md:w-auto">
                         <FaSearch className="absolute left-3 top-2.5 text-slate-400 text-xs" />
                         <input type="text" placeholder="Cari ID / Deskripsi..." className="w-full md:w-48 rounded-lg border border-slate-200 pl-9 pr-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -393,21 +395,12 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* --- LIST TIKET --- */}
-            
-            {/* 1. TAMPILAN MOBILE (Card View) */}
+            {/* LIST MOBILE */}
             <div className="md:hidden space-y-4">
-                {/* LOGIKA LOADING: SKELETON */}
-                {loading ? (
-                    <MobileCardSkeleton /> 
-                ) : tickets.length === 0 ? (
-                    /* LOGIKA KOSONG: EMPTY STATE (Search vs Kosong Biasa) */
+                {loading ? <MobileCardSkeleton /> : tickets.length === 0 ? (
                     <EmptyState 
                         title={search ? "Tidak Ditemukan" : "Belum Ada Tiket"}
-                        message={search 
-                            ? `Pencarian untuk "${search}" tidak memberikan hasil.` 
-                            : `Belum ada tiket dengan status ${activeTab} di kategori ${activeCategory}.`
-                        }
+                        message={search ? `Pencarian untuk "${search}" tidak memberikan hasil.` : `Belum ada tiket dengan status ${activeTab} di kategori ${activeCategory}.`}
                         icon={search ? FaSearch : FaFolderOpen}
                         actionLabel={!search && userRole !== 'View' && activeTab === 'RUNNING' ? "Buat Tiket Baru" : null}
                         onAction={!search && userRole !== 'View' && activeTab === 'RUNNING' ? handleCreateClick : null}
@@ -417,7 +410,7 @@ export default function TicketsPage() {
                 )}
             </div>
 
-            {/* 2. TAMPILAN DESKTOP (Table View) */}
+            {/* TABLE DESKTOP */}
             <div className="hidden md:block overflow-hidden rounded-xl bg-white shadow-sm border border-slate-100">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
@@ -426,25 +419,18 @@ export default function TicketsPage() {
                                 <th className="px-6 py-4">Info Tiket</th>
                                 <th className="px-6 py-4">Deskripsi & Update</th>
                                 <th className="px-6 py-4">Teknisi</th>
-                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4">Status & Umur</th>
                                 <th className="px-6 py-4">Waktu Update</th>
                                 <th className="px-6 py-4 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {/* LOGIKA LOADING: SKELETON */}
-                            {loading ? (
-                                <TicketTableSkeleton />
-                            ) : tickets.length === 0 ? (
-                                /* LOGIKA KOSONG: EMPTY STATE DALAM TABEL */
+                            {loading ? <TicketTableSkeleton /> : tickets.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="p-8">
                                         <EmptyState 
                                             title={search ? "Pencarian Tidak Ditemukan" : "List Tiket Kosong"}
-                                            message={search 
-                                                ? `Tidak ada tiket yang cocok dengan kata kunci "${search}".` 
-                                                : "Saat ini belum ada data tiket yang tersedia untuk ditampilkan."
-                                            }
+                                            message={search ? `Tidak ada tiket yang cocok dengan kata kunci "${search}".` : "Saat ini belum ada data tiket yang tersedia untuk ditampilkan."}
                                             icon={search ? FaSearch : FaInbox}
                                             actionLabel={!search && userRole !== 'View' && activeTab === 'RUNNING' ? "Buat Tiket Baru" : null}
                                             onAction={!search && userRole !== 'View' && activeTab === 'RUNNING' ? handleCreateClick : null}
@@ -454,89 +440,70 @@ export default function TicketsPage() {
                                 </tr>
                             ) : (
                                 tickets.map((ticket) => (
-                                    <tr key={ticket.id} className="hover:bg-slate-50 transition group">
-                                        
-                                        {/* INFO TIKET */}
-                                        <td className="px-6 py-4 align-top">
-                                            <div className="font-bold text-slate-800 text-xs">{ticket.id_tiket}</div>
-                                            <span className={`inline-block mt-1 rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase ${getCategoryColor(ticket.category)}`}>{ticket.category} - {ticket.subcategory}</span>
-                                            {ticket.sto && (
-                                                <span className="ml-1 inline-block mt-1 rounded px-1.5 py-0.5 text-[10px] font-bold border border-slate-200 bg-slate-50 text-slate-500">
-                                                    STO: {ticket.sto}
-                                                </span>
-                                            )}
-                                            <div className="text-[10px] text-slate-400 mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
-                                        </td>
-                                        
-                                        {/* DESKRIPSI & UPDATE */}
-                                        <td className="px-6 py-4 align-top max-w-sm">
-                                            <div className="text-slate-700 text-xs line-clamp-3 mb-2" title={ticket.deskripsi}>{ticket.deskripsi}</div>
-                                            {ticket.update_progres && (
-                                                <div className="text-[10px] text-slate-600 bg-yellow-50 p-2 rounded border border-yellow-100 flex items-start gap-1">
-                                                    <span className="font-bold text-yellow-700 shrink-0">
-                                                        {ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}
-                                                    </span> 
-                                                    <span className="italic">{ticket.update_progres}</span>
-                                                </div>
-                                            )}
-                                        </td>
-                                        
-                                        {/* TEKNISI */}
-                                        <td className="px-6 py-4 align-top">
-                                            {ticket.technician_name ? (
-                                                <div className="flex flex-col gap-2">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-xs font-bold text-slate-700">{ticket.technician_name}</span>
-                                                            <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-bold uppercase tracking-wider">LENSA</span>
+                                    <tr key={ticket.id} className={`transition group border-b ${getRowSeverityStyle(ticket.tiket_time, ticket.status)}`}>
+                                            <td className="px-6 py-4 align-top">
+                                                <div className="font-bold text-slate-800 text-xs">{ticket.id_tiket}</div>
+                                                <span className={`inline-block mt-1 rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase bg-white ${getCategoryColor(ticket.category)}`}>{ticket.category} - {ticket.subcategory}</span>
+                                                {ticket.sto && <span className="ml-1 inline-block mt-1 rounded px-1.5 py-0.5 text-[10px] font-bold border border-slate-200 bg-white text-slate-500">STO: {ticket.sto}</span>}
+                                                <div className="text-[10px] text-slate-400 mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                                            </td>
+                                            <td className="px-6 py-4 align-top max-w-sm">
+                                                <div className="text-slate-700 text-xs line-clamp-3 mb-2" title={ticket.deskripsi}>{ticket.deskripsi}</div>
+                                                {ticket.update_progres && (
+                                                    <div className="text-[10px] text-slate-600 bg-yellow-100/50 p-2 rounded border border-yellow-200 flex items-start gap-1">
+                                                        <span className="font-bold text-yellow-700 shrink-0">{ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}</span> 
+                                                        <span className="italic">{ticket.update_progres}</span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 align-top">
+                                                {ticket.technician_name ? (
+                                                    <div className="flex flex-col gap-2">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-xs font-bold text-slate-700">{ticket.technician_name}</span>
+                                                                <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-bold uppercase tracking-wider">LENSA</span>
+                                                            </div>
+                                                            {ticket.technician_phone && (
+                                                                <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] text-green-600 hover:underline"><FaWhatsapp /> {ticket.technician_phone}</a>
+                                                            )}
                                                         </div>
-                                                        {ticket.technician_phone && (
-                                                            <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] text-green-600 hover:underline">
-                                                                <FaWhatsapp /> {ticket.technician_phone}
-                                                            </a>
+                                                        {ticket.partner_technicians && (
+                                                            <div className="pt-2 border-t border-dashed border-slate-300">
+                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tim Support:</span>
+                                                                <div className="text-[10px] text-slate-600 bg-white/60 p-1.5 rounded border border-slate-200">
+                                                                    {ticket.partner_technicians.split(',').map((p, idx) => (
+                                                                        <div key={idx} className="flex items-start gap-1 mb-0.5 last:mb-0"><span className="text-slate-300">•</span> {p.trim()}</div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
                                                         )}
                                                     </div>
-                                                    {ticket.partner_technicians && (
-                                                        <div className="pt-2 border-t border-dashed border-slate-200">
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tim Support:</span>
-                                                            <div className="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100">
-                                                                {ticket.partner_technicians.split(',').map((p, idx) => (
-                                                                    <div key={idx} className="flex items-start gap-1 mb-0.5 last:mb-0">
-                                                                        <span className="text-slate-300">•</span> {p.trim()}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                ) : (<span className="text-xs text-slate-400 italic">Belum assign</span>)}
+                                            </td>
+                                            <td className="px-6 py-4 align-top">
+                                                <div className="flex flex-col gap-2 items-start">
+                                                    <StatusBadge status={ticket.status} />
+                                                    {(() => {
+                                                        const aging = getTicketAging(ticket.tiket_time, ticket.status);
+                                                        if (aging) return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap bg-white ${aging.className}`}>{aging.icon}{aging.text}</span>;
+                                                        return null;
+                                                    })()}
                                                 </div>
-                                            ) : (<span className="text-xs text-slate-400 italic">Belum assign</span>)}
-                                        </td>
-
-                                        {/* STATUS */}
-                                        <td className="px-6 py-4 align-top">
-                                            <StatusBadge status={ticket.status} />
-                                        </td>
-
-                                        {/* WAKTU UPDATE */}
-                                        <td className="px-6 py-4 align-top">
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-medium text-slate-700">{new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}</span>
-                                                <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-1"><FaHistory /> by {ticket.updater_name || 'System'}</span>
-                                            </div>
-                                        </td>
-
-                                        {/* AKSI */}
-                                        <td className="px-6 py-4 align-top text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                                {userRole !== 'View' && (
-                                                    <button onClick={() => handleEditClick(ticket)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded border border-slate-200" title="Edit"><FaEdit /></button>
-                                                )}
-                                                <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="p-1.5 text-purple-600 hover:bg-purple-50 rounded border border-slate-200" title="History"><FaHistory /></button>
-                                                {userRole === 'Admin' && (
-                                                    <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded border border-slate-200" title="Hapus"><FaTrash /></button>
-                                                )}
-                                            </div>
-                                        </td>
+                                            </td>
+                                            <td className="px-6 py-4 align-top">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-medium text-slate-700">{new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}</span>
+                                                    <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-1"><FaHistory /> by {ticket.updater_name || 'System'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 align-top text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="p-1.5 text-blue-600 hover:bg-blue-50 bg-white rounded border border-slate-200 shadow-sm" title="Edit"><FaEdit /></button>}
+                                                    <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="p-1.5 text-purple-600 hover:bg-purple-50 bg-white rounded border border-slate-200 shadow-sm" title="History"><FaHistory /></button>
+                                                    {userRole === 'Admin' && <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-600 hover:bg-red-50 bg-white rounded border border-slate-200 shadow-sm" title="Hapus"><FaTrash /></button>}
+                                                </div>
+                                            </td>
                                     </tr>
                                 ))
                             )}
@@ -545,7 +512,6 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* Pagination */}
             {!loading && tickets.length > 0 && (
                 <div className="flex items-center justify-between border-t border-slate-100 px-4 py-4 bg-white md:bg-slate-50 rounded-lg md:rounded-none">
                     <span className="text-xs text-slate-500">Hal {pagination.currentPage} dari {pagination.totalPages}</span>

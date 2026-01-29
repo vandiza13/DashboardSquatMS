@@ -9,8 +9,7 @@ export async function GET(request) {
         const token = request.cookies.get('token')?.value;
         if (!await verifyJWT(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        // 1. Ringkasan Status LENGKAP (Untuk Kartu Utama)
-        // Kita tambahkan logic closed_today dan closed_month di sini
+        // 1. Ringkasan Status LENGKAP
         const [statusCounts] = await db.query(`
             SELECT 
                 COUNT(*) as total,
@@ -74,13 +73,40 @@ export async function GET(request) {
             LIMIT 5
         `);
 
+        // --- [TAMBAHAN BARU] 7. Ticket Aging (Umur Tiket Open/SC) ---
+        const [agingStats] = await db.query(`
+            SELECT 
+                category,
+                CASE 
+                    WHEN TIMESTAMPDIFF(HOUR, tiket_time, NOW()) < 4 THEN 'less_4h'
+                    WHEN TIMESTAMPDIFF(HOUR, tiket_time, NOW()) >= 4 AND TIMESTAMPDIFF(HOUR, tiket_time, NOW()) <= 12 THEN '4h_12h'
+                    WHEN TIMESTAMPDIFF(HOUR, tiket_time, NOW()) > 12 AND TIMESTAMPDIFF(HOUR, tiket_time, NOW()) <= 24 THEN '12h_24h'
+                    ELSE 'more_24h'
+                END as age_group,
+                COUNT(*) as count
+            FROM tickets 
+            WHERE status != 'CLOSED'
+            GROUP BY category, age_group
+        `);
+
+        // Format data aging agar rapi (default 0)
+        const ticketAging = {
+            less_4h: 0,
+            '4h_12h': 0,
+            '12h_24h': 0,
+            more_24h: 0
+        };
+        agingStats.forEach(row => ticketAging[row.age_group] = row.count);
+        // -----------------------------------------------------------
+
         return NextResponse.json({
             stats: statusCounts[0] || {}, 
             runningBySub,
             closedTodayBySub,
             monthlyType,
             dailyTrend,
-            recent: recentTickets
+            recent: recentTickets,
+            aging: agingStats // Kirim raw data, nanti frontend yang olah
         });
 
     } catch (error) {
