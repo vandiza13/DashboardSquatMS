@@ -5,7 +5,7 @@ import {
     FaSearch, FaSpinner, FaChevronLeft, FaChevronRight, FaPlus, 
     FaEdit, FaTrash, FaFileAlt, FaRunning, FaCheckCircle, 
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel, 
-    FaCalendarAlt, FaInbox, FaFolderOpen 
+    FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx'; 
 import TicketFormModal from '@/components/TicketFormModal';
@@ -13,7 +13,9 @@ import ReportModal from '@/components/ReportModal';
 import HistoryModal from '@/components/HistoryModal'; 
 import StatusBadge from '@/components/StatusBadge';
 import Skeleton from '@/components/Skeleton';
-import EmptyState from '@/components/EmptyState'; // Pastikan file ini sudah dibuat (lihat instruksi sebelumnya)
+import EmptyState from '@/components/EmptyState';
+import BulkTicketModal from '@/components/BulkTicketModal';
+import MultiTicketModal from '@/components/MultiTicketModal';
 
 const CATEGORY_TABS = ['ALL', 'MTEL', 'SQUAT', 'UMT', 'CENTRATAMA'];
 
@@ -108,6 +110,8 @@ export default function TicketsPage() {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [historyData, setHistoryData] = useState([]);
     const [selectedTicketId, setSelectedTicketId] = useState('');
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+    const [isMultiRowModalOpen, setIsMultiRowModalOpen] = useState(false);
 
     useEffect(() => {
         fetch('/api/me')
@@ -295,6 +299,8 @@ export default function TicketsPage() {
     return (
         <div className="space-y-6 pb-24 md:pb-0 w-full max-w-[100vw] overflow-x-hidden"> 
             <TicketFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTickets} initialData={editingTicket} />
+            <BulkTicketModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} onSuccess={fetchTickets} />
+            <MultiTicketModal isOpen={isMultiRowModalOpen} onClose={() => setIsMultiRowModalOpen(false)} onSuccess={fetchTickets} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
 
@@ -306,6 +312,29 @@ export default function TicketsPage() {
                 </div>
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     <button onClick={() => setIsReportModalOpen(true)} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Laporan</button>
+                    {userRole !== 'View' && (
+                    <div className="flex gap-2 bg-indigo-50 p-1 rounded-lg border border-indigo-100">
+                        {/* Tombol Input Massal (Multi-Row) */}
+                        <button 
+                            onClick={() => setIsMultiRowModalOpen(true)} 
+                            className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition"
+                            title="Input banyak data manual"
+                        >
+                            <FaPlus /> Input Massal
+                        </button>
+                        
+                        <div className="w-[1px] bg-indigo-200 my-1"></div>
+
+                        {/* Tombol Upload Excel */}
+                        <button 
+                            onClick={() => setIsBulkModalOpen(true)} 
+                            className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition"
+                            title="Upload via Excel"
+                        >
+                            <FaFileUpload /> Import Excel
+                        </button>
+                    </div>
+                )}
                     {userRole !== 'View' && (
                         <button onClick={handleCreateClick} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-blue-700 shadow-sm transition"><FaPlus /> Buat Tiket</button>
                     )}
