@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaTimes, FaSpinner, FaHardHat, FaUserPlus } from 'react-icons/fa';
+import { FaTimes, FaSpinner, FaHardHat, FaUserPlus, FaExclamationTriangle } from 'react-icons/fa';
 
 // --- KONFIGURASI KATEGORI ---
 const SUB_CATEGORIES = {
@@ -41,6 +41,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userRole, setUserRole] = useState('');
+
+    // --- STATE BARU: POPUP PERINGATAN ---
+    const [isWarningOpen, setIsWarningOpen] = useState(false);
 
     // Helper: Format Tanggal WIB
     const formatDateTimeLocal = (dateString) => {
@@ -154,9 +157,12 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
     const isRestrictedEdit = userRole === 'User' && !!initialData;
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // --- MODIFIKASI: PEMISAHAN LOGIKA SUBMIT ---
+
+    // 1. Fungsi Eksekusi Simpan (Kode Asli handleSubmit dipindah ke sini)
+    const executeSubmit = async () => {
         setIsSubmitting(true);
+        setIsWarningOpen(false); // Tutup warning jika ada
 
         // Format Partner jadi String
         const partnerNames = partnerNiks.map(nik => {
@@ -194,6 +200,19 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         }
     };
 
+    // 2. Fungsi Handler Baru untuk Cek Status
+    const handlePreSubmit = (e) => {
+        e.preventDefault();
+        
+        // Cek jika status CLOSED, munculkan Custom Popup
+        if (formData.status === 'CLOSED') {
+            setIsWarningOpen(true);
+        } else {
+            // Jika bukan CLOSED, langsung simpan
+            executeSubmit();
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn overflow-y-auto">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto relative">
@@ -209,7 +228,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 </div>
 
                 {/* Form Body - Responsive Grid */}
-                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5 max-h-[80vh]">
+                <form onSubmit={handlePreSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5 max-h-[80vh]">
                     
                     {/* Baris 1: Kategori (Grid 1 di Mobile, 2 di Desktop) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -432,6 +451,56 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </button>
                     </div>
                 </form>
+
+                {/* --- TAMBAHAN KODE: POPUP PERINGATAN (Overlay) --- */}
+                {isWarningOpen && (
+                    <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+                        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-red-500 transform scale-100 transition-transform">
+                            
+                            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                                <FaExclamationTriangle size={32} />
+                            </div>
+
+                            <h3 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">
+                                Konfirmasi Close
+                            </h3>
+
+                            {/* TEXT MERAH & TEBAL YANG DIMINTA */}
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-left">
+                                <p className="text-red-600 font-extrabold text-sm mb-2 flex items-start gap-2">
+                                    <span>1.</span> 
+                                    MOHON PASTIKAN NAMA TEKNISI UTAMA SESUAI DENGAN CLOSE LENSA!
+                                </p>
+                                <p className="text-red-600 font-extrabold text-sm flex items-start gap-2">
+                                    <span>2.</span> 
+                                    MOHON PASTIKAN RCA SUDAH SESUAI.
+                                </p>
+                            </div>
+
+                            <p className="text-xs text-slate-500 mb-6">
+                                Apakah Anda yakin data di atas sudah benar? <br/>
+                                Data yang sudah di-close tidak dapat diubah lagi oleh User biasa.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsWarningOpen(false)}
+                                    className="px-4 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
+                                >
+                                    Batal
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={executeSubmit}
+                                    className="px-4 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30 transition"
+                                >
+                                    Ya, Saya Yakin
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
