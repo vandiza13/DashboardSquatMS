@@ -100,18 +100,18 @@ export async function appendTicketToSheet(ticketData) {
             // Ensure you add "Priority" column in Excel Column C
             rowValues = [
                 nomorUrut,          // A
-                id_tiket,           // B
-                priority || '-',    // C: PRIORITY (Specific to TSEL)
-                deskripsi,          // D
+                id_tiket,           // B    // C: PRIORITY (Specific to TSEL)
+                deskripsi,          // C
                 sto || '',          // E
-                '', '', '', '',     // F-I (Empty)
-                formatDate(tiket_time), // J
-                formatDate(close_time), // K
-                '', '',             // L-M
-                technician_full,    // N
-                'CLOSED',           // O
-                root_cause,         // P
-                ''                  // Q
+                priority || '-',     // D: PRIORITY
+                '', '', '',     // F-H (Empty)
+                formatDate(tiket_time), // I
+                formatDate(close_time), // J
+                '', '',             // K-L
+                technician_full,    // M
+                'CLOSED',           // N
+                root_cause,         // O
+                ''                  // P
             ];
         
         } else if (sheetName === 'OLO') {
