@@ -2,13 +2,13 @@ import { google } from 'googleapis';
 
 export async function appendTicketToSheet(ticketData) {
     try {
-        console.log("🛠️ [GSheet] Memulai proses input...");
+        console.log("🛠️ [GSheet] Starting input process...");
 
         // 1. SETUP AUTH (VERCEL COMPATIBLE)
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                // Handle newlines untuk Private Key di Vercel
+                // Handle newlines for Private Key in Vercel
                 private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -17,14 +17,15 @@ export async function appendTicketToSheet(ticketData) {
         const sheets = google.sheets({ version: 'v4', auth });
         const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '19OIHJz9U0KsCpeNcy0faoOuQzIvu6ChsZ4CpZQqOTCw';
 
-        // Destructure Data
+        // Destructure Data (Added priority and id_tiket_tacc)
         const { 
-            category, subcategory, priority, // Ambil priority (Hanya dipakai TSEL)
-            id_tiket, deskripsi, sto, tiket_time, close_time, root_cause, technician_full 
+            category, subcategory, priority, 
+            id_tiket, id_tiket_tacc, // [NEW] Get TACC ID
+            deskripsi, sto, tiket_time, close_time, root_cause, technician_full 
         } = ticketData;
 
         // ==========================================================
-        // 2. TENTUKAN NAMA SHEET (TAB)
+        // 2. DETERMINE SHEET NAME (TAB)
         // ==========================================================
         let sheetName = '';
 
@@ -43,15 +44,15 @@ export async function appendTicketToSheet(ticketData) {
         }
 
         if (!sheetName) {
-            console.log(`⚠️ [GSheet] Skip: Kategori ${category} tidak punya Sheet tujuan.`);
+            console.log(`⚠️ [GSheet] Skip: Category ${category} has no target Sheet.`);
             return false;
         }
 
         // ==========================================================
-        // 3. LOGIKA NOMOR URUT OTOMATIS
+        // 3. AUTOMATIC SERIAL NUMBER LOGIC
         // ==========================================================
         
-        // A. Cek Baris Kosong (Pakai Kolom B sebagai acuan ID)
+        // A. Check Empty Row (Use Column B as ID reference)
         const responseB = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!B:B`,
@@ -59,7 +60,7 @@ export async function appendTicketToSheet(ticketData) {
         const rowsB = responseB.data.values || [];
         const nextRow = rowsB.length + 1;
 
-        // B. Cek Nomor Terakhir di Kolom A
+        // B. Check Last Number in Column A
         const responseA = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A:A`,
@@ -77,7 +78,7 @@ export async function appendTicketToSheet(ticketData) {
         
         const nomorUrut = lastNumber + 1;
 
-        // 4. FORMAT WAKTU (WIB)
+        // 4. DATE FORMAT (WIB)
         const formatDate = (dateString) => {
             if (!dateString) return '';
             const d = new Date(dateString);
@@ -90,38 +91,38 @@ export async function appendTicketToSheet(ticketData) {
         };
 
         // ==========================================================
-        // 5. MAPPING DATA (HANYA TSEL YANG PAKAI PRIORITY)
+        // 5. DATA MAPPING (SAFE & TARGETED UPDATES)
         // ==========================================================
         let rowValues = [];
 
         if (sheetName === 'TSEL') {
-            // --- KHUSUS TSEL: ADA KOLOM PRIORITY ---
-            // Pastikan di Excel Tab TSEL kamu sudah Insert Column "Priority" di sebelah kanan ID Tiket
+            // --- TSEL: Has PRIORITY Column ---
+            // Ensure you add "Priority" column in Excel Column C
             rowValues = [
                 nomorUrut,          // A
                 id_tiket,           // B
-                deskripsi,          // C
-                sto || '',          // D
-                priority || '-',    // E: PRIORITY (KHUSUS TSEL)
-                '', '', '',     // F-H (Kosong)
-                formatDate(tiket_time), // I
-                formatDate(close_time), // J
-                '', '',             // K-L
-                technician_full,    // M
-                'CLOSED',           // N
-                root_cause,         // O
-                ''                  // P
+                priority || '-',    // C: PRIORITY (Specific to TSEL)
+                deskripsi,          // D
+                sto || '',          // E
+                '', '', '', '',     // F-I (Empty)
+                formatDate(tiket_time), // J
+                formatDate(close_time), // K
+                '', '',             // L-M
+                technician_full,    // N
+                'CLOSED',           // O
+                root_cause,         // P
+                ''                  // Q
             ];
         
         } else if (sheetName === 'OLO') {
-            // --- OLO: STRUKTUR LAMA (TIDAK ADA PRIORITY) ---
+            // --- OLO: ORIGINAL STRUCTURE (No Priority/TACC) ---
             rowValues = [
                 nomorUrut,          // A
                 id_tiket,           // B
-                // SKIP PRIORITY
+                // SKIP PRIORITY/TACC
                 deskripsi,          // C
                 sto || '',          // D
-                '', '',             // E-F (Kosong)
+                '', '',             // E-F (Empty)
                 formatDate(tiket_time), // G
                 formatDate(close_time), // H
                 '', '',             // I-J
@@ -132,14 +133,32 @@ export async function appendTicketToSheet(ticketData) {
             ];
 
         } else if (sheetName === 'MTEL') {
-            // --- MTEL: STRUKTUR LAMA (TIDAK ADA PRIORITY) ---
+            // --- MTEL: [NEW] Has ID TACC in Column C ---
+            // Ensure you add "ID TACC" column in Excel Column C
             rowValues = [
                 nomorUrut,              // A
-                id_tiket,               // B
-                // SKIP PRIORITY
-                deskripsi,              // C
-                '',                     // D: TTR JAM
-                subcategory || '',      // E: JENIS TIKET
+                id_tiket_tacc || '-',   // B: ID TACC [NEW]
+                id_tiket,               // C
+                deskripsi,              // D
+                '',                     // E: TTR HOUR
+                subcategory || '',      // F: TICKET TYPE
+                formatDate(tiket_time), // G
+                formatDate(close_time), // H
+                'CLOSED',               // I
+                technician_full,        // J
+                root_cause,             // K
+                ''                      // L
+            ];
+
+        } else if (sheetName === 'UMT' || sheetName === 'FSI') {
+            // --- UMT & FSI: [NEW] Has ID TACC in Column C ---
+            // Ensure you add "ID TACC" column in Excel Column C
+            rowValues = [
+                nomorUrut,              // A
+                id_tiket_tacc || '-',   // B
+                id_tiket,               // C
+                deskripsi,              // D
+                '',                     // E: TTR HOUR
                 formatDate(tiket_time), // F
                 formatDate(close_time), // G
                 'CLOSED',               // H
@@ -147,25 +166,9 @@ export async function appendTicketToSheet(ticketData) {
                 root_cause,             // J
                 ''                      // K
             ];
-
-        } else if (sheetName === 'UMT' || sheetName === 'FSI') {
-            // --- UMT/FSI: STRUKTUR LAMA (TIDAK ADA PRIORITY) ---
-            rowValues = [
-                nomorUrut,              // A
-                id_tiket,               // B
-                // SKIP PRIORITY
-                deskripsi,              // C
-                '',                     // D: TTR JAM
-                formatDate(tiket_time), // E
-                formatDate(close_time), // F
-                'CLOSED',               // G
-                technician_full,        // H
-                root_cause,             // I
-                ''                      // J
-            ];
         }
 
-        // 6. EKSEKUSI UPDATE
+        // 6. EXECUTE UPDATE
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A${nextRow}`,
@@ -173,7 +176,7 @@ export async function appendTicketToSheet(ticketData) {
             requestBody: { values: [rowValues] },
         });
 
-        console.log(`✅ [GSheet] SUKSES input ${id_tiket} ke Tab ${sheetName} (No. ${nomorUrut})`);
+        console.log(`✅ [GSheet] SUCCESS input ${id_tiket} to Tab ${sheetName} (No. ${nomorUrut})`);
         return true;
 
     } catch (error) {

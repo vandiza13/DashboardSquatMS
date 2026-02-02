@@ -11,7 +11,6 @@ export async function GET(request, props) {
     const { id } = params;
 
     try {
-        // --- PERBAIKAN QUERY: Tambahkan MAX() untuk menghindari error GROUP BY ---
         const [rows] = await db.query(`
             SELECT t.*, 
                    MAX(u.username) as updater_name,
@@ -35,7 +34,7 @@ export async function GET(request, props) {
 }
 
 
-// PUT: UPDATE TIKET (TRANSACTIONAL)
+// PUT: UPDATE TIKET (UPDATE TACC JUGA)
 export async function PUT(request, props) {
     const params = await props.params; 
     const { id } = params;
@@ -59,34 +58,36 @@ export async function PUT(request, props) {
 
         await connection.beginTransaction();
 
-        // 1. Update Tabel Tiket (DITAMBAHKAN KOLOM PRIORITY)
+        // 1. Update Tabel Tiket (DITAMBAHKAN id_tiket_tacc)
         await connection.query(
             `UPDATE tickets SET 
                 category = ?, 
                 subcategory = ?, 
-                priority = ?,        -- [BARU] Update Priority
+                priority = ?, 
                 id_tiket = ?, 
+                id_tiket_tacc = ?,   -- [BARU] Update TACC
+                sto = ?,
                 tiket_time = ?, 
                 deskripsi = ?, 
                 status = ?, 
                 update_progres = ?, 
                 updated_by_user_id = ?, 
                 last_update_time = NOW(), 
-                partner_technicians = ?, 
-                sto = ? 
+                partner_technicians = ?
             WHERE id = ?`,
             [
                 body.category, 
                 body.subcategory, 
-                body.priority || null, // [BARU] Nilai Priority (atau null)
+                body.priority || null, 
                 body.id_tiket, 
+                body.id_tiket_tacc || null, // [BARU] Nilai TACC
+                body.sto || null,      
                 body.tiket_time, 
                 body.deskripsi, 
                 body.status, 
                 body.update_progres, 
                 user.userId, 
-                body.partner_technicians, 
-                body.sto || null, 
+                body.partner_technicians || null,
                 id
             ]
         );
@@ -136,7 +137,7 @@ export async function PUT(request, props) {
 
         await connection.commit();
 
-        // 4. INTEGRASI GOOGLE SHEET (TETAP SAMA)
+        // 4. INTEGRASI GOOGLE SHEET (DITAMBAH TACC)
         if (body.status === 'CLOSED' && oldStatus !== 'CLOSED') {
             console.log("🛠️ Upload ke Google Sheet...");
             let fullTechInfo = picName ? `${picName} (${picPhone || '-'})` : 'Belum Assign';
@@ -147,6 +148,7 @@ export async function PUT(request, props) {
                 subcategory: body.subcategory, 
                 priority: body.priority,
                 id_tiket: body.id_tiket,
+                id_tiket_tacc: body.id_tiket_tacc, // [BARU] Kirim TACC ke GSheet
                 deskripsi: body.deskripsi,
                 sto: body.sto,                
                 tiket_time: body.tiket_time,   
@@ -173,7 +175,7 @@ export async function PUT(request, props) {
     }
 }
 
-// DELETE: HAPUS TIKET
+// DELETE: HAPUS TIKET (TETAP SAMA)
 export async function DELETE(request, props) {
     const params = await props.params; 
     const { id } = params;

@@ -6,7 +6,7 @@ import {
     FaEdit, FaTrash, FaFileAlt, FaRunning, FaCheckCircle, 
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel, 
     FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
-    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch 
+    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag // [BARU] Tambah icon Tag
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx'; 
 import TicketFormModal from '@/components/TicketFormModal';
@@ -44,7 +44,7 @@ const getTicketAging = (ticket) => {
     const now = new Date();
     const created = new Date(ticket.tiket_time);
     const diffMs = now - created;
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60)); // Total jam berjalan
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60)); 
 
     // --- A. LOGIKA KHUSUS SQUAT - TSEL (PRIORITY AWARE) ---
     if (ticket.category === 'SQUAT' && ticket.subcategory === 'TSEL' && ticket.priority) {
@@ -198,17 +198,24 @@ export default function TicketsPage() {
     };
 
     const MobileTicketCard = ({ ticket }) => (
-        // Gunakan getRowSeverityStyle(ticket) -> Kirim Full Object Ticket
         <div className={`p-4 rounded-xl border shadow-sm flex flex-col gap-3 relative transition-colors ${getRowSeverityStyle(ticket)}`}>
             <div className="flex justify-between items-start border-b border-black/5 pb-2 mb-1">
                 <div className="flex flex-col">
                     <span className="font-extrabold text-slate-800 text-base">{ticket.id_tiket}</span>
+                    
+                    {/* [BARU] TAMPILAN TACC DI MOBILE */}
+                    {ticket.id_tiket_tacc && (
+                        <span className="flex items-center gap-1 text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 mt-1 w-fit">
+                            <FaTag size={8}/> TACC: {ticket.id_tiket_tacc}
+                        </span>
+                    )}
+
                     <span className="text-[10px] text-slate-500 mt-0.5">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                     <StatusBadge status={ticket.status} />
                     {ticket.status !== 'CLOSED' && (() => {
-                        const aging = getTicketAging(ticket); // Pass Full Object
+                        const aging = getTicketAging(ticket); 
                         return aging ? <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${aging.className}`}>{aging.icon} {aging.text}</span> : null;
                     })()}
                 </div>
@@ -216,7 +223,6 @@ export default function TicketsPage() {
             <div className="flex flex-wrap gap-1">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-white ${CATEGORY_COLORS[ticket.category] || CATEGORY_COLORS.DEFAULT}`}>{ticket.category} - {ticket.subcategory}</span>
                 {ticket.sto && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-white text-slate-600">STO: {ticket.sto}</span>}
-                {/* Badge Priority Khusus TSEL */}
                 {ticket.priority && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white shadow-sm">{ticket.priority}</span>}
             </div>
             <div className="text-slate-700 text-xs bg-white/60 p-2.5 rounded-lg border border-black/5">
@@ -311,6 +317,16 @@ export default function TicketsPage() {
                                 <tr key={ticket.id} className={`transition group border-b ${getRowSeverityStyle(ticket)}`}>
                                     <td className="px-6 py-4 align-top">
                                         <div className="font-bold text-slate-800 text-xs">{ticket.id_tiket}</div>
+                                        
+                                        {/* [BARU] TAMPILAN TACC DI DESKTOP */}
+                                        {ticket.id_tiket_tacc && (
+                                            <div className="mt-1">
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                                                    <FaTag size={8}/> TACC: {ticket.id_tiket_tacc}
+                                                </span>
+                                            </div>
+                                        )}
+
                                         <div className="flex gap-1 mt-1">
                                             <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase bg-white ${CATEGORY_COLORS[ticket.category]}`}>{ticket.category}-{ticket.subcategory}</span>
                                             {ticket.priority && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white">{ticket.priority}</span>}

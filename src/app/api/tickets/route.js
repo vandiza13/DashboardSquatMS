@@ -4,7 +4,7 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// --- GET: AMBIL DATA TIKET (TIDAK BERUBAH) ---
+// --- GET: AMBIL DATA TIKET (TETAP SAMA) ---
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -35,9 +35,9 @@ export async function GET(request) {
         const queryParams = [];
 
         if (search) {
-            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ?)`;
+            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`; // [UPDATE] Bisa search TACC
             const likeTerm = `%${search}%`;
-            queryParams.push(likeTerm, likeTerm, likeTerm);
+            queryParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
         }
 
         if (statusFilter === 'RUNNING') {
@@ -72,8 +72,8 @@ export async function GET(request) {
         const countParams = [];
 
         if (search) { 
-            countQuery += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ?)`; 
-            countParams.push(`%${search}%`, `%${search}%`);
+            countQuery += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.id_tiket_tacc LIKE ?)`; 
+            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
         if (statusFilter === 'RUNNING') countQuery += ` AND t.status IN ('OPEN', 'SC')`;
         else if (statusFilter === 'CLOSED') countQuery += ` AND t.status = 'CLOSED'`;
@@ -104,7 +104,7 @@ export async function GET(request) {
     }
 }
 
-// --- POST: BUAT TIKET BARU (DIPERBAIKI UNTUK PRIORITY) ---
+// --- POST: BUAT TIKET BARU (UPDATE TACC) ---
 export async function POST(request) {
     const connection = await db.getConnection(); 
     try {
@@ -117,30 +117,31 @@ export async function POST(request) {
 
         const body = await request.json();
         
-        // 1. AMBIL DATA (Termasuk Priority)
+        // 1. AMBIL DATA (Termasuk Priority & TACC)
         const { 
             category, subcategory, id_tiket, tiket_time, deskripsi, 
             technician_niks, partner_technicians, sto,
-            priority // [UPDATE] Ambil priority dari body
+            priority,
+            id_tiket_tacc // [BARU] Ambil TACC
         } = body;
 
-        // Validasi Sederhana
         if (!category || !subcategory || !id_tiket) {
             return NextResponse.json({ error: 'Data wajib tidak lengkap' }, { status: 400 });
         }
 
         await connection.beginTransaction();
 
-        // 2. INSERT (Tambahkan Kolom Priority)
+        // 2. INSERT (Tambahkan id_tiket_tacc)
         const [result] = await connection.query(
             `INSERT INTO tickets 
-            (category, subcategory, priority, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
-            VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`, // [UPDATE] Tambah 1 tanda tanya untuk priority
+            (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`, 
             [
                 category, 
                 subcategory, 
-                priority || null, // [UPDATE] Masukkan nilai Priority (Null jika tidak ada)
+                priority || null, 
                 id_tiket, 
+                id_tiket_tacc || null, // [BARU] Simpan TACC
                 tiket_time || new Date(), 
                 deskripsi || '-', 
                 user.userId, 
@@ -152,7 +153,6 @@ export async function POST(request) {
 
         const ticketId = result.insertId;
 
-        // Insert Teknisi (Tidak Berubah)
         if (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) {
             const nik = technician_niks[0]; 
             if (nik) {
@@ -160,7 +160,6 @@ export async function POST(request) {
             }
         }
 
-        // Insert History (Tidak Berubah)
         await connection.query(
             `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
             [ticketId, `Tiket dibuat dengan status OPEN`, user.username]
