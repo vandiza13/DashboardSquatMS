@@ -17,6 +17,8 @@ import Skeleton from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import BulkTicketModal from '@/components/BulkTicketModal';
 import MultiTicketModal from '@/components/MultiTicketModal';
+// [PUSHER] 1. Import Client
+import { pusherClient } from '@/lib/pusher-client';
 
 const CATEGORY_TABS = ['ALL', 'MTEL', 'SQUAT', 'UMT', 'CENTRATAMA'];
 
@@ -156,6 +158,9 @@ export default function TicketsPage() {
     const [selectedTicketId, setSelectedTicketId] = useState('');
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isMultiRowModalOpen, setIsMultiRowModalOpen] = useState(false);
+    
+    // [PUSHER] 2. State untuk trigger refresh otomatis
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         fetch('/api/me').then(res => res.json()).then(data => setUserRole(data.role)).catch(console.error);
@@ -172,7 +177,24 @@ export default function TicketsPage() {
     };
 
     useEffect(() => { setPage(1); }, [activeTab, activeCategory, startDate, endDate]);
-    useEffect(() => { const t = setTimeout(fetchTickets, 500); return () => clearTimeout(t); }, [page, search, activeTab, activeCategory, startDate, endDate]);
+    
+    // [PUSHER] 3. Tambahkan 'refreshTrigger' ke dependency array agar fetchTickets dipanggil saat ada update
+    useEffect(() => { const t = setTimeout(fetchTickets, 500); return () => clearTimeout(t); }, [page, search, activeTab, activeCategory, startDate, endDate, refreshTrigger]);
+
+    // [PUSHER] 4. Setup Listener Realtime
+    useEffect(() => {
+        const channel = pusherClient.subscribe('dashboard-channel');
+
+        channel.bind('ticket-update', (data) => {
+            console.log("Realtime Update:", data);
+            // Update trigger untuk memancing useEffect di atas melakukan fetch ulang
+            setRefreshTrigger(prev => prev + 1);
+        });
+
+        return () => {
+            pusherClient.unsubscribe('dashboard-channel');
+        };
+    }, []);
 
     const handleCreateClick = () => { setEditingTicket(null); setIsModalOpen(true); };
     const handleEditClick = (ticket) => { setEditingTicket(ticket); setIsModalOpen(true); };

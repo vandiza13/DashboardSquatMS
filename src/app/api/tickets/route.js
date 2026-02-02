@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
+// [PUSHER] 1. Import Pusher Server
+import { pusherServer } from '@/lib/pusher';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +37,7 @@ export async function GET(request) {
         const queryParams = [];
 
         if (search) {
-            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`; // [UPDATE] Bisa search TACC
+            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`; 
             const likeTerm = `%${search}%`;
             queryParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
         }
@@ -104,7 +106,7 @@ export async function GET(request) {
     }
 }
 
-// --- POST: BUAT TIKET BARU (UPDATE TACC) ---
+// --- POST: BUAT TIKET BARU (DENGAN PUSHER) ---
 export async function POST(request) {
     const connection = await db.getConnection(); 
     try {
@@ -117,12 +119,11 @@ export async function POST(request) {
 
         const body = await request.json();
         
-        // 1. AMBIL DATA (Termasuk Priority & TACC)
         const { 
             category, subcategory, id_tiket, tiket_time, deskripsi, 
             technician_niks, partner_technicians, sto,
             priority,
-            id_tiket_tacc // [BARU] Ambil TACC
+            id_tiket_tacc 
         } = body;
 
         if (!category || !subcategory || !id_tiket) {
@@ -131,7 +132,6 @@ export async function POST(request) {
 
         await connection.beginTransaction();
 
-        // 2. INSERT (Tambahkan id_tiket_tacc)
         const [result] = await connection.query(
             `INSERT INTO tickets 
             (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
@@ -141,7 +141,7 @@ export async function POST(request) {
                 subcategory, 
                 priority || null, 
                 id_tiket, 
-                id_tiket_tacc || null, // [BARU] Simpan TACC
+                id_tiket_tacc || null, 
                 tiket_time || new Date(), 
                 deskripsi || '-', 
                 user.userId, 
@@ -165,7 +165,21 @@ export async function POST(request) {
             [ticketId, `Tiket dibuat dengan status OPEN`, user.username]
         );
 
+        // Commit transaksi database dulu
         await connection.commit();
+
+        // [PUSHER] 2. Kirim Notifikasi Realtime SETELAH commit sukses
+        try {
+            await pusherServer.trigger('dashboard-channel', 'ticket-update', {
+                message: `Tiket ${id_tiket} baru saja dibuat`,
+                type: 'NEW_TICKET',
+                timestamp: new Date().toISOString()
+            });
+            console.log(">>> Pusher Trigger Sent Successfully!"); // Cek terminal VSCode saat create tiket
+        } catch (pusherError) {
+            console.error(">>> Pusher Trigger Error:", pusherError);
+        }
+
         return NextResponse.json({ message: 'Tiket berhasil dibuat', ticketId }, { status: 201 });
 
     } catch (error) {

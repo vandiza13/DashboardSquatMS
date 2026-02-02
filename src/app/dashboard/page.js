@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
     FaArrowRight, 
     FaBolt,           
@@ -28,6 +28,9 @@ import {
 import { Doughnut, Bar, Line } from 'react-chartjs-2'; 
 import Link from 'next/link';
 
+// [PUSHER] 1. Import Client Pusher
+import { pusherClient } from '@/lib/pusher-client';
+
 // Registrasi Komponen Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Filler);
 
@@ -51,40 +54,53 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [trendFilter, setTrendFilter] = useState('ALL'); 
 
-    // --- 1. DATA FETCHING ---
-    useEffect(() => {
-        let isMounted = true; 
-
-        fetch('/api/stats')
-            .then(res => res.json())
-            .then(result => {
-                if (isMounted) {
-                    if (result.error) {
-                        console.error("API Error:", result.error);
-                        setData({
-                            stats: { total: 0, open: 0, sc: 0, closed_total: 0, closed_today: 0, closed_month: 0 },
-                            runningBySub: [],
-                            closedTodayBySub: [],
-                            monthlyType: [],
-                            dailyTrend: [],
-                            recent: [],
-                            aging: [] 
-                        });
-                    } else {
-                        setData(result);
-                    }
-                    setLoading(false);
-                }
-            })
-            .catch(err => {
-                if (isMounted) {
-                    console.error("Fetch Error:", err);
-                    setLoading(false);
-                }
-            });
-
-        return () => { isMounted = false; }; 
+    // [PUSHER] 2. Fungsi Fetch dipisahkan agar bisa dipanggil ulang
+    const fetchData = useCallback(async () => {
+        try {
+            const res = await fetch('/api/stats');
+            const result = await res.json();
+            
+            if (result.error) {
+                console.error("API Error:", result.error);
+                // Set default data jika error
+                setData({
+                    stats: { total: 0, open: 0, sc: 0, closed_total: 0, closed_today: 0, closed_month: 0 },
+                    runningBySub: [],
+                    closedTodayBySub: [],
+                    monthlyType: [],
+                    dailyTrend: [],
+                    recent: [],
+                    aging: [] 
+                });
+            } else {
+                setData(result);
+            }
+        } catch (err) {
+            console.error("Fetch Error:", err);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+    // --- 1. DATA FETCHING INITIAL & PUSHER LISTENER ---
+    useEffect(() => {
+        // Load data pertama kali
+        fetchData();
+
+        // [PUSHER] 3. Subscribe ke channel
+        const channel = pusherClient.subscribe('dashboard-channel');
+
+        // Bind ke event
+        channel.bind('ticket-update', (data) => {
+            console.log("Dashboard Overview Realtime Update:", data);
+            fetchData(); // Refresh data grafik saat ada notif masuk
+        });
+
+        // Cleanup saat pindah halaman
+        return () => {
+            pusherClient.unsubscribe('dashboard-channel');
+        };
+    }, [fetchData]); // Dependency ke fetchData
 
     // --- 2. DATA PROCESSING ---
     const processedData = useMemo(() => {

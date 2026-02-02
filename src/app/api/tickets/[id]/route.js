@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 import { appendTicketToSheet } from '@/lib/googleSheets'; 
+// [PUSHER] 1. Import Pusher Server
+import { pusherServer } from '@/lib/pusher';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +36,7 @@ export async function GET(request, props) {
 }
 
 
-// PUT: UPDATE TIKET (UPDATE TACC JUGA)
+// PUT: UPDATE TIKET (UPDATE TACC + PUSHER)
 export async function PUT(request, props) {
     const params = await props.params; 
     const { id } = params;
@@ -58,14 +60,14 @@ export async function PUT(request, props) {
 
         await connection.beginTransaction();
 
-        // 1. Update Tabel Tiket (DITAMBAHKAN id_tiket_tacc)
+        // 1. Update Tabel Tiket
         await connection.query(
             `UPDATE tickets SET 
                 category = ?, 
                 subcategory = ?, 
                 priority = ?, 
                 id_tiket = ?, 
-                id_tiket_tacc = ?,   -- [BARU] Update TACC
+                id_tiket_tacc = ?, 
                 sto = ?,
                 tiket_time = ?, 
                 deskripsi = ?, 
@@ -80,7 +82,7 @@ export async function PUT(request, props) {
                 body.subcategory, 
                 body.priority || null, 
                 body.id_tiket, 
-                body.id_tiket_tacc || null, // [BARU] Nilai TACC
+                body.id_tiket_tacc || null, 
                 body.sto || null,      
                 body.tiket_time, 
                 body.deskripsi, 
@@ -135,9 +137,22 @@ export async function PUT(request, props) {
             [id, historyNote.join('. '), user.username]
         );
 
+        // Commit transaksi DB dulu
         await connection.commit();
 
-        // 4. INTEGRASI GOOGLE SHEET (DITAMBAH TACC)
+        // [PUSHER] 2. Kirim Notifikasi Edit (PUT)
+        try {
+            await pusherServer.trigger('dashboard-channel', 'ticket-update', {
+                message: `Tiket ${body.id_tiket} telah diupdate`,
+                type: 'UPDATE_TICKET',
+                ticketId: id,
+                status: body.status
+            });
+        } catch (pusherError) {
+            console.error(">>> PUSHER UPDATE ERROR:", pusherError);
+        }
+
+        // 4. INTEGRASI GOOGLE SHEET
         if (body.status === 'CLOSED' && oldStatus !== 'CLOSED') {
             console.log("🛠️ Upload ke Google Sheet...");
             let fullTechInfo = picName ? `${picName} (${picPhone || '-'})` : 'Belum Assign';
@@ -148,7 +163,7 @@ export async function PUT(request, props) {
                 subcategory: body.subcategory, 
                 priority: body.priority,
                 id_tiket: body.id_tiket,
-                id_tiket_tacc: body.id_tiket_tacc, // [BARU] Kirim TACC ke GSheet
+                id_tiket_tacc: body.id_tiket_tacc,
                 deskripsi: body.deskripsi,
                 sto: body.sto,                
                 tiket_time: body.tiket_time,   
@@ -175,7 +190,7 @@ export async function PUT(request, props) {
     }
 }
 
-// DELETE: HAPUS TIKET (TETAP SAMA)
+// DELETE: HAPUS TIKET (DENGAN PUSHER)
 export async function DELETE(request, props) {
     const params = await props.params; 
     const { id } = params;
@@ -195,6 +210,17 @@ export async function DELETE(request, props) {
         await connection.query('DELETE FROM tickets WHERE id = ?', [id]);
         await connection.commit();
         
+        // [PUSHER] 3. Kirim Notifikasi Hapus (DELETE)
+        try {
+            await pusherServer.trigger('dashboard-channel', 'ticket-update', {
+                message: `Sebuah tiket telah dihapus`,
+                type: 'DELETE_TICKET',
+                ticketId: id
+            });
+        } catch (pusherError) {
+            console.error(">>> PUSHER DELETE ERROR:", pusherError);
+        }
+
         return NextResponse.json({ message: 'Tiket dihapus permanen' });
     } catch (error) {
         await connection.rollback();
