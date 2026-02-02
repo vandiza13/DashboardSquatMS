@@ -19,13 +19,22 @@ const STO_LIST = [
     'TAR', 'TBL'
 ].sort();
 
-// --- KONFIGURASI PRIORITY (SLA) KHUSUS TSEL ---
+// --- [UPDATE] KONFIGURASI PRIORITY (SLA) ---
+// 1. TSEL (Ditambah CNQ)
 const TSEL_PRIORITIES = [
     { label: 'PREMIUM (2 Jam)', value: 'PREMIUM' },
     { label: 'CRITICAL (4 Jam)', value: 'CRITICAL' },
     { label: 'MAJOR (8 Jam)', value: 'MAJOR' },
     { label: 'MINOR (16 Jam)', value: 'MINOR' },
     { label: 'LOW (24 Jam)', value: 'LOW' },
+    { label: 'CNQ (24 Jam)', value: 'CNQ' }, // <--- [BARU]
+];
+
+// 2. OLO (Baru)
+const OLO_PRIORITIES = [
+    { label: 'NON-GAMAS (4 Jam)', value: 'NON-GAMAS' },
+    { label: 'GAMAS (7 Jam)', value: 'GAMAS' },
+    { label: 'QUALITY (7 Jam)', value: 'QUALITY' },
 ];
 
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
@@ -35,7 +44,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         subcategory: '',
         priority: '', 
         id_tiket: '',
-        id_tiket_tacc: '', // State ID TACC
+        id_tiket_tacc: '', 
         sto: '', 
         tiket_time: '',
         deskripsi: '',
@@ -53,7 +62,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userRole, setUserRole] = useState('');
 
-    // Popup Peringatan Close
     const [isWarningOpen, setIsWarningOpen] = useState(false);
 
     // Helper: Format Tanggal WIB
@@ -138,7 +146,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 subcategory: initialData.subcategory || '',
                 priority: initialData.priority || '', 
                 id_tiket: initialData.id_tiket || '',
-                id_tiket_tacc: initialData.id_tiket_tacc || '', // Load TACC
+                id_tiket_tacc: initialData.id_tiket_tacc || '', 
                 sto: initialData.sto || '', 
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
                 deskripsi: initialData.deskripsi || '',
@@ -153,7 +161,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 subcategory: '',
                 priority: '', 
                 id_tiket: '',
-                id_tiket_tacc: '', // Reset TACC
+                id_tiket_tacc: '', 
                 sto: '',
                 tiket_time: '',
                 deskripsi: '',
@@ -242,7 +250,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <select 
                                 className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
                                 value={formData.category}
-                                onChange={e => setFormData({...formData, category: e.target.value, subcategory: '', priority: '', sto: ''})} // Reset field terkait
+                                onChange={e => setFormData({...formData, category: e.target.value, subcategory: '', priority: '', sto: ''})} 
                                 disabled={isRestrictedEdit}
                             >
                                 {Object.keys(SUB_CATEGORIES).map(cat => (
@@ -255,7 +263,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <select 
                                 className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
                                 value={formData.subcategory}
-                                onChange={e => setFormData({...formData, subcategory: e.target.value, priority: ''})}
+                                onChange={e => setFormData({...formData, subcategory: e.target.value, priority: ''})} 
                                 required
                                 disabled={isRestrictedEdit}
                             >
@@ -267,27 +275,29 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
-                    {/* --- INPUT PRIORITY (KHUSUS SQUAT - TSEL) --- */}
-                    {formData.category === 'SQUAT' && formData.subcategory === 'TSEL' && (
+                    {/* --- [2] INPUT PRIORITY (SQUAT TSEL & OLO) --- */}
+                    {formData.category === 'SQUAT' && (formData.subcategory === 'TSEL' || formData.subcategory === 'OLO') && (
                         <div className="bg-red-50 p-3 rounded-lg border border-red-100 animate-fadeIn">
                             <label className="block text-xs font-bold text-red-800 uppercase mb-1">
-                                Priority Tiket (SLA) <span className="text-red-500">*</span>
+                                Priority Tiket ({formData.subcategory} SLA) <span className="text-red-500">*</span>
                             </label>
                             <select 
                                 className="w-full rounded-lg border-red-200 p-2.5 text-sm focus:ring-2 focus:ring-red-500 bg-white font-bold text-slate-700"
                                 value={formData.priority} 
                                 onChange={e => setFormData({...formData, priority: e.target.value})}
                                 required
+                                // TIDAK ADA DISABLED -> User BISA Edit
                             >
                                 <option value="">- Pilih Priority -</option>
-                                {TSEL_PRIORITIES.map((p) => (
+                                {/* Logic: Jika TSEL pakai list TSEL, jika OLO pakai list OLO */}
+                                {(formData.subcategory === 'TSEL' ? TSEL_PRIORITIES : OLO_PRIORITIES).map((p) => (
                                     <option key={p.value} value={p.value}>{p.label}</option>
                                 ))}
                             </select>
                         </div>
                     )}
 
-                    {/* --- INPUT STO (KHUSUS SQUAT) --- */}
+                    {/* --- INPUT STO (SQUAT) --- */}
                     {formData.category === 'SQUAT' && (
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                             <label className="block text-xs font-bold text-blue-800 uppercase mb-1">
@@ -309,7 +319,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     {/* Baris 2: ID & Waktu */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID Tiket</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID Tiket (NOSSA)</label>
                             <input 
                                 type="text" 
                                 className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
@@ -332,7 +342,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
-                    {/* --- [BARU & UPDATE] INPUT ID TIKET TACC (WAJIB UTK UMT, MTEL, CENTRATAMA) --- */}
+                    {/* --- INPUT ID TIKET TACC (WAJIB UTK UMT, MTEL, CENTRATAMA) --- */}
                     {['UMT', 'MTEL', 'CENTRATAMA'].includes(formData.category) && (
                         <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 animate-fadeIn">
                             <label className="block text-xs font-bold text-purple-800 uppercase mb-1">
@@ -344,7 +354,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 value={formData.id_tiket_tacc} 
                                 onChange={e => setFormData({...formData, id_tiket_tacc: e.target.value})} 
                                 placeholder="Masukkan ID TACC (Wajib)..."
-                                required // <--- WAJIB
+                                required 
                             />
                         </div>
                     )}
@@ -398,7 +408,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* --- AREA TEKNISI --- */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
-                        
                         {/* PIC UTAMA */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">

@@ -6,7 +6,7 @@ import {
     FaEdit, FaTrash, FaFileAlt, FaRunning, FaCheckCircle, 
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel, 
     FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
-    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag // [BARU] Tambah icon Tag
+    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx'; 
 import TicketFormModal from '@/components/TicketFormModal';
@@ -28,16 +28,22 @@ const CATEGORY_COLORS = {
     DEFAULT: 'bg-slate-100 text-slate-700 border-slate-200'
 };
 
-// --- KONFIGURASI SLA (JAM MAKSIMAL) ---
+// --- KONFIGURASI SLA LENGKAP (TSEL + CNQ & OLO) ---
 const SLA_LIMITS = {
+    // TSEL
     'PREMIUM': 2,
     'CRITICAL': 4,
     'MAJOR': 8,
     'MINOR': 16,
-    'LOW': 24
+    'LOW': 24,
+    'CNQ': 24,
+    // OLO
+    'NON-GAMAS': 4,
+    'GAMAS': 7,
+    'QUALITY': 7
 };
 
-// --- HELPER 1: LOGIKA AGING (BADGE & TEXT) ---
+// --- HELPER 1: LOGIKA AGING (SLA AWARE) ---
 const getTicketAging = (ticket) => {
     if (ticket.status === 'CLOSED') return null;
 
@@ -46,9 +52,9 @@ const getTicketAging = (ticket) => {
     const diffMs = now - created;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60)); 
 
-    // --- A. LOGIKA KHUSUS SQUAT - TSEL (PRIORITY AWARE) ---
-    if (ticket.category === 'SQUAT' && ticket.subcategory === 'TSEL' && ticket.priority) {
-        const limit = SLA_LIMITS[ticket.priority] || 24;
+    // --- A. LOGIKA KHUSUS SQUAT (TSEL & OLO) ---
+    if (ticket.category === 'SQUAT' && ticket.priority && SLA_LIMITS[ticket.priority]) {
+        const limit = SLA_LIMITS[ticket.priority];
         
         // 1. LEWAT SLA (BREACHED)
         if (diffHours >= limit) {
@@ -90,7 +96,7 @@ const getTicketAging = (ticket) => {
     }
 };
 
-// --- HELPER 2: WARNA BACKGROUND BARIS (ROW COLOR) ---
+// --- HELPER 2: WARNA BACKGROUND BARIS ---
 const getRowSeverityStyle = (ticket) => {
     if (ticket.status === 'CLOSED') return 'bg-white border-slate-200 hover:bg-slate-50';
 
@@ -98,27 +104,20 @@ const getRowSeverityStyle = (ticket) => {
     const created = new Date(ticket.tiket_time);
     const diffHours = Math.floor((now - created) / (1000 * 60 * 60));
 
-    // --- A. LOGIKA KHUSUS SQUAT - TSEL ---
-    if (ticket.category === 'SQUAT' && ticket.subcategory === 'TSEL' && ticket.priority) {
-        const limit = SLA_LIMITS[ticket.priority] || 24;
-        
-        // Lewat SLA -> MERAH TEBAL
+    // --- LOGIKA SQUAT (TSEL & OLO) ---
+    if (ticket.category === 'SQUAT' && ticket.priority && SLA_LIMITS[ticket.priority]) {
+        const limit = SLA_LIMITS[ticket.priority];
         if (diffHours >= limit) return 'bg-red-100 border-red-300 hover:bg-red-200';
-        
-        // Hampir Lewat -> ORANGE
         if (diffHours >= limit * 0.75) return 'bg-orange-100 border-orange-300 hover:bg-orange-200';
-        
         return 'bg-white border-slate-200 hover:bg-slate-50';
     }
 
-    // --- B. LOGIKA DEFAULT ---
+    // --- LOGIKA DEFAULT ---
     if (diffHours > 24) return 'bg-red-100 border-red-300 hover:bg-red-200'; 
     if (diffHours > 12) return 'bg-orange-100 border-orange-300 hover:bg-orange-200';
-    
     return 'bg-white border-slate-200 hover:bg-slate-50';
 };
 
-// --- SKELETONS ---
 const TicketTableSkeleton = () => ([...Array(5)].map((_, i) => (
     <tr key={i} className="border-b border-slate-50">
         <td className="px-6 py-4"><Skeleton className="h-4 w-24 mb-2"/><Skeleton className="h-3 w-16"/></td>
@@ -203,7 +202,6 @@ export default function TicketsPage() {
                 <div className="flex flex-col">
                     <span className="font-extrabold text-slate-800 text-base">{ticket.id_tiket}</span>
                     
-                    {/* [BARU] TAMPILAN TACC DI MOBILE */}
                     {ticket.id_tiket_tacc && (
                         <span className="flex items-center gap-1 text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 mt-1 w-fit">
                             <FaTag size={8}/> TACC: {ticket.id_tiket_tacc}
@@ -220,11 +218,14 @@ export default function TicketsPage() {
                     })()}
                 </div>
             </div>
+            
+            {/* [UPDATE MOBILE] Menambahkan flex-wrap & whitespace-nowrap pada Priority agar rapi */}
             <div className="flex flex-wrap gap-1">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-white ${CATEGORY_COLORS[ticket.category] || CATEGORY_COLORS.DEFAULT}`}>{ticket.category} - {ticket.subcategory}</span>
                 {ticket.sto && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-slate-200 bg-white text-slate-600">STO: {ticket.sto}</span>}
-                {ticket.priority && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white shadow-sm">{ticket.priority}</span>}
+                {ticket.priority && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white shadow-sm whitespace-nowrap">{ticket.priority}</span>}
             </div>
+
             <div className="text-slate-700 text-xs bg-white/60 p-2.5 rounded-lg border border-black/5">
                 <span className="font-semibold block mb-1 text-[10px] text-slate-500 uppercase">Deskripsi:</span>
                 <span className="line-clamp-3">{ticket.deskripsi}</span>
@@ -327,9 +328,10 @@ export default function TicketsPage() {
                                             </div>
                                         )}
 
-                                        <div className="flex gap-1 mt-1">
+                                        {/* [UPDATE DESKTOP] Menambahkan flex-wrap & whitespace-nowrap pada Priority */}
+                                        <div className="flex flex-wrap gap-1 mt-1">
                                             <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase bg-white ${CATEGORY_COLORS[ticket.category]}`}>{ticket.category}-{ticket.subcategory}</span>
-                                            {ticket.priority && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white">{ticket.priority}</span>}
+                                            {ticket.priority && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white whitespace-nowrap">{ticket.priority}</span>}
                                         </div>
                                         {ticket.sto && <div className="mt-1"><span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-slate-200 bg-white text-slate-500">STO: {ticket.sto}</span></div>}
                                         <div className="text-[10px] text-slate-400 mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>

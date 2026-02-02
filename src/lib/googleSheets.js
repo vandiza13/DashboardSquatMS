@@ -102,8 +102,8 @@ export async function appendTicketToSheet(ticketData) {
                 nomorUrut,          // A
                 id_tiket,           // B    // C: PRIORITY (Specific to TSEL)
                 deskripsi,          // C
-                sto || '',          // E
-                priority || '-',     // D: PRIORITY
+                sto || '',          // D
+                priority || '-',     // E: PRIORITY
                 '', '', '',     // F-H (Empty)
                 formatDate(tiket_time), // I
                 formatDate(close_time), // J
@@ -119,17 +119,17 @@ export async function appendTicketToSheet(ticketData) {
             rowValues = [
                 nomorUrut,          // A
                 id_tiket,           // B
-                // SKIP PRIORITY/TACC
                 deskripsi,          // C
                 sto || '',          // D
-                '', '',             // E-F (Empty)
-                formatDate(tiket_time), // G
-                formatDate(close_time), // H
-                '', '',             // I-J
-                technician_full,    // K
-                'CLOSED',           // L
-                root_cause,         // M
-                ''                  // N
+                priority || '-',     // E: PRIORITY
+                '', '',             // F-G (Empty)
+                formatDate(tiket_time), // H
+                formatDate(close_time), // I
+                '', '',             // J-K
+                technician_full,    // L
+                'CLOSED',           // M
+                root_cause,         // N
+                ''                  // O
             ];
 
         } else if (sheetName === 'MTEL') {
