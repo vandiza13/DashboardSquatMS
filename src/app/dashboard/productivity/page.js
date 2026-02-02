@@ -3,13 +3,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
     FaChartLine, FaTrophy, FaMedal, FaTicketAlt, FaFilter, FaTimes, FaExternalLinkAlt, 
-    FaCalendarAlt, FaUserCircle, FaClock, FaSearch 
+    FaCalendarAlt, FaUserCircle, FaClock, FaSearch, 
+    FaFileExcel, FaSpinner 
 } from 'react-icons/fa';
 import { 
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement 
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 // Registrasi Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -37,7 +39,7 @@ export default function ProductivityPage() {
     const currentDate = new Date();
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); 
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());    
-    const [searchTerm, setSearchTerm] = useState(''); // State Pencarian
+    const [searchTerm, setSearchTerm] = useState(''); 
 
     // --- STATE MODAL DETAIL ---
     const [showModal, setShowModal] = useState(false);
@@ -46,6 +48,9 @@ export default function ProductivityPage() {
     const [selectedTechName, setSelectedTechName] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedNik, setSelectedNik] = useState('');
+
+    // --- STATE DOWNLOAD ---
+    const [downloadLoading, setDownloadLoading] = useState(false);
 
     const months = [
         { value: 1, label: 'Januari' }, { value: 2, label: 'Februari' }, { value: 3, label: 'Maret' },
@@ -75,8 +80,7 @@ export default function ProductivityPage() {
             });
     }, [selectedMonth, selectedYear]); 
 
-    // --- FILTER DATA SEARCH (Real-time) ---
-    // Filter ini HANYA mempengaruhi tabel, tidak mempengaruhi chart (sesuai best practice dashboard)
+    // --- FILTER DATA SEARCH ---
     const filteredData = useMemo(() => {
         if (!searchTerm) return data;
         return data.filter(item => 
@@ -95,7 +99,7 @@ export default function ProductivityPage() {
         setShowModal(true);
         setModalLoading(true);
         setTicketDetails([]); 
-        setShowModal(true); // Tampilkan modal segera
+        setShowModal(true); 
 
         try {
             const res = await fetch(`/api/productivity/details?nik=${nik}&month=${selectedMonth}&year=${selectedYear}&category=${category}`);
@@ -107,6 +111,110 @@ export default function ProductivityPage() {
             console.error("Gagal ambil detail:", error);
         } finally {
             setModalLoading(false);
+        }
+    };
+
+    // --- [UPDATE] FUNGSI DOWNLOAD EXCEL DENGAN DATA LENGKAP ---
+    const handleDownloadExcel = async () => {
+        setDownloadLoading(true);
+        try {
+            // 1. Hitung Range Tanggal
+            const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+            const endDate = new Date(selectedYear, selectedMonth, 0);
+
+            const formatDateStr = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const sDateParam = formatDateStr(startDate);
+            const eDateParam = formatDateStr(endDate);
+
+            // 2. Fetch Data dari API Report (Query sudah diupdate di backend untuk kirim detail lengkap)
+            const res = await fetch(`/api/reports/productivity?startDate=${sDateParam}&endDate=${eDateParam}`);
+            const rawData = await res.json();
+
+            if (!rawData || rawData.length === 0) {
+                alert("Tidak ada data tiket untuk periode ini.");
+                setDownloadLoading(false);
+                return;
+            }
+
+            // 3. Buat Sheet 1: REKAP BULANAN
+            const summaryData = data.map((item, index) => ({
+                'No': index + 1,
+                'Nama Teknisi': item.name,
+                'NIK': item.nik,
+                'Total Tiket': item.total,
+                'MTEL': item.mtel,
+                'UMT': item.umt,
+                'CENTRATAMA': item.centratama,
+                'SQUAT': item.squat,
+            }));
+
+            // 4. [UPDATE] Buat Sheet 2: DETAIL TIKET LENGKAP (Priority, TACC, RCA)
+            const detailData = rawData.map(row => {
+                // Logika Kondisional Kolom
+                const isTsel = row.category === 'SQUAT' && row.subcategory === 'TSEL';
+                const isTaccCategory = ['MTEL', 'UMT', 'CENTRATAMA'].includes(row.category);
+
+                return {
+                    'Nama Teknisi': row.technician_name,
+                    'NIK': row.technician_nik,
+                    'ID Tiket': row.id_tiket,
+                    'ID TACC': isTaccCategory ? (row.id_tiket_tacc || '-') : '-', // Hanya UMT, MTEL, CENTRATAMA
+                    'Kategori': row.category,
+                    'Sub Kategori': row.subcategory,
+                    'Priority (SLA)': isTsel ? (row.priority || '-') : '-',       // Hanya SQUAT-TSEL
+                    'Status': row.status,
+                    'STO': row.sto || '-',
+                    'Deskripsi': row.deskripsi || '-',
+                    'RCA / Progress': row.update_progres || '-',                  // Kolom RCA
+                    'Waktu Tiket': new Date(row.tiket_time).toLocaleString('id-ID'),
+                    'Update Terakhir': new Date(row.last_update_time).toLocaleString('id-ID')
+                };
+            });
+
+            // 5. Generate Excel File
+            const workbook = XLSX.utils.book_new();
+
+            // Sheet 1 (Rekap)
+            const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+            const wscolsSummary = [{wch:5}, {wch:25}, {wch:15}, {wch:10}, {wch:10}, {wch:10}, {wch:10}, {wch:10}];
+            wsSummary['!cols'] = wscolsSummary;
+            XLSX.utils.book_append_sheet(workbook, wsSummary, "REKAP BULANAN");
+
+            // Sheet 2 (Detail)
+            const wsDetail = XLSX.utils.json_to_sheet(detailData);
+            // Sesuaikan lebar kolom agar rapi
+            const wscolsDetail = [
+                {wch:25}, // Nama
+                {wch:15}, // NIK
+                {wch:20}, // ID Tiket
+                {wch:18}, // ID TACC (New)
+                {wch:10}, // Kategori
+                {wch:15}, // Sub
+                {wch:15}, // Priority (New)
+                {wch:10}, // Status
+                {wch:8},  // STO
+                {wch:30}, // Deskripsi
+                {wch:30}, // RCA
+                {wch:22}, // Waktu
+                {wch:22}  // Update
+            ];
+            wsDetail['!cols'] = wscolsDetail;
+            XLSX.utils.book_append_sheet(workbook, wsDetail, "DATA DETAIL");
+
+            // Save File
+            XLSX.writeFile(workbook, `Laporan_Produktifitas_${months[selectedMonth-1].label}_${selectedYear}.xlsx`);
+
+        } catch (error) {
+            console.error("Download Error:", error);
+            alert("Gagal mendownload excel.");
+        } finally {
+            setDownloadLoading(false);
         }
     };
 
@@ -186,23 +294,39 @@ export default function ProductivityPage() {
                     </p>
                 </div>
                 
-                <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
-                    <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
-                    <select 
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                        className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                {/* FILTER & DOWNLOAD BUTTON */}
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    
+                    {/* 1. FILTER BULAN/TAHUN */}
+                    <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex-1 md:flex-none">
+                        <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
+                        <select 
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                        >
+                            {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+                        </select>
+                        <span className="text-slate-300">|</span>
+                        <select 
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                        >
+                            {years.map((y) => (<option key={y} value={y}>{y}</option>))}
+                        </select>
+                    </div>
+
+                    {/* 2. TOMBOL DOWNLOAD EXCEL */}
+                    <button 
+                        onClick={handleDownloadExcel}
+                        disabled={downloadLoading || loading || data.length === 0}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-sm shadow-sm shadow-green-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
-                    </select>
-                    <span className="text-slate-300">|</span>
-                    <select 
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
-                    >
-                        {years.map((y) => (<option key={y} value={y}>{y}</option>))}
-                    </select>
+                        {downloadLoading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
+                        <span className="hidden md:inline">Download</span> Excel
+                    </button>
+
                 </div>
             </div>
 
