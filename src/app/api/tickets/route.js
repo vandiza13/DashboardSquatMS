@@ -4,7 +4,7 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// --- GET: AMBIL DATA TIKET (SUDAH DIPERBAIKI) ---
+// --- GET: AMBIL DATA TIKET (TIDAK BERUBAH) ---
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -18,22 +18,15 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     try {
-        // PERBAIKAN QUERY: Menggunakan LEFT JOIN untuk mengambil NIK, Nama, dan HP sekaligus
         let query = `
             SELECT 
                 t.*, 
                 MAX(u.username) as updater_name,
-                
-                -- [PENTING] INI FIELD YANG DIBUTUHKAN MODAL EDIT:
                 GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks,
-                
-                -- Ambil Nama & HP (Ambil Max/Salah satu jika ada)
                 MAX(tech.name) as technician_name,
                 MAX(tech.phone_number) as technician_phone
-
             FROM tickets t
             LEFT JOIN users u ON t.updated_by_user_id = u.id
-            -- JOIN TABEL PENUGASAN & TEKNISI
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
             LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
             WHERE 1=1
@@ -41,14 +34,12 @@ export async function GET(request) {
         
         const queryParams = [];
 
-        // 1. Filter Search
         if (search) {
             query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ?)`;
             const likeTerm = `%${search}%`;
             queryParams.push(likeTerm, likeTerm, likeTerm);
         }
 
-        // 2. Filter Status
         if (statusFilter === 'RUNNING') {
             query += ` AND t.status IN ('OPEN', 'SC')`;
         } else if (statusFilter === 'CLOSED') {
@@ -58,22 +49,18 @@ export async function GET(request) {
             queryParams.push(statusFilter);
         }
 
-        // 3. Filter Kategori
         if (categoryFilter && categoryFilter !== 'ALL') {
             query += ` AND t.category = ?`;
             queryParams.push(categoryFilter);
         }
 
-        // 4. Filter Tanggal
         if (startDate && endDate) {
             query += ` AND DATE(t.tiket_time) BETWEEN ? AND ?`;
             queryParams.push(startDate, endDate);
         }
 
-        // Grouping & Ordering
         query += ` GROUP BY t.id ORDER BY t.tiket_time DESC`;
 
-        // Pagination
         if (limit < 10000) {
             query += ` LIMIT ? OFFSET ?`;
             queryParams.push(limit, offset);
@@ -81,7 +68,6 @@ export async function GET(request) {
 
         const [tickets] = await db.query(query, queryParams);
 
-        // Hitung Total Data (Untuk Pagination)
         let countQuery = `SELECT COUNT(*) as total FROM tickets t WHERE 1=1`;
         const countParams = [];
 
@@ -118,10 +104,10 @@ export async function GET(request) {
     }
 }
 
+// --- POST: BUAT TIKET BARU (DIPERBAIKI UNTUK PRIORITY) ---
 export async function POST(request) {
     const connection = await db.getConnection(); 
     try {
-        // ... auth check ...
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         
@@ -131,31 +117,42 @@ export async function POST(request) {
 
         const body = await request.json();
         
-        // 1. AMBIL DATA (Tambah sto)
+        // 1. AMBIL DATA (Termasuk Priority)
         const { 
             category, subcategory, id_tiket, tiket_time, deskripsi, 
-            technician_niks, partner_technicians, sto // <--- TAMBAH STO
+            technician_niks, partner_technicians, sto,
+            priority // [UPDATE] Ambil priority dari body
         } = body;
 
-        // ... validasi ...
+        // Validasi Sederhana
+        if (!category || !subcategory || !id_tiket) {
+            return NextResponse.json({ error: 'Data wajib tidak lengkap' }, { status: 400 });
+        }
 
         await connection.beginTransaction();
 
-        // 2. INSERT (Tambah sto)
+        // 2. INSERT (Tambahkan Kolom Priority)
         const [result] = await connection.query(
             `INSERT INTO tickets 
-            (category, subcategory, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
-            VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`, 
+            (category, subcategory, priority, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
+            VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`, // [UPDATE] Tambah 1 tanda tanya untuk priority
             [
-                category, subcategory, id_tiket, tiket_time, deskripsi, 
-                user.userId, user.userId, 
-                partner_technicians, 
-                sto || null // <--- Masukkan STO (Null jika kosong)
+                category, 
+                subcategory, 
+                priority || null, // [UPDATE] Masukkan nilai Priority (Null jika tidak ada)
+                id_tiket, 
+                tiket_time || new Date(), 
+                deskripsi || '-', 
+                user.userId, 
+                user.userId, 
+                partner_technicians || null, 
+                sto || null
             ]
         );
 
-        // ... insert technician (sama) ...
         const ticketId = result.insertId;
+
+        // Insert Teknisi (Tidak Berubah)
         if (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) {
             const nik = technician_niks[0]; 
             if (nik) {
@@ -163,7 +160,7 @@ export async function POST(request) {
             }
         }
 
-        // ... history & commit (sama) ...
+        // Insert History (Tidak Berubah)
         await connection.query(
             `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
             [ticketId, `Tiket dibuat dengan status OPEN`, user.username]

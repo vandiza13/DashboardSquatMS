@@ -19,18 +19,28 @@ const STO_LIST = [
     'TAR', 'TBL'
 ].sort();
 
+// --- [BARU] KONFIGURASI PRIORITY (SLA) ---
+const TSEL_PRIORITIES = [
+    { label: 'PREMIUM (2 Jam)', value: 'PREMIUM' },
+    { label: 'CRITICAL (4 Jam)', value: 'CRITICAL' },
+    { label: 'MAJOR (8 Jam)', value: 'MAJOR' },
+    { label: 'MINOR (16 Jam)', value: 'MINOR' },
+    { label: 'LOW (24 Jam)', value: 'LOW' },
+];
+
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
     // State Form Utama
     const [formData, setFormData] = useState({
         category: 'SQUAT', 
         subcategory: '',
+        priority: '', // [BARU] State Priority
         id_tiket: '',
-        sto: '', // State untuk STO
+        sto: '', 
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
         update_progres: '',
-        technician_nik: '', // PIC Utama (NIK) - OPTIONAL
+        technician_nik: '', 
     });
 
     // State Khusus Partner
@@ -42,7 +52,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userRole, setUserRole] = useState('');
 
-    // --- STATE BARU: POPUP PERINGATAN ---
+    // Popup Peringatan Close
     const [isWarningOpen, setIsWarningOpen] = useState(false);
 
     // Helper: Format Tanggal WIB
@@ -98,7 +108,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     useEffect(() => {
         if (initialData && technicians.length > 0) {
             let selectedTech = '';
-            // Logika ambil PIC lama
             if (initialData.assigned_technician_niks) {
                 if (Array.isArray(initialData.assigned_technician_niks)) {
                     selectedTech = initialData.assigned_technician_niks[0];
@@ -110,7 +119,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             }
             if (!selectedTech || selectedTech === 'null') selectedTech = '';
 
-            // Logika ambil Partner lama (Parse String -> NIK)
             let loadedPartners = [];
             if (initialData.partner_technicians) {
                 const rawStrings = initialData.partner_technicians.split(',');
@@ -127,8 +135,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             setFormData({
                 category: initialData.category || 'SQUAT',
                 subcategory: initialData.subcategory || '',
+                priority: initialData.priority || '', // [BARU] Load Priority
                 id_tiket: initialData.id_tiket || '',
-                sto: initialData.sto || '', // Load STO
+                sto: initialData.sto || '', 
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
@@ -140,8 +149,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             setFormData({
                 category: 'SQUAT',
                 subcategory: '',
+                priority: '', // [BARU] Reset Priority
                 id_tiket: '',
-                sto: '', // Reset STO
+                sto: '',
                 tiket_time: '',
                 deskripsi: '',
                 status: 'OPEN',
@@ -157,14 +167,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
     const isRestrictedEdit = userRole === 'User' && !!initialData;
 
-    // --- MODIFIKASI: PEMISAHAN LOGIKA SUBMIT ---
-
-    // 1. Fungsi Eksekusi Simpan (Kode Asli handleSubmit dipindah ke sini)
+    // --- LOGIKA SUBMIT ---
     const executeSubmit = async () => {
         setIsSubmitting(true);
-        setIsWarningOpen(false); // Tutup warning jika ada
+        setIsWarningOpen(false); 
 
-        // Format Partner jadi String
         const partnerNames = partnerNiks.map(nik => {
             const t = technicians.find(tech => String(tech.nik) === String(nik));
             return t ? `${t.name} (${t.phone_number || '-'})` : '';
@@ -177,7 +184,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             const payload = {
                 ...formData,
                 tiket_time: formData.tiket_time ? new Date(formData.tiket_time).toISOString() : null,
-                // Jika PIC kosong, kirim array kosong (Backend akan handle agar tidak error)
                 technician_niks: formData.technician_nik ? [formData.technician_nik] : [],
                 partner_technicians: partnerNames 
             };
@@ -200,15 +206,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         }
     };
 
-    // 2. Fungsi Handler Baru untuk Cek Status
     const handlePreSubmit = (e) => {
         e.preventDefault();
-        
-        // Cek jika status CLOSED, munculkan Custom Popup
         if (formData.status === 'CLOSED') {
             setIsWarningOpen(true);
         } else {
-            // Jika bukan CLOSED, langsung simpan
             executeSubmit();
         }
     };
@@ -217,7 +219,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn overflow-y-auto">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto relative">
                 
-                {/* Header (Sticky di Mobile agar tidak hilang saat scroll) */}
+                {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 sticky top-0 z-10">
                     <h3 className="font-bold text-lg text-slate-800">
                         {initialData ? 'Edit Tiket' : 'Buat Tiket Baru'}
@@ -227,17 +229,17 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     </button>
                 </div>
 
-                {/* Form Body - Responsive Grid */}
+                {/* Form Body */}
                 <form onSubmit={handlePreSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5 max-h-[80vh]">
                     
-                    {/* Baris 1: Kategori (Grid 1 di Mobile, 2 di Desktop) */}
+                    {/* Baris 1: Kategori */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
                             <select 
                                 className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
                                 value={formData.category}
-                                onChange={e => setFormData({...formData, category: e.target.value, subcategory: ''})}
+                                onChange={e => setFormData({...formData, category: e.target.value, subcategory: '', priority: ''})}
                                 disabled={isRestrictedEdit}
                             >
                                 {Object.keys(SUB_CATEGORIES).map(cat => (
@@ -250,7 +252,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <select 
                                 className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
                                 value={formData.subcategory}
-                                onChange={e => setFormData({...formData, subcategory: e.target.value})}
+                                onChange={e => setFormData({...formData, subcategory: e.target.value, priority: ''})}
                                 required
                                 disabled={isRestrictedEdit}
                             >
@@ -262,7 +264,27 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
-                    {/* --- INPUT STO (DROPDOWN KHUSUS SQUAT) --- */}
+                    {/* --- [BARU] INPUT PRIORITY (KHUSUS SQUAT - TSEL) --- */}
+                    {formData.category === 'SQUAT' && formData.subcategory === 'TSEL' && (
+                        <div className="bg-red-50 p-3 rounded-lg border border-red-100 animate-fadeIn">
+                            <label className="block text-xs font-bold text-red-800 uppercase mb-1">
+                                Priority Tiket (SLA) <span className="text-red-500">*</span>
+                            </label>
+                            <select 
+                                className="w-full rounded-lg border-red-200 p-2.5 text-sm focus:ring-2 focus:ring-red-500 bg-white font-bold text-slate-700"
+                                value={formData.priority} 
+                                onChange={e => setFormData({...formData, priority: e.target.value})}
+                                required // Wajib diisi
+                            >
+                                <option value="">- Pilih Priority -</option>
+                                {TSEL_PRIORITIES.map((p) => (
+                                    <option key={p.value} value={p.value}>{p.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* --- INPUT STO (KHUSUS SQUAT) --- */}
                     {formData.category === 'SQUAT' && (
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                             <label className="block text-xs font-bold text-blue-800 uppercase mb-1">
@@ -281,7 +303,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     )}
 
-                    {/* Baris 2: ID & Waktu (Grid 1 di Mobile, 2 di Desktop) */}
+                    {/* Baris 2: ID & Waktu */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID Tiket</label>
@@ -323,7 +345,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     <hr className="border-slate-100" />
 
-                    {/* --- AREA STATUS & UPDATE (HANYA SAAT EDIT - Responsive Grid) --- */}
+                    {/* --- STATUS & UPDATE (EDIT ONLY) --- */}
                     {initialData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
                             <div>
@@ -354,10 +376,10 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     )}
 
-                    {/* --- AREA TEKNISI (PIC & PARTNER) --- */}
+                    {/* --- AREA TEKNISI --- */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
                         
-                        {/* 1. PIC UTAMA (OPTIONAL) */}
+                        {/* PIC UTAMA */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                                 Teknisi Utama (LENSA)
@@ -380,13 +402,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <p className="text-[10px] text-slate-400 mt-1 ml-1">*Poin produktivitas masuk ke teknisi ini. Boleh dikosongkan jika belum assign.</p>
                         </div>
 
-                        {/* 2. PARTNER (MULTI SELECT) */}
+                        {/* PARTNER */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                                 Partner / Support (Max 4)
                             </label>
-                            
-                            {/* Input Dropdown + Tombol Add (Responsive) */}
                             <div className="flex gap-2 mb-2 flex-col md:flex-row">
                                 <div className="relative flex-1">
                                     <select 
@@ -415,7 +435,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 </button>
                             </div>
 
-                            {/* List Partner Terpilih */}
                             {partnerNiks.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {partnerNiks.map(nik => {
@@ -440,7 +459,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     </div>
 
-                    {/* Tombol Simpan (Sticky di Bawah pada Mobile) */}
+                    {/* Tombol Simpan */}
                     <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-2 border-t border-slate-100 md:static md:border-none md:py-0">
                         <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
                             Batal
@@ -452,7 +471,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     </div>
                 </form>
 
-                {/* --- TAMBAHAN KODE: POPUP PERINGATAN (Overlay) --- */}
+                {/* --- POPUP PERINGATAN CLOSE --- */}
                 {isWarningOpen && (
                     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
                         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-red-500 transform scale-100 transition-transform">
@@ -465,7 +484,6 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 Konfirmasi Close
                             </h3>
 
-                            {/* TEXT MERAH & TEBAL YANG DIMINTA */}
                             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-left">
                                 <p className="text-red-600 font-extrabold text-sm mb-2 flex items-start gap-2">
                                     <span>1.</span> 

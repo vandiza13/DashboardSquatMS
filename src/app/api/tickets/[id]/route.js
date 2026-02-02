@@ -59,16 +59,32 @@ export async function PUT(request, props) {
 
         await connection.beginTransaction();
 
-        // 1. Update Tabel Tiket
+        // 1. Update Tabel Tiket (DITAMBAHKAN KOLOM PRIORITY)
         await connection.query(
             `UPDATE tickets SET 
-                category = ?, subcategory = ?, id_tiket = ?, tiket_time = ?, deskripsi = ?, 
-                status = ?, update_progres = ?, updated_by_user_id = ?, last_update_time = NOW(), 
-                partner_technicians = ?, sto = ? 
+                category = ?, 
+                subcategory = ?, 
+                priority = ?,        -- [BARU] Update Priority
+                id_tiket = ?, 
+                tiket_time = ?, 
+                deskripsi = ?, 
+                status = ?, 
+                update_progres = ?, 
+                updated_by_user_id = ?, 
+                last_update_time = NOW(), 
+                partner_technicians = ?, 
+                sto = ? 
             WHERE id = ?`,
             [
-                body.category, body.subcategory, body.id_tiket, body.tiket_time, body.deskripsi, 
-                body.status, body.update_progres, user.userId, 
+                body.category, 
+                body.subcategory, 
+                body.priority || null, // [BARU] Nilai Priority (atau null)
+                body.id_tiket, 
+                body.tiket_time, 
+                body.deskripsi, 
+                body.status, 
+                body.update_progres, 
+                user.userId, 
                 body.partner_technicians, 
                 body.sto || null, 
                 id
@@ -120,7 +136,7 @@ export async function PUT(request, props) {
 
         await connection.commit();
 
-        // 4. INTEGRASI GOOGLE SHEET
+        // 4. INTEGRASI GOOGLE SHEET (TETAP SAMA)
         if (body.status === 'CLOSED' && oldStatus !== 'CLOSED') {
             console.log("🛠️ Upload ke Google Sheet...");
             let fullTechInfo = picName ? `${picName} (${picPhone || '-'})` : 'Belum Assign';
@@ -129,6 +145,7 @@ export async function PUT(request, props) {
             const sheetData = {
                 category: body.category,      
                 subcategory: body.subcategory, 
+                priority: body.priority,
                 id_tiket: body.id_tiket,
                 deskripsi: body.deskripsi,
                 sto: body.sto,                
