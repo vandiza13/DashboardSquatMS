@@ -14,30 +14,35 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
         }
 
-        const data = await request.json();
+        // --- [PERBAIKAN UTAMA DISINI] ---
+        const body = await request.json();
+        
+        // Kita dukung 2 format: Array langsung [...] ATAU Object { tickets: [...] }
+        // Ini menjaga kompatibilitas dengan MultiTicketModal & BulkTicketModal
+        const data = Array.isArray(body) ? body : (body.tickets || []);
 
         if (!Array.isArray(data) || data.length === 0) {
             return NextResponse.json({ error: 'Data kosong atau format salah.' }, { status: 400 });
         }
+        // --------------------------------
 
         await connection.beginTransaction();
 
         let insertedCount = 0;
         
-        // Loop setiap baris dari Excel
+        // Loop setiap baris
         for (const row of data) {
-            // Validasi Field Wajib
-            if (!row.id_tiket || !row.category) continue; // Skip jika data vital kosong
+            // Validasi Field Wajib (ID & Kategori)
+            if (!row.id_tiket || !row.category) continue; 
 
-            // Konversi Tanggal Excel ke JS Date (Opsional, jaga-jaga format number excel)
+            // Konversi Tanggal (Prevent Invalid Date)
             let ticketTime = new Date();
             if (row.tiket_time) {
-                // Handle format string "YYYY-MM-DD HH:mm" atau JS Date standard
-                ticketTime = new Date(row.tiket_time);
-                if (isNaN(ticketTime)) ticketTime = new Date(); // Fallback jika format ngaco
+                const parsed = new Date(row.tiket_time);
+                if (!isNaN(parsed)) ticketTime = parsed;
             }
 
-            // INSERT DATA (Termasuk Priority & TACC)
+            // INSERT DATA
             await connection.query(
                 `INSERT INTO tickets 
                 (id_tiket, category, subcategory, tiket_time, deskripsi, sto, priority, id_tiket_tacc, status, created_by_user_id, updated_by_user_id, last_update_time) 
@@ -49,20 +54,20 @@ export async function POST(request) {
                     ticketTime,
                     row.deskripsi || '-',
                     row.sto || null,
-                    row.priority || null,      // [BARU]
-                    row.id_tiket_tacc || null, // [BARU]
+                    row.priority || null,      // Priority (SQUAT)
+                    row.id_tiket_tacc || null, // TACC (Provider Lain)
                     user.userId,
                     user.userId
                 ]
             );
 
-            // Insert History Awal
+            // Insert History
             const [res] = await connection.query('SELECT LAST_INSERT_ID() as id');
             const ticketId = res[0].id;
             
             await connection.query(
                 `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
-                [ticketId, 'Import massal via Excel', user.username]
+                [ticketId, 'Import massal via Bulk/Excel', user.username]
             );
 
             insertedCount++;
@@ -70,12 +75,12 @@ export async function POST(request) {
 
         await connection.commit();
 
-        // [PUSHER] Trigger notifikasi (Cukup sekali "Bulk Import" agar tidak spam suara)
+        // [PUSHER] Trigger notifikasi
         try {
             if (insertedCount > 0) {
                 await pusherServer.trigger('dashboard-channel', 'ticket-update', {
                     message: `${insertedCount} tiket baru diimport`,
-                    type: 'NEW_TICKET', // Gunakan tipe ini agar suara "Ting!" bunyi
+                    type: 'NEW_TICKET',
                     count: insertedCount
                 });
             }
@@ -91,7 +96,7 @@ export async function POST(request) {
         
         // Handle Error Duplicate
         if (error.code === 'ER_DUP_ENTRY') {
-            return NextResponse.json({ error: 'Terdapat ID Tiket yang duplikat dalam database.' }, { status: 400 });
+            return NextResponse.json({ error: 'Gagal: Ada ID Tiket yang duplikat.' }, { status: 400 });
         }
         
         return NextResponse.json({ error: 'Gagal import: ' + error.message }, { status: 500 });
