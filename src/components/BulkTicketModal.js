@@ -13,7 +13,7 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
 
     if (!isOpen) return null;
 
-    // 1. Fungsi Download Template
+    // 1. [PERBAIKAN] Fungsi Download Template dengan Kolom Baru
     const handleDownloadTemplate = () => {
         const template = [
             {
@@ -21,6 +21,8 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                 "Kategori": "SQUAT",
                 "Sub Kategori": "TSEL",
                 "STO": "BBL", 
+                "Priority (SQUAT Only)": "CRITICAL", // Kolom Baru
+                "ID TACC (Non-SQUAT)": "",           // Kolom Baru
                 "Waktu Tiket (YYYY-MM-DD HH:MM)": "2024-01-29 10:00",
                 "Deskripsi": "Deskripsi masalah..."
             },
@@ -29,6 +31,8 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                 "Kategori": "MTEL",
                 "Sub Kategori": "TIS",
                 "STO": "",
+                "Priority (SQUAT Only)": "",
+                "ID TACC (Non-SQUAT)": "TACC-12345", // Contoh Pengisian
                 "Waktu Tiket (YYYY-MM-DD HH:MM)": "2024-01-29 11:30",
                 "Deskripsi": "Power down di site X"
             }
@@ -37,7 +41,7 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
         const ws = XLSX.utils.json_to_sheet(template);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");
-        XLSX.writeFile(wb, "Template_Import_Tiket.xlsx");
+        XLSX.writeFile(wb, "Template_Import_Tiket_Lengkap.xlsx");
     };
 
     // 2. Fungsi Baca File Excel
@@ -55,7 +59,7 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
             const ws = wb.Sheets[wsname];
             const data = XLSX.utils.sheet_to_json(ws);
             setPreviewData(data);
-            setUploadResult(null); // Reset hasil sebelumnya
+            setUploadResult(null); 
         };
         reader.readAsBinaryString(selectedFile);
     };
@@ -66,13 +70,17 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
         setIsUploading(true);
 
         try {
-            // Mapping Data Excel ke Format Database
+            // [PERBAIKAN] Mapping Data Excel ke Format Database (Termasuk Priority & TACC)
             const formattedData = previewData.map(row => ({
                 id_tiket: row['ID Tiket'],
                 category: row['Kategori'],
                 subcategory: row['Sub Kategori'],
                 sto: row['STO'],
-                // Handle konversi tanggal Excel jika perlu, atau gunakan raw string jika format benar
+                // Mapping Kolom Baru
+                priority: row['Priority (SQUAT Only)'] || null, 
+                id_tiket_tacc: row['ID TACC (Non-SQUAT)'] || null,
+                
+                // Handle tanggal
                 tiket_time: row['Waktu Tiket (YYYY-MM-DD HH:MM)'] || new Date().toISOString(),
                 deskripsi: row['Deskripsi']
             }));
@@ -87,7 +95,6 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
             
             if (res.ok) {
                 setUploadResult({ success: true, ...result });
-                // Reset form setelah delay 2 detik jika sukses total
                 if(result.details.failed === 0) {
                      setTimeout(() => {
                          onSuccess();
@@ -127,8 +134,8 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                     {/* Step 1: Download Template */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex justify-between items-center">
                         <div className="text-sm text-blue-800">
-                            <p className="font-bold">Belum punya formatnya?</p>
-                            <p className="text-xs opacity-80">Download template excel terlebih dahulu.</p>
+                            <p className="font-bold">Belum punya format?</p>
+                            <p className="text-xs opacity-80">Download template terbaru (Updated Priority & TACC).</p>
                         </div>
                         <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-3 py-2 bg-white text-blue-600 rounded-lg text-xs font-bold shadow-sm border border-blue-200 hover:bg-blue-50 transition">
                             <FaDownload /> Download Template
