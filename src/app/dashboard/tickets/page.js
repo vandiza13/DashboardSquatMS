@@ -250,12 +250,14 @@ export default function TicketsPage() {
 
             <div className="text-slate-700 text-xs bg-white/60 p-2.5 rounded-lg border border-black/5">
                 <span className="font-semibold block mb-1 text-[10px] text-slate-500 uppercase">Deskripsi:</span>
-                <span className="line-clamp-3">{ticket.deskripsi}</span>
+                {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
+                <span className="line-clamp-3 whitespace-pre-wrap">{ticket.deskripsi}</span>
             </div>
             {ticket.update_progres && (
                 <div className="text-slate-700 text-xs">
                     <span className="font-semibold text-slate-500 text-[10px] uppercase">{ticket.status === 'CLOSED' ? 'RCA:' : 'Update:'}</span>
-                    <p className="italic text-slate-600 mt-0.5 bg-yellow-100/50 p-1.5 rounded border-l-2 border-yellow-300 break-words text-[11px]">{ticket.update_progres}</p>
+                    {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
+                    <p className="italic text-slate-600 mt-0.5 bg-yellow-100/50 p-1.5 rounded border-l-2 border-yellow-300 break-words text-[11px] whitespace-pre-wrap">{ticket.update_progres}</p>
                 </div>
             )}
             <div className="border-t border-black/5 pt-2 mt-1">
@@ -359,8 +361,15 @@ export default function TicketsPage() {
                                         <div className="text-[10px] text-slate-400 mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                                     </td>
                                     <td className="px-6 py-4 align-top max-w-sm">
-                                        <div className="text-slate-700 text-xs line-clamp-3 mb-2" title={ticket.deskripsi}>{ticket.deskripsi}</div>
-                                        {ticket.update_progres && <div className="text-[10px] text-slate-600 bg-yellow-100/50 p-2 rounded border border-yellow-200 flex gap-1"><span className="font-bold text-yellow-700 shrink-0">{ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}</span><span className="italic">{ticket.update_progres}</span></div>}
+                                        {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
+                                        <div className="text-slate-700 text-xs line-clamp-3 mb-2 whitespace-pre-wrap" title={ticket.deskripsi}>{ticket.deskripsi}</div>
+                                        {ticket.update_progres && (
+                                            <div className="text-[10px] text-slate-600 bg-yellow-100/50 p-2 rounded border border-yellow-200 flex gap-1">
+                                                <span className="font-bold text-yellow-700 shrink-0">{ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}</span>
+                                                {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
+                                                <span className="italic whitespace-pre-wrap">{ticket.update_progres}</span>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 align-top">
                                         {ticket.technician_name ? (
