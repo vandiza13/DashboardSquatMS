@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { 
     FaHome, FaTicketAlt, FaUsers, FaChartLine, 
     FaUserCog, FaBuilding, FaTimes, 
-    FaDesktop, FaChevronDown, FaChevronRight, FaNetworkWired, FaExternalLinkAlt, FaCode 
+    FaDesktop, FaChevronDown, FaChevronRight, FaNetworkWired, FaExternalLinkAlt, FaCode, FaGlobe 
 } from 'react-icons/fa';
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -97,10 +97,24 @@ export default function Sidebar({ isOpen, onClose }) {
                         );
                     })}
 
-                    {/* External Menu TACC */}
+                    {/* External Menu Section */}
                     <div className="my-4 border-t border-slate-800 mx-2"></div>
                     <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Eksternal Link</p>
                     
+                    {/* [BARU] Link Lensa Flow */}
+                    <a
+                        href="https://flow.telkomakses.co.id"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={onClose}
+                        className="group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-300 hover:translate-x-1"
+                    >
+                        <FaGlobe className="text-lg transition-colors text-slate-500 group-hover:text-blue-400" />
+                        <span>Lensa Flow (WFM)</span>
+                        <FaExternalLinkAlt className="ml-auto opacity-30 text-[9px]" />
+                    </a>
+
+                    {/* Dashboard TACC Dropdown */}
                     <button 
                         onClick={() => setIsTaccOpen(!isTaccOpen)}
                         className={`w-full group relative flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 
