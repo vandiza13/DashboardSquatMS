@@ -5,8 +5,24 @@ import PusherClient from 'pusher-js';
 const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || 'APP_KEY';
 const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'ap1';
 
-export const pusherClient = new PusherClient(pusherKey, {
-  cluster: pusherCluster,
-  // Opsi tambahan untuk mencegah error di server-side rendering (build time)
-  authEndpoint: '/api/pusher/auth', 
-});
+// Lazy initialization untuk mencegah error saat SSR/build
+let _pusherClient = null;
+
+export function getPusherClient() {
+  if (typeof window === 'undefined') return null;
+  if (!_pusherClient) {
+    _pusherClient = new PusherClient(pusherKey, {
+      cluster: pusherCluster,
+      authEndpoint: '/api/pusher/auth',
+    });
+  }
+  return _pusherClient;
+}
+
+// Backward compatibility - tapi hanya gunakan di client-side code
+export const pusherClient = typeof window !== 'undefined'
+  ? new PusherClient(pusherKey, {
+    cluster: pusherCluster,
+    authEndpoint: '/api/pusher/auth',
+  })
+  : null;

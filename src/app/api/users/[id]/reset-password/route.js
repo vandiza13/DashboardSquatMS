@@ -3,16 +3,17 @@ import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
-export async function PUT(request, { params }) {
+export async function PUT(request, props) {
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        
+
         // HANYA ADMIN YANG BOLEH RESET PASSWORD ORANG LAIN
         if (!user || user.role !== 'Admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
+        const params = await props.params;
         const { id } = params;
         const body = await request.json();
         const { newPassword } = body;
@@ -22,7 +23,7 @@ export async function PUT(request, { params }) {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        
+
         await db.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, id]);
 
         return NextResponse.json({ message: 'Password berhasil di-reset' });

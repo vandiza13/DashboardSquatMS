@@ -1,44 +1,124 @@
 @import "tailwindcss";
 
+/* === DARK MODE CLASS STRATEGY === */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* === DESIGN TOKENS === */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light Mode Colors */
+  --bg-base: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --border-color: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-sidebar: #64748b;
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --shadow-color: 0 0 0 / 0.08;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* Dark Mode Colors */
+  --bg-base: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-surface-2: #0f172a;
+  --bg-sidebar: #1e293b;
+  --border-color: #334155;
+  /* Slate 700 for visible borders */
+  --border-subtle: #1e293b;
+  --text-primary: #f8fafc;
+  /* Slate 50 */
+  --text-secondary: #cbd5e1;
+  /* Slate 300 */
+  --text-muted: #94a3b8;
+  /* Slate 400 (better contrast) */
+  --text-sidebar: #cbd5e1;
+  --accent-primary: #3b82f6;
+  --accent-hover: #60a5fa;
+  --shadow-color: 0 0 0 / 0.4;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* === BASE === */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Animasi Running Text yang Elegan */
+/* === SMOOTH TRANSITIONS FOR ALL ELEMENTS === */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* Kecualikan animasi & transform dari transition global */
+.animate-spin,
+.animate-pulse,
+.animate-bounce,
+.animate-marquee {
+  transition: none;
+}
+
+/* === SCROLLBAR CUSTOM === */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 99px;
+}
+
+/* === ANIMASI RUNNING TEXT === */
 @keyframes marquee {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .animate-marquee {
   display: inline-block;
   white-space: nowrap;
-  /* UBAH DI SINI: Ganti 30s menjadi 80s atau 100s */
-  animation: marquee 80s linear infinite; 
+  animation: marquee 80s linear infinite;
 }
 
-/* Efek Pause saat mouse diarahkan */
 .animate-marquee:hover {
   animation-play-state: paused;
+}
+
+/* === FADE IN ANIMATION === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
 }

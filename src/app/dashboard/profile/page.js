@@ -41,51 +41,51 @@ export default function ProfilePage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
             <div>
-                <h2 className="text-2xl font-bold text-slate-800">Profil Pengguna</h2>
-                <p className="text-sm text-slate-500">Kelola informasi akun dan keamanan Anda</p>
+                <h2 className="text-2xl font-bold text-[var(--text-primary)]">Profil Pengguna</h2>
+                <p className="text-sm text-[var(--text-muted)]">Kelola informasi akun dan keamanan Anda</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
+
                 {/* KARTU 1: INFO PROFIL */}
-                <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center h-fit">
-                    <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-5xl mb-4">
+                <div className="md:col-span-1 bg-[var(--bg-surface)] rounded-xl shadow-sm border border-[var(--border-color)] p-6 flex flex-col items-center text-center h-fit">
+                    <div className="h-24 w-24 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-5xl mb-4 border border-blue-100 dark:border-blue-800/50">
                         <FaUserCircle />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800">{profile?.username}</h3>
-                    <span className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full uppercase border border-slate-200">
+                    <h3 className="text-xl font-bold text-[var(--text-primary)]">{profile?.username}</h3>
+                    <span className="inline-block mt-2 px-3 py-1 bg-[var(--bg-base)] text-[var(--text-secondary)] text-xs font-bold rounded-full uppercase border border-[var(--border-color)]">
                         Role: {profile?.role}
                     </span>
-                    <p className="mt-4 text-xs text-slate-400">
-                        Bergabung sejak: <br/>
+                    <p className="mt-4 text-xs text-[var(--text-muted)]">
+                        Bergabung sejak: <br />
                         {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-'}
                     </p>
                 </div>
 
                 {/* KARTU 2: GANTI PASSWORD */}
-                <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-4">
-                        <FaLock className="text-blue-600" />
-                        <h3 className="font-bold text-slate-700">Ganti Password</h3>
+                <div className="md:col-span-2 bg-[var(--bg-surface)] rounded-xl shadow-sm border border-[var(--border-color)] p-6">
+                    <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-4 mb-4">
+                        <FaLock className="text-blue-600 dark:text-blue-400" />
+                        <h3 className="font-bold text-[var(--text-primary)]">Ganti Password</h3>
                     </div>
                     {message.text && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                        <div className={`mb-4 p-3 rounded-lg text-sm flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/50'}`}>
                             {message.type === 'success' && <FaCheckCircle />} {message.text}
                         </div>
                     )}
                     <form onSubmit={handleChangePassword} className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password Saat Ini</label>
-                            <input type="password" className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Masukkan password lama..." value={passData.currentPassword} onChange={(e) => setPassData({...passData, currentPassword: e.target.value})} required />
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Password Saat Ini</label>
+                            <input type="password" className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Masukkan password lama..." value={passData.currentPassword} onChange={(e) => setPassData({ ...passData, currentPassword: e.target.value })} required />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password Baru</label>
-                                <input type="password" className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Minimal 6 karakter" value={passData.newPassword} onChange={(e) => setPassData({...passData, newPassword: e.target.value})} required />
+                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Password Baru</label>
+                                <input type="password" className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Minimal 6 karakter" value={passData.newPassword} onChange={(e) => setPassData({ ...passData, newPassword: e.target.value })} required />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Konfirmasi Password</label>
-                                <input type="password" className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Ulangi password baru" value={passData.confirmNewPassword} onChange={(e) => setPassData({...passData, confirmNewPassword: e.target.value})} required />
+                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Konfirmasi Password</label>
+                                <input type="password" className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Ulangi password baru" value={passData.confirmNewPassword} onChange={(e) => setPassData({ ...passData, confirmNewPassword: e.target.value })} required />
                             </div>
                         </div>
                         <div className="pt-4 flex justify-end">
@@ -102,7 +102,7 @@ export default function ProfilePage() {
                     <div className="absolute -right-10 -bottom-10 opacity-10">
                         <FaCode className="text-9xl transform rotate-12" />
                     </div>
-                    
+
                     <div className="relative z-10">
                         <p className="text-xs text-slate-400 mb-1 font-mono tracking-widest uppercase">System Information</p>
                         <h3 className="text-lg font-bold mb-1">Dashboard SQUAT & MS v2.0.0</h3>

@@ -12,7 +12,7 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
-    const statusFilter = searchParams.get('status') || 'ALL';   
+    const statusFilter = searchParams.get('status') || 'ALL';
     const categoryFilter = searchParams.get('category') || 'ALL';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -33,11 +33,11 @@ export async function GET(request) {
             LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
             WHERE 1=1
         `;
-        
+
         const queryParams = [];
 
         if (search) {
-            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`; 
+            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`;
             const likeTerm = `%${search}%`;
             queryParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
         }
@@ -73,13 +73,16 @@ export async function GET(request) {
         let countQuery = `SELECT COUNT(*) as total FROM tickets t WHERE 1=1`;
         const countParams = [];
 
-        if (search) { 
-            countQuery += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.id_tiket_tacc LIKE ?)`; 
-            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        if (search) {
+            countQuery += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`;
+            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
         if (statusFilter === 'RUNNING') countQuery += ` AND t.status IN ('OPEN', 'SC')`;
         else if (statusFilter === 'CLOSED') countQuery += ` AND t.status = 'CLOSED'`;
-        
+        else if (statusFilter && statusFilter !== 'ALL') {
+            countQuery += ` AND t.status = ?`;
+            countParams.push(statusFilter);
+        }
         if (categoryFilter && categoryFilter !== 'ALL') {
             countQuery += ` AND t.category = ?`;
             countParams.push(categoryFilter);
@@ -108,22 +111,22 @@ export async function GET(request) {
 
 // --- POST: BUAT TIKET BARU (DENGAN PUSHER) ---
 export async function POST(request) {
-    const connection = await db.getConnection(); 
+    const connection = await db.getConnection();
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        
+
         if (!user || (user.role !== 'Admin' && user.role !== 'User')) {
             return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
         }
 
         const body = await request.json();
-        
-        const { 
-            category, subcategory, id_tiket, tiket_time, deskripsi, 
+
+        const {
+            category, subcategory, id_tiket, tiket_time, deskripsi,
             technician_niks, partner_technicians, sto,
             priority,
-            id_tiket_tacc 
+            id_tiket_tacc
         } = body;
 
         if (!category || !subcategory || !id_tiket) {
@@ -135,18 +138,18 @@ export async function POST(request) {
         const [result] = await connection.query(
             `INSERT INTO tickets 
             (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`, 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`,
             [
-                category, 
-                subcategory, 
-                priority || null, 
-                id_tiket, 
-                id_tiket_tacc || null, 
-                tiket_time || new Date(), 
-                deskripsi || '-', 
-                user.userId, 
-                user.userId, 
-                partner_technicians || null, 
+                category,
+                subcategory,
+                priority || null,
+                id_tiket,
+                id_tiket_tacc || null,
+                tiket_time || new Date(),
+                deskripsi || '-',
+                user.userId,
+                user.userId,
+                partner_technicians || null,
                 sto || null
             ]
         );
@@ -154,7 +157,7 @@ export async function POST(request) {
         const ticketId = result.insertId;
 
         if (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) {
-            const nik = technician_niks[0]; 
+            const nik = technician_niks[0];
             if (nik) {
                 await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [ticketId, nik]);
             }
@@ -183,7 +186,7 @@ export async function POST(request) {
         return NextResponse.json({ message: 'Tiket berhasil dibuat', ticketId }, { status: 201 });
 
     } catch (error) {
-        await connection.rollback(); 
+        await connection.rollback();
         console.error("Create Ticket Error:", error);
         if (error.code === 'ER_DUP_ENTRY') {
             return NextResponse.json({ error: 'ID Tiket sudah ada' }, { status: 400 });

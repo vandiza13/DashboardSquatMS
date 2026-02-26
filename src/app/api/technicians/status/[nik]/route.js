@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
 
-export async function PUT(request, { params }) {
+export async function PUT(request, props) {
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         if (!user || user.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+        const params = await props.params;
         const { nik } = params;
         const body = await request.json();
         const { is_active } = body;

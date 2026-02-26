@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, use } from 'react'; 
-import { 
-    FaArrowLeft, FaCalendarAlt, FaUserCircle, FaWhatsapp, 
-    FaHistory, FaExclamationCircle, FaTools 
+import { useState, useEffect, use } from 'react';
+import {
+    FaArrowLeft, FaCalendarAlt, FaUserCircle, FaWhatsapp,
+    FaHistory, FaExclamationCircle, FaTools
 } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -14,7 +14,7 @@ export default function TicketDetailPage({ params }) {
     // Unwrap params untuk Next.js 15+
     const unwrappedParams = use(params);
     const id = unwrappedParams.id;
-    
+
     const router = useRouter();
     const [ticket, setTicket] = useState(null);
     const [history, setHistory] = useState([]);
@@ -144,11 +144,11 @@ export default function TicketDetailPage({ params }) {
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in">
             {/* --- HEADER --- */}
             <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition w-fit">
+                <button onClick={() => router.back()} className="flex items-center gap-2 text-[var(--text-muted)] hover:text-blue-600 dark:hover:text-blue-400 transition w-fit">
                     <FaArrowLeft /> <span className="font-semibold">Kembali</span>
                 </button>
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
-                    <span className="text-xs text-slate-400 font-mono">ID DATABASE: {ticket.id}</span>
+                <div className="flex items-center gap-2 bg-[var(--bg-surface)] px-3 py-1.5 rounded-full border border-[var(--border-color)] shadow-sm">
+                    <span className="text-xs text-[var(--text-muted)] font-mono">ID DATABASE: {ticket.id}</span>
                 </div>
             </div>
 
@@ -156,40 +156,40 @@ export default function TicketDetailPage({ params }) {
                 {/* --- KOLOM KIRI: INFO UTAMA --- */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* KARTU HEADER TIKET */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-start">
+                    <div className="bg-[var(--bg-surface)] rounded-xl shadow-sm border border-[var(--border-color)] overflow-hidden">
+                        <div className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-base)] flex justify-between items-start">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <StatusBadge status={ticket.status} />
-                                    <span className="text-xs font-bold text-slate-500 px-2 py-0.5 bg-slate-200 rounded border border-slate-300">
+                                    <span className="text-xs font-bold text-[var(--text-secondary)] px-2 py-0.5 bg-[var(--bg-surface)] rounded border border-[var(--border-color)]">
                                         {ticket.category}
                                     </span>
                                 </div>
-                                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{ticket.id_tiket}</h1>
-                                <p className="text-slate-500 text-sm mt-1">{ticket.subcategory}</p>
+                                <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{ticket.id_tiket}</h1>
+                                <p className="text-[var(--text-muted)] text-sm mt-1">{ticket.subcategory}</p>
                             </div>
                             {ticket.sto && (
-                                <div className="text-center bg-white border border-slate-200 p-2 rounded-lg shadow-sm">
-                                    <span className="block text-[10px] text-slate-400 font-bold uppercase">STO</span>
-                                    <span className="block text-lg font-bold text-slate-700">{ticket.sto}</span>
+                                <div className="text-center bg-[var(--bg-base)] border border-[var(--border-color)] p-2 rounded-lg shadow-sm">
+                                    <span className="block text-[10px] text-[var(--text-muted)] font-bold uppercase">STO</span>
+                                    <span className="block text-lg font-bold text-[var(--text-secondary)]">{ticket.sto}</span>
                                 </div>
                             )}
                         </div>
-                        
+
                         <div className="p-6">
-                            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
-                                <FaTools className="text-slate-400" /> Deskripsi Pekerjaan
+                            <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3 flex items-center gap-2">
+                                <FaTools className="opacity-70 text-[var(--text-muted)]" /> Deskripsi Pekerjaan
                             </h3>
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                            <div className="bg-[var(--bg-base)] p-4 rounded-xl border border-[var(--border-color)] text-[var(--text-secondary)] text-sm leading-relaxed whitespace-pre-wrap">
                                 {ticket.deskripsi}
                             </div>
 
                             {ticket.update_progres && (
                                 <div className="mt-4">
-                                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-2">
+                                    <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide mb-2">
                                         {ticket.status === 'CLOSED' ? 'Root Cause (RCA)' : 'Update Progress'}
                                     </h3>
-                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-slate-700 text-sm italic border-l-4 border-l-yellow-400">
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800/50 text-yellow-800 dark:text-yellow-200 text-sm italic border-l-4 border-l-yellow-400">
                                         "{ticket.update_progres}"
                                     </div>
                                 </div>
@@ -198,24 +198,24 @@ export default function TicketDetailPage({ params }) {
                     </div>
 
                     {/* HISTORY LOG */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-6 flex items-center gap-2">
-                            <FaHistory className="text-slate-400" /> Riwayat Aktivitas
+                    <div className="bg-[var(--bg-surface)] rounded-xl shadow-sm border border-[var(--border-color)] p-6">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide mb-6 flex items-center gap-2">
+                            <FaHistory className="opacity-70 text-[var(--text-muted)]" /> Riwayat Aktivitas
                         </h3>
-                        <div className="relative border-l-2 border-slate-100 ml-3 space-y-6">
+                        <div className="relative border-l-2 border-[var(--border-subtle)] ml-3 space-y-6">
                             {history.length === 0 ? (
-                                <p className="text-sm text-slate-400 italic pl-6">Belum ada riwayat.</p>
+                                <p className="text-sm text-[var(--text-muted)] italic pl-6">Belum ada riwayat.</p>
                             ) : (
                                 history.map((log, idx) => (
                                     <div key={idx} className="relative pl-6 group">
-                                        <div className="absolute -left-[9px] top-0 h-4 w-4 rounded-full bg-slate-200 border-2 border-white group-hover:bg-blue-500 transition-colors"></div>
+                                        <div className="absolute -left-[9px] top-0 h-4 w-4 rounded-full bg-[var(--border-color)] border-2 border-[var(--bg-surface)] group-hover:bg-blue-500 transition-colors"></div>
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1">
-                                            <span className="text-xs font-bold text-slate-700">{log.changed_by || 'System'}</span>
-                                            <span className="text-[10px] text-slate-400 font-mono">
-                                                {new Date(log.change_timestamp).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour:'2-digit', minute:'2-digit' })}
+                                            <span className="text-xs font-bold text-[var(--text-primary)]">{log.changed_by || 'System'}</span>
+                                            <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                                                {new Date(log.change_timestamp).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100">
+                                        <p className="text-sm text-[var(--text-secondary)] bg-[var(--bg-base)] p-2 rounded border border-[var(--border-subtle)]">
                                             {log.change_details}
                                         </p>
                                     </div>
@@ -228,38 +228,38 @@ export default function TicketDetailPage({ params }) {
                 {/* --- KOLOM KANAN: SIDEBAR INFO --- */}
                 <div className="space-y-6">
                     {/* INFO TEKNISI */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b pb-2">Teknisi Bertugas (LENSA)</h3>
+                    <div className="bg-[var(--bg-surface)] rounded-xl shadow-sm border border-[var(--border-color)] p-5">
+                        <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4 border-b border-[var(--border-subtle)] pb-2">Teknisi Bertugas (LENSA)</h3>
                         {ticket.technician_name ? (
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                <div className="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                                     <FaUserCircle size={24} />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-slate-800 text-sm">{ticket.technician_name}</p>
-                                    <p className="text-xs text-slate-500 font-mono">{ticket.assigned_technician_niks?.split(',')[0]}</p>
+                                    <p className="font-bold text-[var(--text-primary)] text-sm">{ticket.technician_name}</p>
+                                    <p className="text-xs text-[var(--text-muted)] font-mono">{ticket.assigned_technician_niks?.split(',')[0]}</p>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm text-slate-400 italic">Belum ada teknisi assign.</p>
+                            <p className="text-sm text-[var(--text-muted)] italic">Belum ada teknisi assign.</p>
                         )}
-                        
+
                         {ticket.technician_phone && (
-                            <a 
-                                href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} 
+                            <a
+                                href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`}
                                 target="_blank"
-                                className="mt-4 flex items-center justify-center gap-2 w-full py-2 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 border border-green-200 transition"
+                                className="mt-4 flex items-center justify-center gap-2 w-full py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-bold hover:bg-green-100 dark:hover:bg-green-900/50 border border-green-200 dark:border-green-800/50 transition"
                             >
                                 <FaWhatsapp size={14} /> Hubungi via WhatsApp
                             </a>
                         )}
 
                         {ticket.partner_technicians && (
-                            <div className="mt-4 pt-4 border-t border-dashed border-slate-100">
-                                <p className="text-xs font-bold text-slate-400 mb-2">TIM SUPPORT</p>
+                            <div className="mt-4 pt-4 border-t border-dashed border-[var(--border-color)]">
+                                <p className="text-xs font-bold text-[var(--text-muted)] mb-2">TIM SUPPORT</p>
                                 <div className="flex flex-wrap gap-1">
                                     {ticket.partner_technicians.split(',').map((p, i) => (
-                                        <span key={i} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-1 rounded border border-slate-100">
+                                        <span key={i} className="text-[10px] bg-[var(--bg-base)] text-[var(--text-secondary)] px-2 py-1 rounded border border-[var(--border-color)]">
                                             {p.trim()}
                                         </span>
                                     ))}
@@ -269,21 +269,21 @@ export default function TicketDetailPage({ params }) {
                     </div>
 
                     {/* INFO WAKTU */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b pb-2">Detail Waktu</h3>
+                    <div className="bg-[var(--bg-surface)] rounded-xl shadow-sm border border-[var(--border-color)] p-5">
+                        <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4 border-b border-[var(--border-subtle)] pb-2">Detail Waktu</h3>
                         <div className="space-y-4">
                             <div>
-                                <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-1"><FaCalendarAlt /> DIBUAT PADA</p>
-                                <p className="text-sm font-semibold text-slate-700">
+                                <p className="text-[10px] text-[var(--text-muted)] mb-0.5 flex items-center gap-1"><FaCalendarAlt /> DIBUAT PADA</p>
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">
                                     {new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-1"><FaHistory /> UPDATE TERAKHIR</p>
-                                <p className="text-sm font-semibold text-slate-700">
+                                <p className="text-[10px] text-[var(--text-muted)] mb-0.5 flex items-center gap-1"><FaHistory /> UPDATE TERAKHIR</p>
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">
                                     {new Date(ticket.last_update_time).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}
                                 </p>
-                                <p className="text-xs text-slate-400 mt-0.5">Oleh: {ticket.updater_name || 'System'}</p>
+                                <p className="text-xs text-[var(--text-muted)] mt-0.5">Oleh: {ticket.updater_name || 'System'}</p>
                             </div>
                         </div>
                     </div>

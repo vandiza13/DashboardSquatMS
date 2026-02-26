@@ -1,19 +1,17 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-    FaChartLine, FaTrophy, FaMedal, FaTicketAlt, FaFilter, FaTimes, FaExternalLinkAlt, 
-    FaCalendarAlt, FaUserCircle, FaClock, FaSearch, 
-    FaFileExcel, FaSpinner 
+import {
+    FaChartLine, FaTrophy, FaMedal, FaTicketAlt, FaFilter, FaTimes, FaExternalLinkAlt,
+    FaCalendarAlt, FaUserCircle, FaClock, FaSearch,
+    FaFileExcel, FaSpinner
 } from 'react-icons/fa';
-import { 
-    Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement 
+import {
+    Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import Link from 'next/link';
-import * as XLSX from 'xlsx';
-
-// Registrasi Chart.js
+// Note: Dynamic import for XLSX is handled inside the click handler to avoid SSR issues.
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 // --- SKEMA WARNA KATEGORI ---
@@ -25,10 +23,10 @@ const CATEGORY_COLORS = {
 };
 
 const CATEGORY_BG_COLORS = {
-    MTEL: 'bg-blue-50 text-blue-700 border-blue-200',
-    UMT: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    CENTRATAMA: 'bg-green-50 text-green-700 border-green-200',
-    SQUAT: 'bg-red-50 text-red-700 border-red-200',
+    MTEL: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/50',
+    UMT: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700/50',
+    CENTRATAMA: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/50',
+    SQUAT: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/50',
 };
 
 export default function ProductivityPage() {
@@ -37,9 +35,9 @@ export default function ProductivityPage() {
 
     // --- STATE FILTER & SEARCH ---
     const currentDate = new Date();
-    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); 
-    const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());    
-    const [searchTerm, setSearchTerm] = useState(''); 
+    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+    const [searchTerm, setSearchTerm] = useState('');
 
     // --- STATE MODAL DETAIL ---
     const [showModal, setShowModal] = useState(false);
@@ -70,7 +68,7 @@ export default function ProductivityPage() {
                 if (Array.isArray(result)) {
                     setData(result);
                 } else {
-                    setData([]); 
+                    setData([]);
                 }
                 setLoading(false);
             })
@@ -78,14 +76,14 @@ export default function ProductivityPage() {
                 console.error(err);
                 setLoading(false);
             });
-    }, [selectedMonth, selectedYear]); 
+    }, [selectedMonth, selectedYear]);
 
     // --- FILTER DATA SEARCH ---
     const filteredData = useMemo(() => {
         if (!searchTerm) return data;
-        return data.filter(item => 
-            item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.nik.toLowerCase().includes(searchTerm.toLowerCase())
+        return data.filter(item =>
+            (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (item.nik || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [data, searchTerm]);
 
@@ -98,8 +96,8 @@ export default function ProductivityPage() {
         setSelectedNik(nik);
         setShowModal(true);
         setModalLoading(true);
-        setTicketDetails([]); 
-        setShowModal(true); 
+        setTicketDetails([]);
+        setShowModal(true);
 
         try {
             const res = await fetch(`/api/productivity/details?nik=${nik}&month=${selectedMonth}&year=${selectedYear}&category=${category}`);
@@ -118,6 +116,9 @@ export default function ProductivityPage() {
     const handleDownloadExcel = async () => {
         setDownloadLoading(true);
         try {
+            // Dynamically import XLSX to prevent SSR issues
+            const XLSX = await import('xlsx');
+
             // 1. Hitung Range Tanggal
             const startDate = new Date(selectedYear, selectedMonth - 1, 1);
             const endDate = new Date(selectedYear, selectedMonth, 0);
@@ -182,7 +183,7 @@ export default function ProductivityPage() {
 
             // Sheet 1 (Rekap)
             const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-            const wscolsSummary = [{wch:5}, {wch:25}, {wch:15}, {wch:10}, {wch:10}, {wch:10}, {wch:10}, {wch:10}];
+            const wscolsSummary = [{ wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
             wsSummary['!cols'] = wscolsSummary;
             XLSX.utils.book_append_sheet(workbook, wsSummary, "REKAP BULANAN");
 
@@ -190,25 +191,25 @@ export default function ProductivityPage() {
             const wsDetail = XLSX.utils.json_to_sheet(detailData);
             // Sesuaikan lebar kolom agar rapi
             const wscolsDetail = [
-                {wch:25}, // Nama
-                {wch:15}, // NIK
-                {wch:20}, // ID Tiket
-                {wch:18}, // ID TACC (New)
-                {wch:10}, // Kategori
-                {wch:15}, // Sub
-                {wch:15}, // Priority (New)
-                {wch:10}, // Status
-                {wch:8},  // STO
-                {wch:30}, // Deskripsi
-                {wch:30}, // RCA
-                {wch:22}, // Waktu
-                {wch:22}  // Update
+                { wch: 25 }, // Nama
+                { wch: 15 }, // NIK
+                { wch: 20 }, // ID Tiket
+                { wch: 18 }, // ID TACC (New)
+                { wch: 10 }, // Kategori
+                { wch: 15 }, // Sub
+                { wch: 15 }, // Priority (New)
+                { wch: 10 }, // Status
+                { wch: 8 },  // STO
+                { wch: 30 }, // Deskripsi
+                { wch: 30 }, // RCA
+                { wch: 22 }, // Waktu
+                { wch: 22 }  // Update
             ];
             wsDetail['!cols'] = wscolsDetail;
             XLSX.utils.book_append_sheet(workbook, wsDetail, "DATA DETAIL");
 
             // Save File
-            XLSX.writeFile(workbook, `Laporan_Produktifitas_${months[selectedMonth-1].label}_${selectedYear}.xlsx`);
+            XLSX.writeFile(workbook, `Laporan_Produktifitas_${months[selectedMonth - 1].label}_${selectedYear}.xlsx`);
 
         } catch (error) {
             console.error("Download Error:", error);
@@ -222,9 +223,9 @@ export default function ProductivityPage() {
     const chartData = useMemo(() => {
         if (!data.length) return null;
 
-        const topTechs = data.slice(0, 10); 
-        const barLabels = topTechs.map(t => t.name.split(' ')[0]); 
-        
+        const topTechs = data.slice(0, 10);
+        const barLabels = topTechs.map(t => (t.name || 'Unknown').split(' ')[0]);
+
         const stackedBarDatasets = [
             { label: 'MTEL', data: topTechs.map(t => t.mtel), backgroundColor: CATEGORY_COLORS.MTEL },
             { label: 'UMT', data: topTechs.map(t => t.umt), backgroundColor: CATEGORY_COLORS.UMT },
@@ -243,13 +244,13 @@ export default function ProductivityPage() {
                 labels: ['MTEL', 'UMT', 'CENTRATAMA', 'SQUAT'],
                 datasets: [{
                     data: [totalMtel, totalUmt, totalCentratama, totalSquat],
-                    backgroundColor: [CATEGORY_COLORS.MTEL, CATEGORY_COLORS.UMT, CATEGORY_COLORS.CENTRATAMA, CATEGORY_COLORS.SQUAT], 
+                    backgroundColor: [CATEGORY_COLORS.MTEL, CATEGORY_COLORS.UMT, CATEGORY_COLORS.CENTRATAMA, CATEGORY_COLORS.SQUAT],
                     borderWidth: 0,
                     hoverOffset: 4
                 }]
             },
             grandTotal: totalMtel + totalUmt + totalCentratama + totalSquat,
-            topTechnician: data[0] 
+            topTechnician: data[0]
         };
     }, [data]);
 
@@ -269,10 +270,10 @@ export default function ProductivityPage() {
     };
 
     const ClickableCount = ({ count, nik, name, category, color }) => {
-        if (count <= 0) return <span className="text-slate-300 font-normal">-</span>;
-        
+        if (count <= 0) return <span className="text-[var(--text-muted)] font-normal opacity-40">-</span>;
+
         return (
-            <button 
+            <button
                 onClick={() => handleNumberClick(nik, name, category, count)}
                 className="font-bold hover:underline hover:scale-110 transition-transform cursor-pointer focus:outline-none"
                 style={{ color: color || 'inherit' }}
@@ -288,37 +289,37 @@ export default function ProductivityPage() {
             {/* --- HEADER UTAMA (Hanya Judul & Filter Tanggal) --- */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">Produktifitas Tim</h2>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Analisa performa periode: <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{months[selectedMonth-1].label} {selectedYear}</span>
+                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] tracking-tight">Produktifitas Tim</h2>
+                    <p className="text-sm text-[var(--text-secondary)] mt-1">
+                        Analisa performa periode: <span className="font-semibold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded dark:bg-blue-900/30 dark:text-blue-300">{months[selectedMonth - 1].label} {selectedYear}</span>
                     </p>
                 </div>
-                
+
                 {/* FILTER & DOWNLOAD BUTTON */}
                 <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                    
+
                     {/* 1. FILTER BULAN/TAHUN */}
-                    <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex-1 md:flex-none">
-                        <div className="px-3 text-slate-400 hidden md:block"><FaFilter /></div>
-                        <select 
+                    <div className="flex items-center gap-2 bg-[var(--bg-surface)] p-1.5 rounded-xl border border-[var(--border-color)] shadow-sm flex-1 md:flex-none">
+                        <div className="px-3 text-[var(--text-muted)] hidden md:block"><FaFilter /></div>
+                        <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                            className="bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none cursor-pointer hover:bg-[var(--bg-base)] py-2 px-2 rounded-lg flex-1 md:flex-none"
                         >
                             {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
                         </select>
-                        <span className="text-slate-300">|</span>
-                        <select 
+                        <span className="text-[var(--text-muted)]">|</span>
+                        <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(Number(e.target.value))}
-                            className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 py-2 px-2 rounded-lg flex-1 md:flex-none"
+                            className="bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none cursor-pointer hover:bg-[var(--bg-base)] py-2 px-2 rounded-lg flex-1 md:flex-none"
                         >
                             {years.map((y) => (<option key={y} value={y}>{y}</option>))}
                         </select>
                     </div>
 
                     {/* 2. TOMBOL DOWNLOAD EXCEL */}
-                    <button 
+                    <button
                         onClick={handleDownloadExcel}
                         disabled={downloadLoading || loading || data.length === 0}
                         className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-sm shadow-sm shadow-green-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
@@ -331,9 +332,9 @@ export default function ProductivityPage() {
             </div>
 
             {loading ? (
-                <div className="py-24 flex flex-col items-center justify-center text-slate-400">
+                <div className="py-24 flex flex-col items-center justify-center text-[var(--text-muted)]">
                     <div className="relative mb-3">
-                        <div className="h-12 w-12 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
+                        <div className="h-12 w-12 rounded-full border-4 border-[var(--border-color)] border-t-blue-600 animate-spin"></div>
                     </div>
                     <p className="text-sm font-medium animate-pulse">Menghitung statistik...</p>
                 </div>
@@ -342,12 +343,12 @@ export default function ProductivityPage() {
                     {/* --- SUMMARY CARDS --- */}
                     {chartData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="flex items-center gap-4 rounded-xl bg-white p-5 shadow-sm border border-slate-100 relative overflow-hidden">
+                            <div className="flex items-center gap-4 rounded-xl bg-[var(--bg-surface)] p-5 shadow-sm border border-[var(--border-color)] relative overflow-hidden">
                                 <div className="absolute right-0 top-0 p-3 opacity-5"><FaTicketAlt className="text-6xl" /></div>
-                                <div className="rounded-full bg-blue-50 p-3 text-blue-600 relative z-10"><FaTicketAlt size={20} /></div>
+                                <div className="rounded-full bg-blue-500/10 p-3 text-blue-500 relative z-10"><FaTicketAlt size={20} /></div>
                                 <div className="relative z-10">
-                                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Total Closed</p>
-                                    <h3 className="text-3xl font-extrabold text-slate-800">{chartData.grandTotal}</h3>
+                                    <p className="text-xs text-[var(--text-muted)] uppercase font-bold tracking-wider">Total Closed</p>
+                                    <h3 className="text-3xl font-extrabold text-[var(--text-primary)]">{chartData.grandTotal}</h3>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 p-5 shadow-lg shadow-amber-200 text-white col-span-1 md:col-span-2 lg:col-span-1 relative overflow-hidden">
@@ -364,33 +365,33 @@ export default function ProductivityPage() {
 
                     {/* --- CHARTS --- */}
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-2">
-                            <h3 className="mb-6 text-base font-bold text-slate-800 flex items-center gap-2">
-                                <FaChartLine className="text-blue-500"/> Top 10 Teknisi ({months[selectedMonth-1].label})
+                        <div className="rounded-xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] lg:col-span-2">
+                            <h3 className="mb-6 text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+                                <FaChartLine className="text-blue-500" /> Top 10 Teknisi ({months[selectedMonth - 1].label})
                             </h3>
                             <div className="h-64 md:h-80">
                                 {chartData && chartData.bar.datasets[0].data.length > 0 ? (
                                     <Bar data={chartData.bar} options={stackedBarOptions} />
                                 ) : (
-                                    <div className="h-full flex items-center justify-center text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                                    <div className="h-full flex items-center justify-center text-[var(--text-muted)] bg-[var(--bg-base)] rounded-lg border border-dashed border-[var(--border-color)]">
                                         <p className="text-sm">Belum ada data di bulan ini.</p>
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
-                            <h3 className="mb-6 text-base font-bold text-slate-800 text-center">Share Kategori</h3>
+                        <div className="rounded-xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)]">
+                            <h3 className="mb-6 text-base font-bold text-[var(--text-primary)] text-center">Share Kategori</h3>
                             <div className="h-64 flex items-center justify-center relative">
                                 {chartData && chartData.grandTotal > 0 ? (
                                     <>
-                                        <Doughnut data={chartData.donut} options={{ cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 15, font: {size: 11} } } } }} />
+                                        <Doughnut data={chartData.donut} options={{ cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 15, font: { size: 11 } } } } }} />
                                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-80">
-                                            <span className="text-3xl font-bold text-slate-800">{chartData.grandTotal}</span>
-                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Total</span>
+                                            <span className="text-3xl font-bold text-[var(--text-primary)]">{chartData.grandTotal}</span>
+                                            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-widest">Total</span>
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                                    <div className="h-full w-full flex items-center justify-center text-[var(--text-muted)] bg-[var(--bg-base)] rounded-lg border border-dashed border-[var(--border-color)]">
                                         <p className="text-sm">Kosong.</p>
                                     </div>
                                 )}
@@ -399,17 +400,17 @@ export default function ProductivityPage() {
                     </div>
 
                     {/* --- TABEL + SEARCH BAR DI ATASNYA --- */}
-                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm mt-8">
+                    <div className="overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-surface)] shadow-sm mt-8">
                         {/* HEADER TABEL: Judul di Kiri, Search di Kanan */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-color)] bg-[var(--bg-surface)] px-6 py-4">
                             <div className="flex items-center gap-3">
-                                <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><FaTrophy /></div>
+                                <div className="bg-blue-500/10 dark:bg-blue-900/30 p-2 rounded-lg text-blue-500 dark:text-blue-400"><FaTrophy /></div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-sm md:text-base">Leaderboard Teknisi</h3>
-                                    <p className="text-xs text-slate-500 hidden md:block">Rincian detail pencapaian per kategori</p>
+                                    <h3 className="font-bold text-[var(--text-primary)] text-sm md:text-base">Leaderboard Teknisi</h3>
+                                    <p className="text-xs text-[var(--text-secondary)] hidden md:block">Rincian detail pencapaian per kategori</p>
                                 </div>
                             </div>
-                            
+
                             {/* SEARCH BAR */}
                             <div className="relative w-full md:w-64">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -420,7 +421,7 @@ export default function ProductivityPage() {
                                     placeholder="Cari nama atau NIK..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-white"
+                                    className="w-full pl-10 pr-4 py-2 text-sm border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-[var(--bg-surface)] text-[var(--text-primary)]"
                                 />
                             </div>
                         </div>
@@ -438,25 +439,25 @@ export default function ProductivityPage() {
                                         <th className="px-6 py-4 text-center bg-blue-800 text-white text-xs uppercase font-bold tracking-wider">TOTAL</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 text-sm">
+                                <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
                                     {filteredData.length === 0 ? (
-                                        <tr><td colSpan="7" className="p-8 text-center text-slate-400 italic">
+                                        <tr><td colSpan="7" className="p-8 text-center text-[var(--text-muted)] italic">
                                             {searchTerm ? `Tidak ditemukan teknisi dengan nama "${searchTerm}"` : 'Tidak ada data tiket closed pada periode ini.'}
                                         </td></tr>
                                     ) : (
                                         filteredData.map((item, index) => (
-                                            <tr key={item.nik} className="hover:bg-slate-50 transition-colors group">
-                                                <td className="px-6 py-4 text-center font-bold text-slate-500">{index + 1}</td>
-                                                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 md:static border-r border-slate-100 md:border-none shadow-sm md:shadow-none">
+                                            <tr key={item.nik} className="hover:bg-[var(--bg-base)] transition-colors group">
+                                                <td className="px-6 py-4 text-center font-bold text-[var(--text-muted)]">{index + 1}</td>
+                                                <td className="px-6 py-4 sticky left-0 bg-[var(--bg-surface)] group-hover:bg-[var(--bg-base)] transition-colors z-10 md:static border-r border-[var(--border-subtle)] md:border-none shadow-sm md:shadow-none">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${index < 3 && !searchTerm ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                            {index < 3 && !searchTerm ? <FaMedal /> : item.name.charAt(0)}
+                                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${index < 3 && !searchTerm ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                                                            {index < 3 && !searchTerm ? <FaMedal /> : (item.name || 'U').charAt(0)}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="font-bold text-slate-700 text-xs md:text-sm">{item.name}</span>
+                                                                <span className="font-bold text-[var(--text-primary)] text-xs md:text-sm">{item.name}</span>
                                                             </div>
-                                                            <span className="text-[10px] text-slate-400 font-mono">{item.nik}</span>
+                                                            <span className="text-[10px] text-[var(--text-muted)] font-mono">{item.nik}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -474,7 +475,7 @@ export default function ProductivityPage() {
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <div className="mx-auto flex h-6 w-10 items-center justify-center rounded bg-slate-800 text-xs font-bold text-white shadow-sm cursor-pointer hover:bg-slate-700 hover:scale-105 transition-transform"
-                                                         onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', item.total)}>
+                                                        onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', item.total)}>
                                                         {item.total}
                                                     </div>
                                                 </td>
@@ -491,22 +492,22 @@ export default function ProductivityPage() {
             {/* --- MODAL DETAIL TIKET (POPUP) --- */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-                    <div 
-                        className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-scale-up overflow-hidden"
-                        onClick={(e) => e.stopPropagation()} 
+                    <div
+                        className="bg-[var(--bg-surface)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-scale-up overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
                     >
                         {/* HEADER MODAL */}
-                        <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-start sticky top-0 z-10">
+                        <div className="px-6 py-5 border-b border-[var(--border-color)] bg-[var(--bg-surface)] flex justify-between items-start sticky top-0 z-10">
                             <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border-2 border-white shadow-sm">
+                                <div className="h-12 w-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center border-2 border-[var(--border-color)] shadow-sm">
                                     <FaUserCircle size={28} />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-lg text-slate-800 leading-tight">Detail Pekerjaan</h3>
+                                    <h3 className="font-bold text-lg text-[var(--text-primary)] leading-tight">Detail Pekerjaan</h3>
                                     <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1">
-                                        <span className="text-sm font-semibold text-slate-700">{selectedTechName}</span>
-                                        <span className="text-slate-300 text-xs">•</span>
-                                        <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{selectedNik}</span>
+                                        <span className="text-sm font-semibold text-[var(--text-secondary)]">{selectedTechName}</span>
+                                        <span className="text-[var(--text-muted)] text-xs">•</span>
+                                        <span className="text-xs text-[var(--text-muted)] font-mono bg-[var(--bg-base)] px-1.5 py-0.5 rounded">{selectedNik}</span>
                                         <span className="text-slate-300 text-xs">•</span>
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${selectedCategory === 'TOTAL' ? 'bg-slate-800 text-white border-transparent' : CATEGORY_BG_COLORS[selectedCategory] || 'bg-slate-100'}`}>
                                             {selectedCategory}
@@ -514,39 +515,38 @@ export default function ProductivityPage() {
                                     </div>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => setShowModal(false)} 
-                                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-all duration-200"
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-all duration-200"
                             >
                                 <FaTimes size={18} />
                             </button>
                         </div>
 
                         {/* CONTENT LIST MODAL */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-[var(--bg-base)]">
                             {modalLoading ? (
                                 <div className="py-24 flex flex-col items-center justify-center gap-3">
-                                    <FaTicketAlt className="animate-bounce text-blue-200 text-5xl" />
-                                    <span className="text-sm font-medium text-slate-400 animate-pulse">Memuat riwayat pekerjaan...</span>
+                                    <FaTicketAlt className="animate-bounce text-blue-500/50 text-5xl" />
+                                    <span className="text-sm font-medium text-[var(--text-muted)] animate-pulse">Memuat riwayat pekerjaan...</span>
                                 </div>
                             ) : ticketDetails.length === 0 ? (
                                 <div className="py-20 text-center flex flex-col items-center justify-center gap-2">
-                                    <div className="bg-slate-100 p-4 rounded-full text-slate-300 mb-2"><FaFilter size={24} /></div>
-                                    <p className="text-slate-500 font-medium">Tidak ada data tiket.</p>
-                                    <p className="text-xs text-slate-400 max-w-xs mx-auto">Pastikan filter periode sudah benar atau cek status tiket teknisi ini.</p>
+                                    <div className="bg-[var(--bg-surface)] p-4 rounded-full text-[var(--text-muted)] mb-2"><FaFilter size={24} /></div>
+                                    <p className="text-[var(--text-secondary)] font-medium">Tidak ada data tiket.</p>
+                                    <p className="text-xs text-[var(--text-muted)] max-w-xs mx-auto">Pastikan filter periode sudah benar atau cek status tiket teknisi ini.</p>
                                 </div>
                             ) : (
-                                <div className="bg-white min-h-full">
+                                <div className="bg-[var(--bg-surface)] min-h-full">
                                     {ticketDetails.map((ticket, i) => (
-                                        <div 
-                                            key={ticket.id} 
-                                            className="group relative flex items-start gap-4 p-5 border-b border-slate-50 hover:bg-blue-50/30 transition-all duration-200"
+                                        <div
+                                            key={ticket.id}
+                                            className="group relative flex items-start gap-4 p-5 border-b border-[var(--border-subtle)] hover:bg-blue-500/5 transition-all duration-200"
                                         >
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                                                ticket.category === 'MTEL' ? 'bg-blue-500' :
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${ticket.category === 'MTEL' ? 'bg-blue-500' :
                                                 ticket.category === 'UMT' ? 'bg-yellow-500' :
-                                                ticket.category === 'CENTRATAMA' ? 'bg-green-500' : 'bg-red-500'
-                                            } opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                                                    ticket.category === 'CENTRATAMA' ? 'bg-green-500' : 'bg-red-500'
+                                                } opacity-0 group-hover:opacity-100 transition-opacity`}></div>
 
                                             <div className="flex flex-col items-center gap-1 min-w-[24px] pt-1">
                                                 <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500 font-medium transition-colors">
@@ -556,31 +556,31 @@ export default function ProductivityPage() {
 
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${CATEGORY_BG_COLORS[ticket.category] || 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${CATEGORY_BG_COLORS[ticket.category] || 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-secondary)]'}`}>
                                                         {ticket.category}
                                                     </span>
-                                                    <span className="text-xs font-mono text-slate-400 tracking-wide">
+                                                    <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide">
                                                         #{ticket.ticket_number}
                                                     </span>
                                                 </div>
-                                                
-                                                <h4 className="text-sm font-semibold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-blue-700 transition-colors">
+
+                                                <h4 className="text-sm font-semibold text-[var(--text-primary)] leading-snug mb-2 line-clamp-2 group-hover:text-blue-500 transition-colors">
                                                     {ticket.subject}
                                                 </h4>
 
-                                                <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 w-fit px-2 py-1 rounded">
-                                                    <FaCalendarAlt size={10} className="text-slate-300" />
-                                                    <span className="font-medium">{formatDateTime(ticket.last_update_time).split('•')[0]}</span>
-                                                    <span className="text-slate-300">|</span>
-                                                    <FaClock size={10} className="text-slate-300" />
-                                                    <span>{formatDateTime(ticket.last_update_time).split('•')[1] || formatDateTime(ticket.last_update_time).split(' ')[3] || ''}</span>
+                                                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] bg-[var(--bg-base)] border border-[var(--border-subtle)] w-fit px-2 py-1 rounded">
+                                                    <FaCalendarAlt size={10} className="opacity-70" />
+                                                    <span className="font-medium text-[var(--text-secondary)]">{formatDateTime(ticket.last_update_time).split('•')[0]}</span>
+                                                    <span className="opacity-50">|</span>
+                                                    <FaClock size={10} className="opacity-70" />
+                                                    <span className="text-[var(--text-secondary)]">{formatDateTime(ticket.last_update_time).split('•')[1] || formatDateTime(ticket.last_update_time).split(' ')[3] || ''}</span>
                                                 </div>
                                             </div>
 
-                                            <Link 
-                                                href={`/dashboard/tickets/${ticket.id}`} 
-                                                target="_blank" 
-                                                className="mt-1 p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+                                            <Link
+                                                href={`/dashboard/tickets/${ticket.id}`}
+                                                target="_blank"
+                                                className="mt-1 p-2 text-[var(--text-muted)] hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-all"
                                                 title="Buka detail tiket di tab baru"
                                             >
                                                 <FaExternalLinkAlt size={14} />
@@ -590,10 +590,10 @@ export default function ProductivityPage() {
                                 </div>
                             )}
                         </div>
-                        
+
                         {/* FOOTER MODAL */}
-                        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
-                            <span>Periode: <b>{months[selectedMonth-1].label} {selectedYear}</b></span>
+                        <div className="px-6 py-3 border-t border-[var(--border-color)] bg-[var(--bg-base)] flex justify-between items-center text-xs text-[var(--text-muted)]">
+                            <span>Periode: <b>{months[selectedMonth - 1].label} {selectedYear}</b></span>
                             <span>Total: <b>{ticketDetails.length}</b> tiket</span>
                         </div>
                     </div>
