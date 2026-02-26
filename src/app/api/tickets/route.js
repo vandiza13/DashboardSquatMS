@@ -124,7 +124,7 @@ export async function POST(request) {
 
         const {
             category, subcategory, id_tiket, tiket_time, deskripsi,
-            technician_niks, partner_technicians, sto,
+            technician_niks, partner_technicians, sto, district,
             priority,
             id_tiket_tacc
         } = body;
@@ -137,8 +137,8 @@ export async function POST(request) {
 
         const [result] = await connection.query(
             `INSERT INTO tickets 
-            (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`,
+            (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto, district) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?, ?)`,
             [
                 category,
                 subcategory,
@@ -150,7 +150,8 @@ export async function POST(request) {
                 user.userId,
                 user.userId,
                 partner_technicians || null,
-                sto || null
+                sto || null,
+                district || null
             ]
         );
 

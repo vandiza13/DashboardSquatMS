@@ -21,8 +21,9 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                 "Kategori": "SQUAT",
                 "Sub Kategori": "TSEL",
                 "STO": "BBL",
-                "Priority (SQUAT Only)": "CRITICAL", // Kolom Baru
-                "ID TACC (Non-SQUAT)": "",           // Kolom Baru
+                "District (SQUAT Only)": "BEKASI",
+                "Priority (SQUAT Only)": "CRITICAL",
+                "ID TACC (Non-SQUAT)": "",
                 "Waktu Tiket (YYYY-MM-DD HH:MM)": "2024-01-29 10:00",
                 "Deskripsi": "Deskripsi masalah..."
             },
@@ -31,8 +32,9 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                 "Kategori": "MTEL",
                 "Sub Kategori": "TIS",
                 "STO": "",
+                "District (SQUAT Only)": "",
                 "Priority (SQUAT Only)": "",
-                "ID TACC (Non-SQUAT)": "TACC-12345", // Contoh Pengisian
+                "ID TACC (Non-SQUAT)": "TACC-12345",
                 "Waktu Tiket (YYYY-MM-DD HH:MM)": "2024-01-29 11:30",
                 "Deskripsi": "Power down di site X"
             }
@@ -77,6 +79,7 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                 subcategory: row['Sub Kategori'],
                 sto: row['STO'],
                 // Mapping Kolom Baru
+                district: row['District (SQUAT Only)'] || null,
                 priority: row['Priority (SQUAT Only)'] || null,
                 id_tiket_tacc: row['ID TACC (Non-SQUAT)'] || null,
 

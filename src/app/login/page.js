@@ -75,7 +75,7 @@ export default function LoginPage() {
                     </form>
                     <div className="mt-8 pt-6 border-t border-[var(--border-color)] text-center">
                         <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Kendala login atau butuh akun baru?</p>
-                        <a href="https://t.me/USERNAME_ADMIN_DISINI" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-4 py-2 rounded-full border border-blue-100 dark:border-blue-800">
+                        <a href="https://t.me/vandiza" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-4 py-2 rounded-full border border-blue-100 dark:border-blue-800">
                             <FaTelegramPlane className="text-lg" /> Hubungi Admin via Telegram
                         </a>
                     </div>

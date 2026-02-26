@@ -19,6 +19,9 @@ const STO_LIST = [
     'TAR', 'TBL'
 ].sort();
 
+// --- DATA DISTRICT (SQUAT ONLY) ---
+const DISTRICT_LIST = ['BEKASI', 'KARAWANG'];
+
 // --- [UPDATE] KONFIGURASI PRIORITY (SLA) ---
 // 1. TSEL (Ditambah CNQ)
 const TSEL_PRIORITIES = [
@@ -46,6 +49,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         id_tiket: '',
         id_tiket_tacc: '',
         sto: '',
+        district: '',
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
@@ -148,6 +152,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 id_tiket: initialData.id_tiket || '',
                 id_tiket_tacc: initialData.id_tiket_tacc || '',
                 sto: initialData.sto || '',
+                district: initialData.district || '',
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
@@ -163,6 +168,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 id_tiket: '',
                 id_tiket_tacc: '',
                 sto: '',
+                district: '',
                 tiket_time: '',
                 deskripsi: '',
                 status: 'OPEN',
@@ -250,7 +256,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <select
                                 className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                 value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '' })}
+                                onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '', district: '' })}
                                 disabled={isRestrictedEdit}
                             >
                                 {Object.keys(SUB_CATEGORIES).map(cat => (
@@ -309,6 +315,25 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 <option value="">- Pilih Kode STO -</option>
                                 {STO_LIST.map((sto) => (
                                     <option key={sto} value={sto}>{sto}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* --- INPUT DISTRICT (SQUAT) --- */}
+                    {formData.category === 'SQUAT' && (
+                        <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800">
+                            <label className="block text-xs font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
+                                Pilih District (SQUAT Only)
+                            </label>
+                            <select
+                                className="w-full rounded-lg border border-teal-200 dark:border-teal-700 p-2.5 text-sm focus:ring-2 focus:ring-teal-500 bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]"
+                                value={formData.district}
+                                onChange={e => setFormData({ ...formData, district: e.target.value })}
+                            >
+                                <option value="">- Pilih District -</option>
+                                {DISTRICT_LIST.map((d) => (
+                                    <option key={d} value={d}>{d}</option>
                                 ))}
                             </select>
                         </div>

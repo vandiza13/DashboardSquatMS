@@ -18,10 +18,10 @@ export async function appendTicketToSheet(ticketData) {
         const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '19OIHJz9U0KsCpeNcy0faoOuQzIvu6ChsZ4CpZQqOTCw';
 
         // Destructure Data (Added priority and id_tiket_tacc)
-        const { 
-            category, subcategory, priority, 
-            id_tiket, id_tiket_tacc, // [NEW] Get TACC ID
-            deskripsi, sto, tiket_time, close_time, root_cause, technician_full 
+        const {
+            category, subcategory, priority,
+            id_tiket, id_tiket_tacc,
+            deskripsi, sto, district, tiket_time, close_time, root_cause, technician_full
         } = ticketData;
 
         // ==========================================================
@@ -32,15 +32,15 @@ export async function appendTicketToSheet(ticketData) {
         if (category === 'SQUAT') {
             if (subcategory === 'TSEL') sheetName = 'TSEL';
             else if (subcategory === 'OLO') sheetName = 'OLO';
-        } 
+        }
         else if (category === 'MTEL') {
             sheetName = 'MTEL';
-        } 
+        }
         else if (category === 'UMT') {
             sheetName = 'UMT';
-        } 
+        }
         else if (category === 'CENTRATAMA') {
-            sheetName = 'FSI'; 
+            sheetName = 'FSI';
         }
 
         if (!sheetName) {
@@ -51,7 +51,7 @@ export async function appendTicketToSheet(ticketData) {
         // ==========================================================
         // 3. AUTOMATIC SERIAL NUMBER LOGIC
         // ==========================================================
-        
+
         // A. Check Empty Row (Use Column B as ID reference)
         const responseB = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -66,16 +66,16 @@ export async function appendTicketToSheet(ticketData) {
             range: `${sheetName}!A:A`,
         });
         const rowsA = responseA.data.values || [];
-        
+
         let lastNumber = 0;
         for (let i = rowsA.length - 1; i >= 0; i--) {
             const val = rowsA[i][0];
             if (val && !isNaN(parseInt(val))) {
                 lastNumber = parseInt(val);
-                break; 
+                break;
             }
         }
-        
+
         const nomorUrut = lastNumber + 1;
 
         // 4. DATE FORMAT (WIB)
@@ -96,15 +96,34 @@ export async function appendTicketToSheet(ticketData) {
         let rowValues = [];
 
         if (sheetName === 'TSEL') {
-            // --- TSEL: Has PRIORITY Column ---
-            // Ensure you add "Priority" column in Excel Column C
+            // --- TSEL: Has PRIORITY & DISTRICT Column ---
             rowValues = [
                 nomorUrut,          // A
-                id_tiket,           // B    // C: PRIORITY (Specific to TSEL)
+                id_tiket,           // B
                 deskripsi,          // C
                 sto || '',          // D
                 priority || '-',     // E: PRIORITY
-                '', '', '',     // F-H (Empty)
+                district || '',     // F: DISTRICT
+                '', '', '',     // G-I (Empty)
+                formatDate(tiket_time), // J
+                formatDate(close_time), // K
+                '', '',             // L-M
+                technician_full,    // N
+                'CLOSED',           // O
+                root_cause,         // P
+                ''                  // Q
+            ];
+
+        } else if (sheetName === 'OLO') {
+            // --- OLO: With PRIORITY & DISTRICT ---
+            rowValues = [
+                nomorUrut,          // A
+                id_tiket,           // B
+                deskripsi,          // C
+                sto || '',          // D
+                priority || '-',     // E: PRIORITY
+                district || '',     // F: DISTRICT
+                '', '',             // G-H (Empty)
                 formatDate(tiket_time), // I
                 formatDate(close_time), // J
                 '', '',             // K-L
@@ -112,24 +131,6 @@ export async function appendTicketToSheet(ticketData) {
                 'CLOSED',           // N
                 root_cause,         // O
                 ''                  // P
-            ];
-        
-        } else if (sheetName === 'OLO') {
-            // --- OLO: ORIGINAL STRUCTURE (No Priority/TACC) ---
-            rowValues = [
-                nomorUrut,          // A
-                id_tiket,           // B
-                deskripsi,          // C
-                sto || '',          // D
-                priority || '-',     // E: PRIORITY
-                '', '',             // F-G (Empty)
-                formatDate(tiket_time), // H
-                formatDate(close_time), // I
-                '', '',             // J-K
-                technician_full,    // L
-                'CLOSED',           // M
-                root_cause,         // N
-                ''                  // O
             ];
 
         } else if (sheetName === 'MTEL') {
@@ -181,6 +182,6 @@ export async function appendTicketToSheet(ticketData) {
 
     } catch (error) {
         console.error('❌ [GSheet] Error:', error.message);
-        return false; 
+        return false;
     }
 }

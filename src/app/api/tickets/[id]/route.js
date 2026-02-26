@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
-import { appendTicketToSheet } from '@/lib/googleSheets'; 
+import { appendTicketToSheet } from '@/lib/googleSheets';
 // [PUSHER] 1. Import Pusher Server
 import { pusherServer } from '@/lib/pusher';
 
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // GET Detail 1 Tiket
 export async function GET(request, props) {
-    const params = await props.params; 
+    const params = await props.params;
     const { id } = params;
 
     try {
@@ -38,7 +38,7 @@ export async function GET(request, props) {
 
 // PUT: UPDATE TIKET (UPDATE TACC + PUSHER)
 export async function PUT(request, props) {
-    const params = await props.params; 
+    const params = await props.params;
     const { id } = params;
 
     const connection = await db.getConnection();
@@ -51,10 +51,10 @@ export async function PUT(request, props) {
         }
 
         const body = await request.json();
-        
+
         const [oldData] = await connection.query('SELECT status, update_progres FROM tickets WHERE id = ?', [id]);
         if (oldData.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
-        
+
         const oldStatus = oldData[0].status;
         const oldProgress = oldData[0].update_progres || '-';
 
@@ -69,6 +69,7 @@ export async function PUT(request, props) {
                 id_tiket = ?, 
                 id_tiket_tacc = ?, 
                 sto = ?,
+                district = ?,
                 tiket_time = ?, 
                 deskripsi = ?, 
                 status = ?, 
@@ -78,48 +79,49 @@ export async function PUT(request, props) {
                 partner_technicians = ?
             WHERE id = ?`,
             [
-                body.category, 
-                body.subcategory, 
-                body.priority || null, 
-                body.id_tiket, 
-                body.id_tiket_tacc || null, 
-                body.sto || null,      
-                body.tiket_time, 
-                body.deskripsi, 
-                body.status, 
-                body.update_progres, 
-                user.userId, 
+                body.category,
+                body.subcategory,
+                body.priority || null,
+                body.id_tiket,
+                body.id_tiket_tacc || null,
+                body.sto || null,
+                body.district || null,
+                body.tiket_time,
+                body.deskripsi,
+                body.status,
+                body.update_progres,
+                user.userId,
                 body.partner_technicians || null,
                 id
             ]
         );
 
         // 2. Update Teknisi
-        let picName = '';  
-        let picPhone = ''; 
+        let picName = '';
+        let picPhone = '';
 
         if (body.technician_niks && Array.isArray(body.technician_niks) && body.technician_niks.length > 0) {
             await connection.query('DELETE FROM ticket_technicians WHERE ticket_id = ?', [id]);
-            
+
             const nik = body.technician_niks[0];
-            if(nik) {
+            if (nik) {
                 await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, nik]);
-                
+
                 const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [nik]);
                 if (techRows.length > 0) {
                     picName = techRows[0].name;
                     picPhone = techRows[0].phone_number;
                 }
             }
-        } 
+        }
         else if (body.status === 'CLOSED') {
-             const [existingTech] = await connection.query(`
+            const [existingTech] = await connection.query(`
                 SELECT t.name, t.phone_number 
                 FROM ticket_technicians tt
                 JOIN technicians t ON tt.technician_nik = t.nik
                 WHERE tt.ticket_id = ? LIMIT 1
             `, [id]);
-            
+
             if (existingTech.length > 0) {
                 picName = existingTech[0].name;
                 picPhone = existingTech[0].phone_number;
@@ -159,16 +161,17 @@ export async function PUT(request, props) {
             if (body.partner_technicians) fullTechInfo += ` | Partner: ${body.partner_technicians}`;
 
             const sheetData = {
-                category: body.category,      
-                subcategory: body.subcategory, 
+                category: body.category,
+                subcategory: body.subcategory,
                 priority: body.priority,
                 id_tiket: body.id_tiket,
                 id_tiket_tacc: body.id_tiket_tacc,
                 deskripsi: body.deskripsi,
-                sto: body.sto,                
-                tiket_time: body.tiket_time,   
-                close_time: new Date().toISOString(), 
-                root_cause: body.update_progres,      
+                sto: body.sto,
+                district: body.district,
+                tiket_time: body.tiket_time,
+                close_time: new Date().toISOString(),
+                root_cause: body.update_progres,
                 technician_full: fullTechInfo
             };
 
@@ -192,7 +195,7 @@ export async function PUT(request, props) {
 
 // DELETE: HAPUS TIKET (DENGAN PUSHER)
 export async function DELETE(request, props) {
-    const params = await props.params; 
+    const params = await props.params;
     const { id } = params;
 
     const connection = await db.getConnection();
@@ -209,7 +212,7 @@ export async function DELETE(request, props) {
         await connection.query('DELETE FROM ticket_history WHERE ticket_id = ?', [id]);
         await connection.query('DELETE FROM tickets WHERE id = ?', [id]);
         await connection.commit();
-        
+
         // [PUSHER] 3. Kirim Notifikasi Hapus (DELETE)
         try {
             await pusherServer.trigger('dashboard-channel', 'ticket-update', {

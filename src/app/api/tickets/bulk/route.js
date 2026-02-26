@@ -16,7 +16,7 @@ export async function POST(request) {
 
         // --- [PERBAIKAN UTAMA DISINI] ---
         const body = await request.json();
-        
+
         // Kita dukung 2 format: Array langsung [...] ATAU Object { tickets: [...] }
         // Ini menjaga kompatibilitas dengan MultiTicketModal & BulkTicketModal
         const data = Array.isArray(body) ? body : (body.tickets || []);
@@ -29,11 +29,11 @@ export async function POST(request) {
         await connection.beginTransaction();
 
         let insertedCount = 0;
-        
+
         // Loop setiap baris
         for (const row of data) {
             // Validasi Field Wajib (ID & Kategori)
-            if (!row.id_tiket || !row.category) continue; 
+            if (!row.id_tiket || !row.category) continue;
 
             // Konversi Tanggal (Prevent Invalid Date)
             let ticketTime = new Date();
@@ -45,8 +45,8 @@ export async function POST(request) {
             // INSERT DATA
             await connection.query(
                 `INSERT INTO tickets 
-                (id_tiket, category, subcategory, tiket_time, deskripsi, sto, priority, id_tiket_tacc, status, created_by_user_id, updated_by_user_id, last_update_time) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW())`,
+                (id_tiket, category, subcategory, tiket_time, deskripsi, sto, district, priority, id_tiket_tacc, status, created_by_user_id, updated_by_user_id, last_update_time) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW())`,
                 [
                     row.id_tiket,
                     row.category,
@@ -54,6 +54,7 @@ export async function POST(request) {
                     ticketTime,
                     row.deskripsi || '-',
                     row.sto || null,
+                    row.district || null,      // District (SQUAT)
                     row.priority || null,      // Priority (SQUAT)
                     row.id_tiket_tacc || null, // TACC (Provider Lain)
                     user.userId,
@@ -64,7 +65,7 @@ export async function POST(request) {
             // Insert History
             const [res] = await connection.query('SELECT LAST_INSERT_ID() as id');
             const ticketId = res[0].id;
-            
+
             await connection.query(
                 `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
                 [ticketId, 'Import massal via Bulk/Excel', user.username]
@@ -93,12 +94,12 @@ export async function POST(request) {
     } catch (error) {
         await connection.rollback();
         console.error("Bulk Import Error:", error);
-        
+
         // Handle Error Duplicate
         if (error.code === 'ER_DUP_ENTRY') {
             return NextResponse.json({ error: 'Gagal: Ada ID Tiket yang duplikat.' }, { status: 400 });
         }
-        
+
         return NextResponse.json({ error: 'Gagal import: ' + error.message }, { status: 500 });
     } finally {
         connection.release();
