@@ -24,12 +24,12 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                 is_active: technicianToEdit.is_active !== undefined ? technicianToEdit.is_active : 1
             });
         } else {
-            setFormData({ 
-                nik: '', 
-                name: '', 
-                position_name: '', 
+            setFormData({
+                nik: '',
+                name: '',
+                position_name: '',
                 phone_number: '',
-                is_active: 1 
+                is_active: 1
             });
         }
     }, [technicianToEdit, isOpen]);
@@ -39,10 +39,10 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
         setLoading(true);
 
         try {
-            const url = technicianToEdit 
-                ? `/api/technicians/${technicianToEdit.nik}` 
+            const url = technicianToEdit
+                ? `/api/technicians/${technicianToEdit.nik}`
                 : '/api/technicians';
-            
+
             const method = technicianToEdit ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -52,8 +52,8 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
             });
 
             if (!res.ok) throw new Error('Gagal menyimpan data');
-            
-            onClose(true); 
+
+            onClose(true);
         } catch (error) {
             alert(error.message);
         } finally {
@@ -65,7 +65,7 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="w-full max-w-lg bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden">
                 <div className="bg-slate-900 px-6 py-4 flex justify-between items-center text-white">
                     <h3 className="font-bold text-lg">
                         {technicianToEdit ? 'Edit Teknisi' : 'Tambah Teknisi Baru'}
@@ -74,66 +74,66 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                         <FaTimes />
                     </button>
                 </div>
-                
+
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {/* NIK & Nama */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">NIK</label>
-                            <input 
-                                type="text" 
-                                required 
-                                disabled={!!technicianToEdit} 
-                                className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">NIK</label>
+                            <input
+                                type="text"
+                                required
+                                disabled={!!technicianToEdit}
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                 value={formData.nik}
-                                onChange={(e) => setFormData({...formData, nik: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nama Lengkap</label>
-                            <input 
-                                type="text" 
-                                required 
-                                className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Nama Lengkap</label>
+                            <input
+                                type="text"
+                                required
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                                 value={formData.name}
-                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             />
                         </div>
                     </div>
 
                     {/* Jabatan */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Jabatan / Posisi</label>
+                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Jabatan / Posisi</label>
                         <div className="relative">
-                            <FaUserTie className="absolute left-3 top-3 text-slate-400" />
-                            <input 
-                                type="text" 
+                            <FaUserTie className="absolute left-3 top-3 text-[var(--text-muted)]" />
+                            <input
+                                type="text"
                                 placeholder="Contoh: Helpdesk, Teknisi Lapangan"
-                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 text-sm focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-blue-500"
                                 value={formData.position_name}
-                                onChange={(e) => setFormData({...formData, position_name: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, position_name: e.target.value })}
                             />
                         </div>
                     </div>
 
                     {/* No HP */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nomor HP / WhatsApp</label>
-                        <input 
-                            type="text" 
-                            className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Nomor HP / WhatsApp</label>
+                        <input
+                            type="text"
+                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                             value={formData.phone_number}
-                            onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                         />
                     </div>
 
-                    {/* FIELD BARU: STATUS AKTIF (Optional: Bisa dimatikan jika teknisi resign) */}
+                    {/* FIELD BARU: STATUS AKTIF */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status Keaktifan</label>
-                        <select 
-                            className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Status Keaktifan</label>
+                        <select
+                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                             value={formData.is_active}
-                            onChange={(e) => setFormData({...formData, is_active: parseInt(e.target.value)})}
+                            onChange={(e) => setFormData({ ...formData, is_active: parseInt(e.target.value) })}
                         >
                             <option value={1}>Aktif</option>
                             <option value={0}>Non-Aktif (Resign/Cuti)</option>
@@ -141,7 +141,7 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
-                        <button type="button" onClick={() => onClose(false)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
+                        <button type="button" onClick={() => onClose(false)} className="px-4 py-2 text-sm font-bold text-[var(--text-muted)] hover:bg-[var(--bg-base)] rounded-lg">Batal</button>
                         <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2">
                             <FaSave /> Simpan
                         </button>

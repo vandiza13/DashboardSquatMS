@@ -13,9 +13,9 @@ const SUB_CATEGORIES = {
 
 // --- DATA STO (URUT ABJAD) ---
 const STO_LIST = [
-    'BBL', 'BEK', 'BGG', 'CBG', 'CBR', 'CIB', 'CIK', 
-    'DNI', 'EJI', 'GDM', 'JBB', 'KLB', 'KRA', 'LMA', 
-    'MGB', 'PBY', 'PDE', 'PKY', 'SMH', 'STN', 'SUE', 
+    'BBL', 'BEK', 'BGG', 'CBG', 'CBR', 'CIB', 'CIK',
+    'DNI', 'EJI', 'GDM', 'JBB', 'KLB', 'KRA', 'LMA',
+    'MGB', 'PBY', 'PDE', 'PKY', 'SMH', 'STN', 'SUE',
     'TAR', 'TBL'
 ].sort();
 
@@ -40,21 +40,21 @@ const OLO_PRIORITIES = [
 export default function TicketFormModal({ isOpen, onClose, onSuccess, initialData }) {
     // State Form Utama
     const [formData, setFormData] = useState({
-        category: 'SQUAT', 
+        category: 'SQUAT',
         subcategory: '',
-        priority: '', 
+        priority: '',
         id_tiket: '',
-        id_tiket_tacc: '', 
-        sto: '', 
+        id_tiket_tacc: '',
+        sto: '',
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
         update_progres: '',
-        technician_nik: '', 
+        technician_nik: '',
     });
 
     // State Khusus Partner
-    const [partnerNiks, setPartnerNiks] = useState([]); 
+    const [partnerNiks, setPartnerNiks] = useState([]);
     const [tempPartner, setTempPartner] = useState('');
 
     const [technicians, setTechnicians] = useState([]);
@@ -89,7 +89,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         }
 
         setPartnerNiks([...partnerNiks, tempPartner]);
-        setTempPartner(''); 
+        setTempPartner('');
     };
 
     const handleRemovePartner = (nikToRemove) => {
@@ -132,7 +132,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             if (initialData.partner_technicians) {
                 const rawStrings = initialData.partner_technicians.split(',');
                 rawStrings.forEach(rawStr => {
-                    const fullStr = rawStr.trim(); 
+                    const fullStr = rawStr.trim();
                     const nameOnly = fullStr.split('(')[0].trim();
                     const tech = technicians.find(t => t.name.toLowerCase() === nameOnly.toLowerCase());
                     if (tech) loadedPartners.push(String(tech.nik));
@@ -144,10 +144,10 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             setFormData({
                 category: initialData.category || 'SQUAT',
                 subcategory: initialData.subcategory || '',
-                priority: initialData.priority || '', 
+                priority: initialData.priority || '',
                 id_tiket: initialData.id_tiket || '',
-                id_tiket_tacc: initialData.id_tiket_tacc || '', 
-                sto: initialData.sto || '', 
+                id_tiket_tacc: initialData.id_tiket_tacc || '',
+                sto: initialData.sto || '',
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
@@ -159,9 +159,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             setFormData({
                 category: 'SQUAT',
                 subcategory: '',
-                priority: '', 
+                priority: '',
                 id_tiket: '',
-                id_tiket_tacc: '', 
+                id_tiket_tacc: '',
                 sto: '',
                 tiket_time: '',
                 deskripsi: '',
@@ -181,7 +181,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     // --- LOGIKA SUBMIT ---
     const executeSubmit = async () => {
         setIsSubmitting(true);
-        setIsWarningOpen(false); 
+        setIsWarningOpen(false);
 
         const partnerNames = partnerNiks.map(nik => {
             const t = technicians.find(tech => String(tech.nik) === String(nik));
@@ -196,7 +196,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 ...formData,
                 tiket_time: formData.tiket_time ? new Date(formData.tiket_time).toISOString() : null,
                 technician_niks: formData.technician_nik ? [formData.technician_nik] : [],
-                partner_technicians: partnerNames 
+                partner_technicians: partnerNames
             };
 
             const res = await fetch(url, {
@@ -207,7 +207,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Gagal menyimpan tiket');
-            
+
             onSuccess();
             onClose();
         } catch (error) {
@@ -228,29 +228,29 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn overflow-y-auto">
-            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto relative">
-                
+            <div className="w-full max-w-2xl bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto relative">
+
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 sticky top-0 z-10">
-                    <h3 className="font-bold text-lg text-slate-800">
+                <div className="px-6 py-4 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-surface-2)] sticky top-0 z-10">
+                    <h3 className="font-bold text-lg text-[var(--text-primary)]">
                         {initialData ? 'Edit Tiket' : 'Buat Tiket Baru'}
                     </h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition p-1 rounded-full hover:bg-slate-100">
+                    <button onClick={onClose} className="text-[var(--text-muted)] hover:text-red-500 transition p-1 rounded-full hover:bg-[var(--bg-base)]">
                         <FaTimes size={20} />
                     </button>
                 </div>
 
                 {/* Form Body */}
                 <form onSubmit={handlePreSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-5 max-h-[80vh]">
-                    
+
                     {/* Baris 1: Kategori */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
-                            <select 
-                                className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Kategori</label>
+                            <select
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                 value={formData.category}
-                                onChange={e => setFormData({...formData, category: e.target.value, subcategory: '', priority: '', sto: ''})} 
+                                onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '' })}
                                 disabled={isRestrictedEdit}
                             >
                                 {Object.keys(SUB_CATEGORIES).map(cat => (
@@ -259,11 +259,11 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Sub Kategori</label>
-                            <select 
-                                className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Sub Kategori</label>
+                            <select
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                 value={formData.subcategory}
-                                onChange={e => setFormData({...formData, subcategory: e.target.value, priority: ''})} 
+                                onChange={e => setFormData({ ...formData, subcategory: e.target.value, priority: '' })}
                                 required
                                 disabled={isRestrictedEdit}
                             >
@@ -277,19 +277,17 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* --- [2] INPUT PRIORITY (SQUAT TSEL & OLO) --- */}
                     {formData.category === 'SQUAT' && (formData.subcategory === 'TSEL' || formData.subcategory === 'OLO') && (
-                        <div className="bg-red-50 p-3 rounded-lg border border-red-100 animate-fadeIn">
-                            <label className="block text-xs font-bold text-red-800 uppercase mb-1">
+                        <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800 animate-fadeIn">
+                            <label className="block text-xs font-bold text-red-800 dark:text-red-300 uppercase mb-1">
                                 Priority Tiket ({formData.subcategory} SLA) <span className="text-red-500">*</span>
                             </label>
-                            <select 
-                                className="w-full rounded-lg border-red-200 p-2.5 text-sm focus:ring-2 focus:ring-red-500 bg-white font-bold text-slate-700"
-                                value={formData.priority} 
-                                onChange={e => setFormData({...formData, priority: e.target.value})}
+                            <select
+                                className="w-full rounded-lg border border-red-200 dark:border-red-700 p-2.5 text-sm focus:ring-2 focus:ring-red-500 bg-[var(--bg-surface)] font-bold text-[var(--text-primary)]"
+                                value={formData.priority}
+                                onChange={e => setFormData({ ...formData, priority: e.target.value })}
                                 required
-                                // TIDAK ADA DISABLED -> User BISA Edit
                             >
                                 <option value="">- Pilih Priority -</option>
-                                {/* Logic: Jika TSEL pakai list TSEL, jika OLO pakai list OLO */}
                                 {(formData.subcategory === 'TSEL' ? TSEL_PRIORITIES : OLO_PRIORITIES).map((p) => (
                                     <option key={p.value} value={p.value}>{p.label}</option>
                                 ))}
@@ -299,14 +297,14 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* --- INPUT STO (SQUAT) --- */}
                     {formData.category === 'SQUAT' && (
-                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                            <label className="block text-xs font-bold text-blue-800 uppercase mb-1">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <label className="block text-xs font-bold text-blue-800 dark:text-blue-300 uppercase mb-1">
                                 Pilih STO (SQUAT Only)
                             </label>
-                            <select 
-                                className="w-full rounded-lg border-blue-200 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700"
-                                value={formData.sto} 
-                                onChange={e => setFormData({...formData, sto: e.target.value})}
+                            <select
+                                className="w-full rounded-lg border border-blue-200 dark:border-blue-700 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]"
+                                value={formData.sto}
+                                onChange={e => setFormData({ ...formData, sto: e.target.value })}
                             >
                                 <option value="">- Pilih Kode STO -</option>
                                 {STO_LIST.map((sto) => (
@@ -319,74 +317,74 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     {/* Baris 2: ID & Waktu */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID Tiket</label>
-                            <input 
-                                type="text" 
-                                className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
-                                value={formData.id_tiket} 
-                                onChange={e => setFormData({...formData, id_tiket: e.target.value})} 
-                                required 
-                                disabled={isRestrictedEdit} 
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">ID Tiket</label>
+                            <input
+                                type="text"
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                value={formData.id_tiket}
+                                onChange={e => setFormData({ ...formData, id_tiket: e.target.value })}
+                                required
+                                disabled={isRestrictedEdit}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Waktu Tiket</label>
-                            <input 
-                                type="datetime-local" 
-                                className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
-                                value={formData.tiket_time} 
-                                onChange={e => setFormData({...formData, tiket_time: e.target.value})} 
-                                required 
-                                disabled={isRestrictedEdit} 
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Waktu Tiket</label>
+                            <input
+                                type="datetime-local"
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                value={formData.tiket_time}
+                                onChange={e => setFormData({ ...formData, tiket_time: e.target.value })}
+                                required
+                                disabled={isRestrictedEdit}
                             />
                         </div>
                     </div>
 
                     {/* --- INPUT ID TIKET TACC (WAJIB UTK UMT, MTEL, CENTRATAMA) --- */}
                     {['UMT', 'MTEL', 'CENTRATAMA'].includes(formData.category) && (
-                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 animate-fadeIn">
-                            <label className="block text-xs font-bold text-purple-800 uppercase mb-1">
+                        <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-100 dark:border-purple-800 animate-fadeIn">
+                            <label className="block text-xs font-bold text-purple-800 dark:text-purple-300 uppercase mb-1">
                                 ID Tiket TACC <span className="text-red-500">*</span>
                             </label>
-                            <input 
-                                type="text" 
-                                className="w-full rounded-lg border-purple-200 p-2.5 text-sm focus:ring-2 focus:ring-purple-500 bg-white"
-                                value={formData.id_tiket_tacc} 
-                                onChange={e => setFormData({...formData, id_tiket_tacc: e.target.value})} 
+                            <input
+                                type="text"
+                                className="w-full rounded-lg border border-purple-200 dark:border-purple-700 p-2.5 text-sm focus:ring-2 focus:ring-purple-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
+                                value={formData.id_tiket_tacc}
+                                onChange={e => setFormData({ ...formData, id_tiket_tacc: e.target.value })}
                                 placeholder="Masukkan ID TACC (Wajib)..."
-                                required 
+                                required
                             />
                         </div>
                     )}
 
                     {/* Deskripsi */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deskripsi Tiket</label>
-                        <input 
-                            type="text" 
-                            className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
-                            value={formData.deskripsi} 
-                            onChange={e => setFormData({...formData, deskripsi: e.target.value})} 
-                            required 
-                            disabled={isRestrictedEdit} 
+                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Deskripsi Tiket</label>
+                        <input
+                            type="text"
+                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                            value={formData.deskripsi}
+                            onChange={e => setFormData({ ...formData, deskripsi: e.target.value })}
+                            required
+                            disabled={isRestrictedEdit}
                             placeholder="Deskripsi Tiket..."
                         />
                     </div>
 
-                    <hr className="border-slate-100" />
+                    <hr className="border-[var(--border-color)]" />
 
                     {/* --- STATUS & UPDATE (EDIT ONLY) --- */}
                     {initialData && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 mb-4">
                             <div>
-                                <label className="block text-xs font-bold text-yellow-800 uppercase mb-1">Status Tiket</label>
-                                <select 
-                                    className={`w-full rounded-lg border-slate-300 p-2.5 text-sm font-bold 
-                                        ${formData.status === 'OPEN' ? 'text-red-600 bg-white' : 
-                                          formData.status === 'SC' ? 'text-yellow-600 bg-white' : 
-                                          'text-green-600 bg-white'}`}
-                                    value={formData.status} 
-                                    onChange={e => setFormData({...formData, status: e.target.value})}
+                                <label className="block text-xs font-bold text-yellow-800 dark:text-yellow-300 uppercase mb-1">Status Tiket</label>
+                                <select
+                                    className={`w-full rounded-lg border border-[var(--border-color)] p-2.5 text-sm font-bold bg-[var(--bg-surface)]
+                                        ${formData.status === 'OPEN' ? 'text-red-600 dark:text-red-400' :
+                                            formData.status === 'SC' ? 'text-yellow-600 dark:text-yellow-400' :
+                                                'text-green-600 dark:text-green-400'}`}
+                                    value={formData.status}
+                                    onChange={e => setFormData({ ...formData, status: e.target.value })}
                                 >
                                     <option value="OPEN">OPEN</option>
                                     <option value="SC">SC (Pending)</option>
@@ -394,12 +392,12 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-yellow-800 uppercase mb-1">Update Progress / RCA</label>
-                                <textarea 
+                                <label className="block text-xs font-bold text-yellow-800 dark:text-yellow-300 uppercase mb-1">Update Progress / RCA</label>
+                                <textarea
                                     rows="3"
-                                    className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
-                                    value={formData.update_progres} 
-                                    onChange={e => setFormData({...formData, update_progres: e.target.value})}
+                                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                    value={formData.update_progres}
+                                    onChange={e => setFormData({ ...formData, update_progres: e.target.value })}
                                     placeholder="Tulis update terbaru / Root Cause..."
                                 ></textarea>
                             </div>
@@ -407,17 +405,17 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                     )}
 
                     {/* --- AREA TEKNISI --- */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                    <div className="bg-[var(--bg-base)] p-4 rounded-xl border border-[var(--border-color)] space-y-4">
                         {/* PIC UTAMA */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">
                                 Teknisi Utama (LENSA)
                             </label>
                             <div className="relative">
-                                <select 
-                                    className="w-full rounded-lg border-slate-300 p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-semibold text-slate-700"
-                                    value={String(formData.technician_nik)} 
-                                    onChange={e => setFormData({...formData, technician_nik: e.target.value})}
+                                <select
+                                    className="w-full rounded-lg border border-[var(--border-color)] p-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 appearance-none bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)]"
+                                    value={String(formData.technician_nik)}
+                                    onChange={e => setFormData({ ...formData, technician_nik: e.target.value })}
                                 >
                                     <option value="">- Pilih Sesuai Assign Lensa -</option>
                                     {technicians.map(t => (
@@ -428,18 +426,18 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 </select>
                                 <FaHardHat className="absolute left-3 top-3 text-blue-500 pointer-events-none" />
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1 ml-1">*Poin produktivitas masuk ke teknisi ini. Boleh dikosongkan jika belum assign.</p>
+                            <p className="text-[10px] text-[var(--text-muted)] mt-1 ml-1">*Poin produktivitas masuk ke teknisi ini. Boleh dikosongkan jika belum assign.</p>
                         </div>
 
                         {/* PARTNER */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">
                                 Partner / Support (Max 4)
                             </label>
                             <div className="flex gap-2 mb-2 flex-col md:flex-row">
                                 <div className="relative flex-1">
-                                    <select 
-                                        className="w-full rounded-lg border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                                    <select
+                                        className="w-full rounded-lg border border-[var(--border-color)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
                                         value={tempPartner}
                                         onChange={e => setTempPartner(e.target.value)}
                                         disabled={partnerNiks.length >= 4}
@@ -454,8 +452,8 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                         ))}
                                     </select>
                                 </div>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={handleAddPartner}
                                     disabled={!tempPartner || partnerNiks.length >= 4}
                                     className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
@@ -469,12 +467,12 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     {partnerNiks.map(nik => {
                                         const tech = technicians.find(t => String(t.nik) === String(nik));
                                         return (
-                                            <span key={nik} className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm">
+                                            <span key={nik} className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-full text-xs font-medium text-[var(--text-primary)] shadow-sm">
                                                 {tech ? `${tech.name} (${tech.phone_number || '-'})` : nik}
-                                                <button 
-                                                    type="button" 
+                                                <button
+                                                    type="button"
                                                     onClick={() => handleRemovePartner(nik)}
-                                                    className="ml-1 text-slate-400 hover:text-red-500"
+                                                    className="ml-1 text-[var(--text-muted)] hover:text-red-500"
                                                 >
                                                     <FaTimes />
                                                 </button>
@@ -483,14 +481,14 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     })}
                                 </div>
                             ) : (
-                                <p className="text-xs text-slate-400 italic ml-1">Tidak ada partner.</p>
+                                <p className="text-xs text-[var(--text-muted)] italic ml-1">Tidak ada partner.</p>
                             )}
                         </div>
                     </div>
 
                     {/* Tombol Simpan */}
-                    <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-2 border-t border-slate-100 md:static md:border-none md:py-0">
-                        <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
+                    <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-[var(--bg-surface)] py-2 border-t border-[var(--border-color)] md:static md:border-none md:py-0">
+                        <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-base)] transition">
                             Batal
                         </button>
                         <button type="submit" disabled={isSubmitting || loading} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition disabled:opacity-70 flex items-center gap-2">
@@ -503,41 +501,41 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 {/* --- POPUP PERINGATAN CLOSE --- */}
                 {isWarningOpen && (
                     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-                        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-red-500 transform scale-100 transition-transform">
-                            
-                            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                        <div className="bg-[var(--bg-surface)] p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-red-500 transform scale-100 transition-transform">
+
+                            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
                                 <FaExclamationTriangle size={32} />
                             </div>
 
-                            <h3 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">
+                            <h3 className="text-xl font-black text-[var(--text-primary)] mb-2 uppercase tracking-tight">
                                 Konfirmasi Close
                             </h3>
 
-                            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-left">
-                                <p className="text-red-600 font-extrabold text-sm mb-2 flex items-start gap-2">
-                                    <span>1.</span> 
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6 text-left">
+                                <p className="text-red-600 dark:text-red-400 font-extrabold text-sm mb-2 flex items-start gap-2">
+                                    <span>1.</span>
                                     MOHON PASTIKAN NAMA TEKNISI UTAMA SESUAI DENGAN CLOSE LENSA!
                                 </p>
-                                <p className="text-red-600 font-extrabold text-sm flex items-start gap-2">
-                                    <span>2.</span> 
+                                <p className="text-red-600 dark:text-red-400 font-extrabold text-sm flex items-start gap-2">
+                                    <span>2.</span>
                                     MOHON PASTIKAN RCA SUDAH SESUAI.
                                 </p>
                             </div>
 
-                            <p className="text-xs text-slate-500 mb-6">
-                                Apakah Anda yakin data di atas sudah benar? <br/>
+                            <p className="text-xs text-[var(--text-muted)] mb-6">
+                                Apakah Anda yakin data di atas sudah benar? <br />
                                 Data yang sudah di-close tidak dapat diubah lagi oleh User biasa.
                             </p>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => setIsWarningOpen(false)}
-                                    className="px-4 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
+                                    className="px-4 py-2.5 rounded-xl font-bold text-[var(--text-secondary)] bg-[var(--bg-base)] hover:opacity-80 transition"
                                 >
                                     Batal
                                 </button>
-                                <button 
+                                <button
                                     type="button"
                                     onClick={executeSubmit}
                                     className="px-4 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30 transition"
