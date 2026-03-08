@@ -329,7 +329,29 @@ export default function TicketsPage() {
             </div>
 
             <div className="md:hidden space-y-4">
-                {loading ? <MobileCardSkeleton /> : tickets.length === 0 ? <EmptyState title={search ? "Tidak Ditemukan" : "Belum Ada Tiket"} message={search ? `Pencarian "${search}" nihil.` : `Belum ada data.`} icon={search ? FaSearch : FaFolderOpen} /> : tickets.map(t => <MobileTicketCard key={t.id} ticket={t} />)}
+                {loading ? (
+                    <MobileCardSkeleton />
+                ) : tickets.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-6 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/30">
+                        {activeTab === 'RUNNING' && !search ? (
+                            <>
+                                <div className="bg-emerald-100 dark:bg-emerald-900/50 p-4 rounded-full mb-4 shadow-sm">
+                                    <FaCheckCircle className="text-4xl text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <h3 className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400 mb-2">Clear & Aman! 🎉</h3>
+                                <p className="text-sm text-center text-emerald-600 dark:text-emerald-300">Mantap! Tidak ada tiket yang sedang running saat ini.</p>
+                            </>
+                        ) : (
+                            <EmptyState
+                                title={search ? "Tidak Ditemukan" : "Belum Ada Tiket"}
+                                message={search ? `Pencarian "${search}" nihil.` : `Belum ada data.`}
+                                icon={search ? FaSearch : FaFolderOpen}
+                            />
+                        )}
+                    </div>
+                ) : (
+                    tickets.map(t => <MobileTicketCard key={t.id} ticket={t} />)
+                )}
             </div>
 
             <div className="hidden md:block overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-sm border border-[var(--border-color)]">
@@ -339,7 +361,25 @@ export default function TicketsPage() {
                             <tr><th className="px-6 py-4">Info Tiket</th><th className="px-6 py-4">Deskripsi</th><th className="px-6 py-4">Teknisi</th><th className="px-6 py-4">Status & SLA</th><th className="px-6 py-4">Update</th><th className="px-6 py-4 text-center">Aksi</th></tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-subtle)]">
-                            {loading ? <TicketTableSkeleton /> : tickets.length === 0 ? <tr><td colSpan="6" className="p-8 text-center text-[var(--text-muted)]">Data Kosong</td></tr> : tickets.map(ticket => (
+                            {loading ? (
+                                <TicketTableSkeleton />
+                            ) : tickets.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="p-12 text-center">
+                                        {activeTab === 'RUNNING' && !search ? (
+                                            <div className="flex flex-col items-center justify-center p-6 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 max-w-md mx-auto">
+                                                <div className="bg-emerald-100 dark:bg-emerald-900/50 p-4 rounded-full mb-4 shadow-sm">
+                                                    <FaCheckCircle className="text-4xl text-emerald-600 dark:text-emerald-400" />
+                                                </div>
+                                                <h3 className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400 mb-2">Clear & Aman! 🎉</h3>
+                                                <p className="text-sm text-emerald-600 dark:text-emerald-300">Mantap! Tidak ada tiket yang sedang running saat ini. Semua sudah diselesaikan atau memang aman.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="text-[var(--text-muted)]">{search ? "Tidak ada hasil pencarian." : "Data Kosong"}</div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ) : tickets.map(ticket => (
                                 <tr key={ticket.id} className={`transition group border-b ${getRowSeverityStyle(ticket)}`}>
                                     <td className="px-6 py-4 align-top">
                                         <div className="font-bold text-[var(--text-primary)] text-xs">{ticket.id_tiket}</div>

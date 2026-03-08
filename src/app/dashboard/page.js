@@ -371,9 +371,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
                         {data?.runningBySub?.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)]">
-                                <FaCheckCircle className="text-4xl mb-2 opacity-20" />
-                                <p className="text-sm italic">Tidak ada tiket running</p>
+                            <div className="h-full flex flex-col items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-4 rounded-full mb-4 shadow-sm border border-emerald-200 dark:border-emerald-800/30">
+                                    <FaCheckCircle className="text-4xl" />
+                                </div>
+                                <p className="text-base font-extrabold">Clear & Aman! 🎉</p>
+                                <p className="text-xs mt-1 text-center text-emerald-600/70 dark:text-emerald-400/80 px-4">Mantap! Tidak ada antrean tiket saat ini.</p>
                             </div>
                         ) : (
                             data?.runningBySub?.map((item) => (
@@ -530,8 +533,8 @@ export default function DashboardPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${t.status === 'OPEN' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' :
-                                                t.status === 'SC' ? 'text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50' :
-                                                    'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
+                                            t.status === 'SC' ? 'text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50' :
+                                                'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
                                             }`}>
                                             {t.status}
                                         </span>
@@ -549,8 +552,8 @@ export default function DashboardPage() {
                             <div className="flex justify-between items-start">
                                 <span className="font-bold text-[var(--text-primary)] text-sm">{t.id_tiket}</span>
                                 <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${t.status === 'OPEN' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' :
-                                        t.status === 'SC' ? 'text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50' :
-                                            'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
+                                    t.status === 'SC' ? 'text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50' :
+                                        'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
                                     }`}>{t.status}</span>
                             </div>
                             <div className="flex justify-between items-center text-xs text-[var(--text-muted)]">
