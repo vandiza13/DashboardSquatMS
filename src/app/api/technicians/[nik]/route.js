@@ -13,29 +13,62 @@ export async function PUT(request, props) {
         // Cek Auth
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        
+
         if (!user || user.role !== 'Admin') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
         const body = await request.json();
-        const { name, position_name, phone_number, is_active } = body;
+        const { name, position_name, phone_number, is_active, new_nik } = body;
 
         // FIX: Pastikan status tidak NULL. Jika kosong, anggap 1 (Aktif)
         const status = (is_active === undefined || is_active === null) ? 1 : is_active;
 
-        const [result] = await db.query(
-            `UPDATE technicians 
-             SET name = ?, position_name = ?, phone_number = ?, is_active = ? 
-             WHERE nik = ?`,
-            [name, position_name, phone_number, status, nik]
-        );
+        const updatedNik = new_nik || nik;
+        const isNikChanged = updatedNik !== nik;
 
-        if (result.affectedRows === 0) {
-            return NextResponse.json({ error: 'Teknisi tidak ditemukan' }, { status: 404 });
+        // Gunakan transaction jika NIK berubah agar child table ikut terupdate
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Nonaktifkan foreign key checks sementara agar NIK bisa diubah
+            if (isNikChanged) {
+                await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+            }
+
+            // 1. Update data teknisi di tabel parent
+            const [result] = await connection.query(
+                `UPDATE technicians 
+                 SET nik = ?, name = ?, position_name = ?, phone_number = ?, is_active = ? 
+                 WHERE nik = ?`,
+                [updatedNik, name, position_name, phone_number, status, nik]
+            );
+
+            if (result.affectedRows === 0) {
+                await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+                await connection.rollback();
+                return NextResponse.json({ error: 'Teknisi tidak ditemukan' }, { status: 404 });
+            }
+
+            // 2. Jika NIK berubah, update juga di tabel child (ticket_technicians)
+            if (isNikChanged) {
+                await connection.query(
+                    'UPDATE ticket_technicians SET technician_nik = ? WHERE technician_nik = ?',
+                    [updatedNik, nik]
+                );
+                await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+            }
+
+            await connection.commit();
+            return NextResponse.json({ message: 'Data teknisi berhasil diupdate' });
+        } catch (txError) {
+            await connection.query('SET FOREIGN_KEY_CHECKS = 1').catch(() => { });
+            await connection.rollback();
+            throw txError;
+        } finally {
+            connection.release();
         }
-
-        return NextResponse.json({ message: 'Data teknisi berhasil diupdate' });
     } catch (error) {
         console.error('Update Technician Error:', error);
         return NextResponse.json({ error: 'Gagal mengupdate teknisi' }, { status: 500 });
@@ -50,7 +83,7 @@ export async function DELETE(request, props) {
 
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        
+
         if (!user || user.role !== 'Admin') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
@@ -60,7 +93,7 @@ export async function DELETE(request, props) {
         if (result.affectedRows === 0) {
             return NextResponse.json({ error: 'Teknisi tidak ditemukan' }, { status: 404 });
         }
-        
+
         return NextResponse.json({ message: 'Teknisi dihapus' });
     } catch (error) {
         console.error('Delete Technician Error:', error);

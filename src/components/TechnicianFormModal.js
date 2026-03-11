@@ -39,16 +39,21 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
         setLoading(true);
 
         try {
+            const oldNik = technicianToEdit ? technicianToEdit.nik : null;
             const url = technicianToEdit
-                ? `/api/technicians/${technicianToEdit.nik}`
+                ? `/api/technicians/${oldNik}`
                 : '/api/technicians';
 
             const method = technicianToEdit ? 'PUT' : 'POST';
 
+            const payload = technicianToEdit
+                ? { ...formData, new_nik: formData.nik }
+                : formData;
+
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) throw new Error('Gagal menyimpan data');
@@ -83,8 +88,7 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                             <input
                                 type="text"
                                 required
-                                disabled={!!technicianToEdit}
-                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                                 value={formData.nik}
                                 onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
                             />
