@@ -6,7 +6,8 @@ import {
     FaEdit, FaTrash, FaFileAlt, FaRunning, FaCheckCircle,
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel,
     FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
-    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag
+    FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag,
+    FaSyncAlt
 } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import TicketFormModal from '@/components/TicketFormModal';
@@ -17,6 +18,7 @@ import Skeleton from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import BulkTicketModal from '@/components/BulkTicketModal';
 import MultiTicketModal from '@/components/MultiTicketModal';
+import SyncTaccModal from '@/components/SyncTaccModal'; 
 // [PUSHER] 1. Import Client
 import { pusherClient } from '@/lib/pusher-client';
 
@@ -158,6 +160,9 @@ export default function TicketsPage() {
     const [selectedTicketId, setSelectedTicketId] = useState('');
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isMultiRowModalOpen, setIsMultiRowModalOpen] = useState(false);
+    
+    // State Modal Sync TACC
+    const [isSyncTaccModalOpen, setIsSyncTaccModalOpen] = useState(false); 
 
     // [PUSHER] 2. State untuk trigger refresh otomatis
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -187,7 +192,6 @@ export default function TicketsPage() {
 
         channel.bind('ticket-update', (data) => {
             console.log("Realtime Update:", data);
-            // Update trigger untuk memancing useEffect di atas melakukan fetch ulang
             setRefreshTrigger(prev => prev + 1);
         });
 
@@ -224,13 +228,25 @@ export default function TicketsPage() {
                 <div className="flex flex-col">
                     <span className="font-extrabold text-[var(--text-primary)] text-base">{ticket.id_tiket}</span>
 
+                    {/* [UPDATE MOBILE] Menampilkan TACC dan TTR jika ada */}
                     {ticket.id_tiket_tacc && (
-                        <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800/50 mt-1 w-fit">
-                            <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
-                        </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                            <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800/50">
+                                <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
+                            </span>
+                            {ticket.ttr_tacc && (
+                                <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                    parseFloat(ticket.ttr_tacc) > 4 
+                                    ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
+                                    : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
+                                }`}>
+                                    <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                                </span>
+                            )}
+                        </div>
                     )}
 
-                    <span className="text-[10px] text-[var(--text-muted)] mt-0.5">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    <span className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                     <StatusBadge status={ticket.status} />
@@ -241,7 +257,7 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            {/* [UPDATE MOBILE] Menambahkan flex-wrap & whitespace-nowrap pada Priority agar rapi */}
+            {/* Priority & Meta */}
             <div className="flex flex-wrap gap-1">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-[var(--bg-base)] ${CATEGORY_COLORS[ticket.category] || CATEGORY_COLORS.DEFAULT}`}>{ticket.category} - {ticket.subcategory}</span>
                 {ticket.sto && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span>}
@@ -251,13 +267,11 @@ export default function TicketsPage() {
 
             <div className="text-[var(--text-primary)] text-xs bg-[var(--bg-base)] p-2.5 rounded-lg border border-[var(--border-color)]">
                 <span className="font-semibold block mb-1 text-[10px] text-slate-500 uppercase">Deskripsi:</span>
-                {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
                 <span className="line-clamp-3 whitespace-pre-wrap">{ticket.deskripsi}</span>
             </div>
             {ticket.update_progres && (
                 <div className="text-[var(--text-primary)] text-xs">
                     <span className="font-semibold text-[var(--text-muted)] text-[10px] uppercase">{ticket.status === 'CLOSED' ? 'RCA:' : 'Update:'}</span>
-                    {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
                     <p className="italic text-[var(--text-secondary)] mt-0.5 bg-yellow-50 dark:bg-yellow-900/20 p-1.5 rounded border-l-2 border-yellow-300 dark:border-yellow-600 break-words text-[11px] whitespace-pre-wrap">{ticket.update_progres}</p>
                 </div>
             )}
@@ -292,16 +306,25 @@ export default function TicketsPage() {
             <MultiTicketModal isOpen={isMultiRowModalOpen} onClose={() => setIsMultiRowModalOpen(false)} onSuccess={fetchTickets} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
+            
+            {/* Modal Sync TACC */}
+            <SyncTaccModal isOpen={isSyncTaccModalOpen} onClose={() => setIsSyncTaccModalOpen(false)} onSuccess={fetchTickets} />
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div><h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">Manajemen Tiket</h2><p className="text-[var(--text-secondary)] text-xs md:text-sm">Monitor dan kelola tiket lapangan</p></div>
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     <button onClick={() => setIsReportModalOpen(true)} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Laporan</button>
                     {userRole !== 'View' && (
-                        <div className="flex gap-2 bg-indigo-50 p-1 rounded-lg border border-indigo-100">
-                            <button onClick={() => setIsMultiRowModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition"><FaPlus /> Input Massal</button>
-                            <div className="w-[1px] bg-indigo-200 my-1"></div>
-                            <button onClick={() => setIsBulkModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white hover:shadow-sm transition"><FaFileUpload /> Import Excel</button>
+                        <div className="flex gap-2 bg-indigo-50 dark:bg-indigo-900/10 p-1 rounded-lg border border-indigo-100 dark:border-indigo-800/30 flex-wrap">
+                            <button onClick={() => setIsMultiRowModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-[var(--bg-surface)] hover:shadow-sm transition"><FaPlus /> Input Massal</button>
+                            <div className="w-[1px] bg-indigo-200 dark:bg-indigo-800/50 my-1 hidden md:block"></div>
+                            <button onClick={() => setIsBulkModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-[var(--bg-surface)] hover:shadow-sm transition"><FaFileUpload /> Import Excel</button>
+                            
+                            {/* Tombol Sync TACC */}
+                            <div className="w-[1px] bg-indigo-200 dark:bg-indigo-800/50 my-1 hidden md:block"></div>
+                            <button onClick={() => setIsSyncTaccModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-400 bg-teal-100/50 dark:bg-teal-900/30 hover:bg-[var(--bg-surface)] hover:shadow-sm transition">
+                                <FaSyncAlt /> Sync TACC
+                            </button>
                         </div>
                     )}
                     {userRole !== 'View' && <button onClick={handleCreateClick} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-blue-700 shadow-sm transition"><FaPlus /> Buat Tiket</button>}
@@ -384,16 +407,24 @@ export default function TicketsPage() {
                                     <td className="px-6 py-4 align-top">
                                         <div className="font-bold text-[var(--text-primary)] text-xs">{ticket.id_tiket}</div>
 
-                                        {/* [BARU] TAMPILAN TACC DI DESKTOP */}
+                                        {/* [BARU] TAMPILAN TACC & TTR DI DESKTOP DENGAN LOGIKA WARNA MERAH */}
                                         {ticket.id_tiket_tacc && (
-                                            <div className="mt-1">
+                                            <div className="mt-1 flex flex-wrap gap-1">
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
                                                     <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
                                                 </span>
+                                                {ticket.ttr_tacc && (
+                                                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                                        parseFloat(ticket.ttr_tacc) > 4 
+                                                        ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
+                                                        : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
+                                                    }`}>
+                                                        <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
 
-                                        {/* [UPDATE DESKTOP] Menambahkan flex-wrap & whitespace-nowrap pada Priority */}
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase bg-[var(--bg-base)] ${CATEGORY_COLORS[ticket.category]}`}>{ticket.category}-{ticket.subcategory}</span>
                                             {ticket.priority && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white dark:bg-slate-700 dark:border-slate-600 whitespace-nowrap">{ticket.priority}</span>}
@@ -403,12 +434,10 @@ export default function TicketsPage() {
                                         <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                                     </td>
                                     <td className="px-6 py-4 align-top max-w-sm">
-                                        {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
                                         <div className="text-[var(--text-primary)] text-xs line-clamp-3 mb-2 whitespace-pre-wrap" title={ticket.deskripsi}>{ticket.deskripsi}</div>
                                         {ticket.update_progres && (
                                             <div className="text-[10px] text-[var(--text-secondary)] bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-600/50 flex gap-1">
                                                 <span className="font-bold text-yellow-700 dark:text-yellow-400 shrink-0">{ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}</span>
-                                                {/* [UPDATE] Tambahkan whitespace-pre-wrap agar enter terbaca */}
                                                 <span className="italic whitespace-pre-wrap">{ticket.update_progres}</span>
                                             </div>
                                         )}
@@ -417,7 +446,7 @@ export default function TicketsPage() {
                                         {ticket.technician_name ? (
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2"><span className="text-xs font-bold text-[var(--text-primary)]">{ticket.technician_name}</span><span className="text-[9px] px-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded border border-blue-100 dark:border-blue-800/50 font-bold">LENSA</span></div>
-                                                {ticket.technician_phone && <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/, '62')}`} target="_blank" className="flex items-center gap-1 text-[10px] text-green-600 dark:text-green-400 hover:underline"><FaWhatsapp /> {ticket.technician_phone}</a>}
+                                                {ticket.technician_phone && <a href={`https://wa.me/${ticket.technician_phone.replace(/^0/,'62')}`} target="_blank" className="flex items-center gap-1 text-[10px] text-green-600 dark:text-green-400 hover:underline"><FaWhatsapp /> {ticket.technician_phone}</a>}
                                                 {ticket.partner_technicians && <div className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] p-1 rounded border border-[var(--border-color)] mt-1"><span className="font-bold text-[var(--text-secondary)] block">Support:</span>{ticket.partner_technicians}</div>}
                                             </div>
                                         ) : <span className="text-xs text-[var(--text-muted)] italic">Belum assign</span>}

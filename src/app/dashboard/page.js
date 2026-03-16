@@ -10,7 +10,9 @@ import {
     FaSpinner,
     FaExclamationCircle,
     FaTools,
-    FaClock
+    FaClock,
+    FaStopwatch,
+    FaFilter
 } from 'react-icons/fa';
 import {
     Chart as ChartJS,
@@ -56,6 +58,19 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [trendFilter, setTrendFilter] = useState('ALL');
 
+    // --- [BARU] STATE FILTER BULAN/TAHUN (Ala ProductivityPage) ---
+    const currentDate = new Date();
+    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+
+    const monthsList = [
+        { value: 1, label: 'Januari' }, { value: 2, label: 'Februari' }, { value: 3, label: 'Maret' },
+        { value: 4, label: 'April' }, { value: 5, label: 'Mei' }, { value: 6, label: 'Juni' },
+        { value: 7, label: 'Juli' }, { value: 8, label: 'Agustus' }, { value: 9, label: 'September' },
+        { value: 10, label: 'Oktober' }, { value: 11, label: 'November' }, { value: 12, label: 'Desember' }
+    ];
+    const yearsList = [currentDate.getFullYear(), currentDate.getFullYear() - 1, currentDate.getFullYear() - 2];
+
     // Chart color tokens based on theme
     const isDark = theme === 'dark';
     const chartColors = {
@@ -68,7 +83,12 @@ export default function DashboardPage() {
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch('/api/stats');
+            // [UPDATE] Format Bulan untuk API (YYYY-MM)
+            const formattedMonth = String(selectedMonth).padStart(2, '0');
+            const apiMonthQuery = `${selectedYear}-${formattedMonth}`;
+
+            // Memanggil API dengan query bulan spesifik
+            const res = await fetch(`/api/stats?month=${apiMonthQuery}`);
             const result = await res.json();
 
             if (result.error) {
@@ -80,7 +100,8 @@ export default function DashboardPage() {
                     monthlyType: [],
                     dailyTrend: [],
                     recent: [],
-                    aging: []
+                    aging: [],
+                    ttr: {} // Fallback untuk TTR SLA
                 });
             } else {
                 setData(result);
@@ -90,7 +111,7 @@ export default function DashboardPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedMonth, selectedYear]);
 
     useEffect(() => {
         fetchData();
@@ -110,6 +131,7 @@ export default function DashboardPage() {
 
         const stats = data.stats || { total: 0, open: 0, sc: 0, closed_total: 0, closed_today: 0, closed_month: 0 };
         const totalRunning = (parseInt(stats.open) || 0) + (parseInt(stats.sc) || 0);
+        const ttr = data.ttr || {}; 
 
         const donutStatusData = {
             labels: ['Closed', 'Open', 'Stop Clock (SC)'],
@@ -199,7 +221,7 @@ export default function DashboardPage() {
 
         return {
             stats, totalRunning, donutStatusData, stackedBarData,
-            lineData, uniqueSubsMonthly, uniqueCatsLine, agingBarData
+            lineData, uniqueSubsMonthly, uniqueCatsLine, agingBarData, ttr
         };
     }, [data, trendFilter]);
 
@@ -273,6 +295,58 @@ export default function DashboardPage() {
         interaction: { mode: 'nearest', axis: 'x', intersect: false }
     };
 
+    // --- HELPER UNTUK RENDER KARTU TTR SLA ---
+    const renderTtrCard = (title, ttrData) => {
+        const numValue = parseFloat(ttrData?.avg || 0);
+        const total = ttrData?.total || 0;
+        const met = ttrData?.met || 0;
+        const missed = ttrData?.missed || 0;
+
+        const isDanger = numValue > 4;
+        const noData = total === 0;
+
+        return (
+            <div key={title} className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-4 shadow-sm border border-[var(--border-color)] flex flex-col gap-1 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider truncate">{title}</span>
+                    <div className={`p-1.5 rounded-lg ${noData ? 'bg-slate-100 text-slate-400 dark:bg-slate-800/50' : isDanger ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+                        <FaStopwatch size={12} />
+                    </div>
+                </div>
+                
+                {/* Nilai Utama Rata-Rata */}
+                <div className="flex items-baseline gap-1">
+                    <span className={`text-2xl font-black ${noData ? 'text-[var(--text-muted)]' : isDanger ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {noData ? '-' : numValue.toFixed(2)}
+                    </span>
+                    {!noData && <span className="text-[10px] font-bold text-[var(--text-muted)]">Jam</span>}
+                </div>
+                
+                {/* Status Bawah */}
+                {noData ? (
+                    <div className="mt-auto pt-3 border-t border-[var(--border-subtle)]">
+                         <span className="text-[10px] font-bold text-[var(--text-muted)] flex items-center gap-1"><FaTools /> Belum ada data</span>
+                    </div>
+                ) : (
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-[var(--border-subtle)] pt-2.5 text-[9px] text-center">
+                        <div className="flex flex-col bg-[var(--bg-base)] rounded p-1 border border-[var(--border-color)]">
+                            <span className="text-[var(--text-muted)] font-bold mb-0.5">Total</span>
+                            <span className="text-[var(--text-primary)] font-black text-xs">{total}</span>
+                        </div>
+                        <div className="flex flex-col bg-emerald-50 dark:bg-emerald-900/20 rounded p-1 border border-emerald-100 dark:border-emerald-800/30">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold mb-0.5">In SLA</span>
+                            <span className="text-emerald-700 dark:text-emerald-300 font-black text-xs">{met}</span>
+                        </div>
+                        <div className="flex flex-col bg-red-50 dark:bg-red-900/20 rounded p-1 border border-red-100 dark:border-red-800/30">
+                            <span className="text-red-600 dark:text-red-400 font-bold mb-0.5">Over</span>
+                            <span className="text-red-700 dark:text-red-300 font-black text-xs">{missed}</span>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     if (loading || !processedData) {
         return (
             <div className="flex h-[80vh] w-full items-center justify-center flex-col gap-4">
@@ -284,10 +358,10 @@ export default function DashboardPage() {
         );
     }
 
-    const { stats, totalRunning, donutStatusData, stackedBarData, lineData, uniqueCatsLine, agingBarData } = processedData;
+    const { stats, totalRunning, donutStatusData, stackedBarData, lineData, uniqueCatsLine, agingBarData, ttr } = processedData;
 
     return (
-        <div className="space-y-8 animate-fade-in pb-12">
+        <div className="space-y-8 animate-fade-in pb-12 w-full max-w-[100vw] overflow-x-hidden">
 
             {/* --- HEADER --- */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -356,6 +430,46 @@ export default function DashboardPage() {
                         <h3 className="text-4xl font-extrabold text-white">{stats.total}</h3>
                         <p className="mt-4 text-xs font-medium text-blue-200">Semua Kategori</p>
                     </div>
+                </div>
+            </div>
+
+            {/* --- PERFORMA SLA TTR (DENGAN FILTER BULAN DROPDOWN) --- */}
+            <div className="space-y-4 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                            <FaStopwatch className="text-indigo-500" /> Performa SLA & TTR MS-Eksternal
+                        </h3>
+                        <p className="text-xs text-[var(--text-muted)] mt-1">Rata-rata waktu penyelesaian tiket (TTR) berdasarkan sinkronisasi dari DB TACC</p>
+                    </div>
+                    
+                    {/* [FIX TERBAIK] Filter Bulan/Tahun dengan 2 Dropdown yang pasti bisa diklik */}
+                    <div className="flex items-center gap-2 bg-[var(--bg-surface)] p-1.5 rounded-xl border border-[var(--border-color)] shadow-sm flex-1 sm:flex-none">
+                        <div className="px-3 text-[var(--text-muted)] hidden sm:block"><FaFilter /></div>
+                        <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                            className="bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none cursor-pointer hover:bg-[var(--bg-base)] py-2 px-2 rounded-lg flex-1 sm:flex-none"
+                        >
+                            {monthsList.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+                        </select>
+                        <span className="text-[var(--text-muted)]">|</span>
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            className="bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none cursor-pointer hover:bg-[var(--bg-base)] py-2 px-2 rounded-lg flex-1 sm:flex-none"
+                        >
+                            {yearsList.map((y) => (<option key={y} value={y}>{y}</option>))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+                    {renderTtrCard("UMT", ttr.UMT)}
+                    {renderTtrCard("CENTRATAMA", ttr.CENTRATAMA)}
+                    {renderTtrCard("MTEL - TIS", ttr.MTEL_TIS)}
+                    {renderTtrCard("MTEL - FIBERISASI", ttr.MTEL_FIBERISASI)}
+                    {renderTtrCard("MTEL - MMP", ttr.MTEL_MMP)}
                 </div>
             </div>
 
