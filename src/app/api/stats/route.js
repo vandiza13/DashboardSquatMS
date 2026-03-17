@@ -13,18 +13,17 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const monthParam = searchParams.get('month'); // Contoh bentuknya: "2026-03"
 
-        // Logika Dinamis untuk Kondisi Tanggal TTR
-        let ttrDateCondition = "last_update_time >= DATE_FORMAT(NOW(), '%Y-%m-01')";
+        // [PERBAIKAN SESUAI SOP] Logika Dinamis difilter berdasarkan tiket_time (Waktu Tiket Masuk)
+        let ttrDateCondition = "tiket_time >= DATE_FORMAT(NOW(), '%Y-%m-01')";
         let ttrParams = [];
 
         if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
-            // Jika user memilih bulan, gunakan filter dari tanggal 1 bulan tsb sampai tanggal 1 bulan depannya
-            ttrDateCondition = "last_update_time >= ? AND last_update_time < DATE_ADD(?, INTERVAL 1 MONTH)";
+            // Jika user memilih bulan, gunakan filter tiket_time dari tanggal 1 bulan tsb sampai tanggal 1 bulan depannya
+            ttrDateCondition = "tiket_time >= ? AND tiket_time < DATE_ADD(?, INTERVAL 1 MONTH)";
             ttrParams = [`${monthParam}-01`, `${monthParam}-01`];
         }
 
         // --- OPTIMASI: EKSEKUSI SEKUENSIAL ---
-        // Mengganti Promise.all dengan await berurutan untuk mencegah ETIMEDOUT pada database serverless
 
         // 1. Ringkasan Status LENGKAP
         const statusCountsData = await db.query(`
@@ -70,7 +69,7 @@ export async function GET(request) {
             ORDER BY MIN(tiket_time) ASC
         `);
 
-        // 5. Tren Harian 30 Hari
+        // 5. Tren Harian 30 Hari (Menggunakan last_update_time untuk performa harian tim)
         const dailyTrendData = await db.query(`
             SELECT 
                 DATE_FORMAT(last_update_time, '%Y-%m-%d') as date,
@@ -107,36 +106,38 @@ export async function GET(request) {
             GROUP BY category, age_group
         `);
 
-        // 8. TTR untuk UMT & CENTRATAMA (DENGAN HITUNGAN SLA)
+        // 8. TTR untuk UMT & CENTRATAMA (BERDASARKAN TIKET_TIME + STRICT REGEXP)
         const ttrUmtCentData = await db.query(`
             SELECT 
                 category, 
-                AVG(CAST(REPLACE(ttr_tacc, ',', '.') AS DECIMAL(10,2))) as avg_ttr,
+                AVG(CAST(REPLACE(TRIM(ttr_tacc), ',', '.') AS DECIMAL(10,2))) as avg_ttr,
                 COUNT(*) as total_tickets,
-                SUM(CASE WHEN CAST(REPLACE(ttr_tacc, ',', '.') AS DECIMAL(10,2)) <= 4 THEN 1 ELSE 0 END) as sla_met,
-                SUM(CASE WHEN CAST(REPLACE(ttr_tacc, ',', '.') AS DECIMAL(10,2)) > 4 THEN 1 ELSE 0 END) as sla_missed
+                SUM(CASE WHEN CAST(REPLACE(TRIM(ttr_tacc), ',', '.') AS DECIMAL(10,2)) <= 4 THEN 1 ELSE 0 END) as sla_met,
+                SUM(CASE WHEN CAST(REPLACE(TRIM(ttr_tacc), ',', '.') AS DECIMAL(10,2)) > 4 THEN 1 ELSE 0 END) as sla_missed
             FROM tickets
             WHERE status = 'CLOSED' 
               AND ttr_tacc IS NOT NULL 
-              AND ttr_tacc != ''
+              AND TRIM(ttr_tacc) != ''
+              AND ttr_tacc REGEXP '^[[:space:]]*[0-9]+([.,][0-9]+){0,1}[[:space:]]*$'
               AND category IN ('UMT', 'CENTRATAMA')
               AND ${ttrDateCondition}
             GROUP BY category
         `, ttrParams);
 
-        // 9. TTR Khusus MTEL per Subcategory (DENGAN HITUNGAN SLA)
+        // 9. TTR Khusus MTEL per Subcategory (BERDASARKAN TIKET_TIME + STRICT REGEXP)
         const ttrMtelData = await db.query(`
             SELECT 
                 category,
                 subcategory,
-                AVG(CAST(REPLACE(ttr_tacc, ',', '.') AS DECIMAL(10,2))) as avg_ttr,
+                AVG(CAST(REPLACE(TRIM(ttr_tacc), ',', '.') AS DECIMAL(10,2))) as avg_ttr,
                 COUNT(*) as total_tickets,
-                SUM(CASE WHEN CAST(REPLACE(ttr_tacc, ',', '.') AS DECIMAL(10,2)) <= 4 THEN 1 ELSE 0 END) as sla_met,
-                SUM(CASE WHEN CAST(REPLACE(ttr_tacc, ',', '.') AS DECIMAL(10,2)) > 4 THEN 1 ELSE 0 END) as sla_missed
+                SUM(CASE WHEN CAST(REPLACE(TRIM(ttr_tacc), ',', '.') AS DECIMAL(10,2)) <= 4 THEN 1 ELSE 0 END) as sla_met,
+                SUM(CASE WHEN CAST(REPLACE(TRIM(ttr_tacc), ',', '.') AS DECIMAL(10,2)) > 4 THEN 1 ELSE 0 END) as sla_missed
             FROM tickets
             WHERE status = 'CLOSED' 
               AND ttr_tacc IS NOT NULL 
-              AND ttr_tacc != ''
+              AND TRIM(ttr_tacc) != ''
+              AND ttr_tacc REGEXP '^[[:space:]]*[0-9]+([.,][0-9]+){0,1}[[:space:]]*$'
               AND category = 'MTEL'
               AND subcategory IN ('TIS', 'FIBERISASI', 'MMP')
               AND ${ttrDateCondition}
@@ -145,7 +146,6 @@ export async function GET(request) {
 
 
         // --- FORMATTING DATA ---
-        // Menyesuaikan dengan hasil kembalian db.query mysql2 ([rows, fields])
         const statusCounts = statusCountsData[0][0] || {};
         const runningBySub = runningBySubData[0];
         const closedTodayBySub = closedTodayBySubData[0];
@@ -154,11 +154,9 @@ export async function GET(request) {
         const recentTickets = recentTicketsData[0];
         const agingStats = agingStatsData[0];
 
-        // Format data aging agar rapi (default 0)
         const ticketAging = { less_4h: 0, '4h_12h': 0, '12h_24h': 0, more_24h: 0 };
         agingStats.forEach(row => ticketAging[row.age_group] = row.count);
 
-        // Format Objek Data TTR SLA menjadi Kompleks
         const baseTtrFormat = { avg: 0, total: 0, met: 0, missed: 0 };
         const ttrStats = { 
             UMT: { ...baseTtrFormat }, 
@@ -195,7 +193,7 @@ export async function GET(request) {
             dailyTrend,
             recent: recentTickets,
             aging: agingStats,
-            ttr: ttrStats // Mengirimkan JSON kompleks (avg, total, met, missed)
+            ttr: ttrStats
         });
 
     } catch (error) {
