@@ -31,6 +31,7 @@ const CATEGORY_BG_COLORS = {
 
 export default function ProductivityPage() {
     const [data, setData] = useState([]);
+    const [subcategoryCounts, setSubcategoryCounts] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // --- STATE FILTER & SEARCH ---
@@ -65,10 +66,15 @@ export default function ProductivityPage() {
         fetch(`/api/productivity?month=${selectedMonth}&year=${selectedYear}`)
             .then(res => res.json())
             .then(result => {
-                if (Array.isArray(result)) {
+                if (result && result.technicians) {
+                    setData(Array.isArray(result.technicians) ? result.technicians : []);
+                    setSubcategoryCounts(Array.isArray(result.subcategoryCounts) ? result.subcategoryCounts : []);
+                } else if (Array.isArray(result)) {
                     setData(result);
+                    setSubcategoryCounts([]);
                 } else {
                     setData([]);
+                    setSubcategoryCounts([]);
                 }
                 setLoading(false);
             })
@@ -381,10 +387,10 @@ export default function ProductivityPage() {
                         </div>
                         <div className="rounded-xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)]">
                             <h3 className="mb-6 text-base font-bold text-[var(--text-primary)] text-center">Share Kategori</h3>
-                            <div className="h-64 flex items-center justify-center relative">
+                            <div className="h-52 flex items-center justify-center relative">
                                 {chartData && chartData.grandTotal > 0 ? (
                                     <>
-                                        <Doughnut data={chartData.donut} options={{ cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 15, font: { size: 11 } } } } }} />
+                                        <Doughnut data={chartData.donut} options={{ cutout: '70%', plugins: { legend: { display: false } } }} />
                                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-80">
                                             <span className="text-3xl font-bold text-[var(--text-primary)]">{chartData.grandTotal}</span>
                                             <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-widest">Total</span>
@@ -396,6 +402,53 @@ export default function ProductivityPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* --- DETAIL ANGKA PER KATEGORI --- */}
+                            {chartData && chartData.grandTotal > 0 && (
+                                <div className="mt-4 space-y-2">
+                                    {/* Total */}
+                                    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-base)] border border-[var(--border-color)]">
+                                        <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide">Total</span>
+                                        <span className="text-sm font-extrabold text-[var(--text-primary)]">{chartData.grandTotal}</span>
+                                    </div>
+
+                                    {/* Per Kategori */}
+                                    {['UMT', 'CENTRATAMA', 'MTEL', 'SQUAT'].map(cat => {
+                                        const catTotal = cat === 'UMT' ? chartData.donut.datasets[0].data[1]
+                                            : cat === 'CENTRATAMA' ? chartData.donut.datasets[0].data[2]
+                                            : cat === 'MTEL' ? chartData.donut.datasets[0].data[0]
+                                            : chartData.donut.datasets[0].data[3];
+
+                                        const hasSubcategories = cat === 'MTEL' || cat === 'SQUAT';
+                                        const subs = subcategoryCounts.filter(s => s.category === cat);
+
+                                        return (
+                                            <div key={cat} className="rounded-lg border border-[var(--border-color)] overflow-hidden">
+                                                <div className="flex items-center justify-between px-3 py-2" style={{ borderLeft: `3px solid ${CATEGORY_COLORS[cat]}` }}>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: CATEGORY_COLORS[cat] }}></span>
+                                                        <span className="text-xs font-bold text-[var(--text-secondary)]">{cat}</span>
+                                                    </div>
+                                                    <span className="text-sm font-extrabold" style={{ color: CATEGORY_COLORS[cat] }}>{catTotal}</span>
+                                                </div>
+
+                                                {/* Sub-detail untuk MTEL dan SQUAT */}
+                                                {hasSubcategories && subs.length > 0 && (
+                                                    <div className="bg-[var(--bg-base)] px-3 py-1.5 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--border-subtle)]">
+                                                        {subs.map(sub => (
+                                                            <span key={sub.subcategory} className="text-[11px] text-[var(--text-muted)]">
+                                                                <span className="font-semibold text-[var(--text-secondary)]">{sub.subcategory}</span>
+                                                                {' '}
+                                                                <span className="font-bold" style={{ color: CATEGORY_COLORS[cat] }}>{sub.count}</span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
 

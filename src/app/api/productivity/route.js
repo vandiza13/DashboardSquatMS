@@ -46,7 +46,24 @@ export async function GET(request) {
 
         const [rows] = await db.query(query, queryParams);
 
-        return NextResponse.json(rows);
+        // --- Query Tambahan: Hitung per Subcategory ---
+        let subQuery = `
+            SELECT category, subcategory, COUNT(*) as count
+            FROM tickets
+            WHERE status = 'CLOSED'
+        `;
+        const subParams = [];
+
+        if (month && year) {
+            subQuery += ` AND MONTH(last_update_time) = ? AND YEAR(last_update_time) = ?`;
+            subParams.push(month, year);
+        }
+
+        subQuery += ` GROUP BY category, subcategory ORDER BY category, count DESC`;
+
+        const [subRows] = await db.query(subQuery, subParams);
+
+        return NextResponse.json({ technicians: rows, subcategoryCounts: subRows });
 
     } catch (error) {
         console.error('Productivity API Error:', error);
