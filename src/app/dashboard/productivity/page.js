@@ -139,7 +139,7 @@ export default function ProductivityPage() {
             const sDateParam = formatDateStr(startDate);
             const eDateParam = formatDateStr(endDate);
 
-            // 2. Fetch Data dari API Report (Query sudah diupdate di backend untuk kirim detail lengkap)
+            // 2. Fetch Data dari API Report
             const res = await fetch(`/api/reports/productivity?startDate=${sDateParam}&endDate=${eDateParam}`);
             const rawData = await res.json();
 
@@ -148,6 +148,9 @@ export default function ProductivityPage() {
                 setDownloadLoading(false);
                 return;
             }
+
+            // --- KONSTANTA SLA ---
+            const SLA_THRESHOLD_HOURS = 4;
 
             // 3. Buat Sheet 1: REKAP BULANAN
             const summaryData = data.map((item, index) => ({
@@ -161,58 +164,136 @@ export default function ProductivityPage() {
                 'SQUAT': item.squat,
             }));
 
-            // 4. [UPDATE] Buat Sheet 2: DETAIL TIKET LENGKAP (Priority, TACC, RCA)
+            // 4. [UPDATE] Buat Sheet 2: DETAIL TIKET LENGKAP
             const detailData = rawData.map(row => {
-                // Logika Kondisional Kolom
                 const isTsel = row.category === 'SQUAT' && row.subcategory === 'TSEL';
+                const isSquat = row.category === 'SQUAT';
                 const isTaccCategory = ['MTEL', 'UMT', 'CENTRATAMA'].includes(row.category);
+
+                // Logika TTR & SLA
+                let ttrValue = '-';
+                let slaStatus = '-';
+                if (isTaccCategory && row.ttr_tacc != null && String(row.ttr_tacc).trim() !== '') {
+                    const ttrNum = parseFloat(String(row.ttr_tacc).replace(',', '.'));
+                    if (!isNaN(ttrNum)) {
+                        ttrValue = ttrNum;
+                        slaStatus = ttrNum <= SLA_THRESHOLD_HOURS ? 'IN SLA' : 'OVER SLA';
+                    }
+                }
 
                 return {
                     'Nama Teknisi': row.technician_name,
                     'NIK': row.technician_nik,
+                    'No. HP': row.phone_number || '-',
                     'ID Tiket': row.id_tiket,
-                    'ID TACC': isTaccCategory ? (row.id_tiket_tacc || '-') : '-', // Hanya UMT, MTEL, CENTRATAMA
+                    'ID TACC': isTaccCategory ? (row.id_tiket_tacc || '-') : '-',
                     'Kategori': row.category,
                     'Sub Kategori': row.subcategory,
-                    'Priority (SLA)': isTsel ? (row.priority || '-') : '-',       // Hanya SQUAT-TSEL
+                    'District': isSquat ? (row.district || '-') : '-',
+                    'Priority (SLA)': isTsel ? (row.priority || '-') : '-',
                     'Status': row.status,
                     'STO': row.sto || '-',
+                    'TTR TACC (Jam)': ttrValue,
+                    'Status SLA': slaStatus,
                     'Deskripsi': row.deskripsi || '-',
-                    'RCA / Progress': row.update_progres || '-',                  // Kolom RCA
-                    'Waktu Tiket': new Date(row.tiket_time).toLocaleString('id-ID'),
-                    'Update Terakhir': new Date(row.last_update_time).toLocaleString('id-ID')
+                    'RCA / Progress': row.update_progres || '-',
+                    'Partner Teknisi': row.partner_technicians || '-',
+                    'Waktu Tiket': row.tiket_time ? new Date(row.tiket_time).toLocaleString('id-ID') : '-',
+                    'Update Terakhir': row.last_update_time ? new Date(row.last_update_time).toLocaleString('id-ID') : '-',
                 };
             });
 
-            // 5. Generate Excel File
+            // 5. [NEW] Buat Sheet 3: REKAP SLA TTR per Teknisi
+            const ttrMap = {};
+            rawData.forEach(row => {
+                if (!['MTEL', 'UMT', 'CENTRATAMA'].includes(row.category)) return;
+                if (row.ttr_tacc == null || String(row.ttr_tacc).trim() === '') return;
+                const ttrNum = parseFloat(String(row.ttr_tacc).replace(',', '.'));
+                if (isNaN(ttrNum)) return;
+
+                const key = `${row.technician_nik}_${row.category}`;
+                if (!ttrMap[key]) {
+                    ttrMap[key] = {
+                        name: row.technician_name,
+                        nik: row.technician_nik,
+                        category: row.category,
+                        total: 0,
+                        inSla: 0,
+                        overSla: 0,
+                        sumTtr: 0,
+                    };
+                }
+                ttrMap[key].total++;
+                ttrMap[key].sumTtr += ttrNum;
+                if (ttrNum <= SLA_THRESHOLD_HOURS) {
+                    ttrMap[key].inSla++;
+                } else {
+                    ttrMap[key].overSla++;
+                }
+            });
+
+            const slaRekapData = Object.values(ttrMap)
+                .sort((a, b) => a.name.localeCompare(b.name) || a.category.localeCompare(b.category))
+                .map((item, index) => ({
+                    'No': index + 1,
+                    'Nama Teknisi': item.name,
+                    'NIK': item.nik,
+                    'Kategori': item.category,
+                    'Total Tiket (TTR)': item.total,
+                    'IN SLA (≤4 Jam)': item.inSla,
+                    'OVER SLA (>4 Jam)': item.overSla,
+                    '% IN SLA': item.total > 0 ? `${((item.inSla / item.total) * 100).toFixed(1)}%` : '0%',
+                    'Rata-rata TTR (Jam)': item.total > 0 ? (item.sumTtr / item.total).toFixed(2) : '0',
+                }));
+
+            // 6. Generate Excel File
             const workbook = XLSX.utils.book_new();
 
-            // Sheet 1 (Rekap)
+            // Sheet 1 (Rekap Bulanan)
             const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-            const wscolsSummary = [{ wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
-            wsSummary['!cols'] = wscolsSummary;
+            wsSummary['!cols'] = [{ wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 10 }];
             XLSX.utils.book_append_sheet(workbook, wsSummary, "REKAP BULANAN");
 
-            // Sheet 2 (Detail)
+            // Sheet 2 (Detail Tiket Lengkap)
             const wsDetail = XLSX.utils.json_to_sheet(detailData);
-            // Sesuaikan lebar kolom agar rapi
-            const wscolsDetail = [
+            wsDetail['!cols'] = [
                 { wch: 25 }, // Nama
                 { wch: 15 }, // NIK
+                { wch: 15 }, // No. HP
                 { wch: 20 }, // ID Tiket
-                { wch: 18 }, // ID TACC (New)
-                { wch: 10 }, // Kategori
-                { wch: 15 }, // Sub
-                { wch: 15 }, // Priority (New)
+                { wch: 18 }, // ID TACC
+                { wch: 12 }, // Kategori
+                { wch: 15 }, // Sub Kategori
+                { wch: 12 }, // District
+                { wch: 15 }, // Priority
                 { wch: 10 }, // Status
                 { wch: 8 },  // STO
+                { wch: 15 }, // TTR TACC
+                { wch: 12 }, // Status SLA
                 { wch: 30 }, // Deskripsi
                 { wch: 30 }, // RCA
-                { wch: 22 }, // Waktu
-                { wch: 22 }  // Update
+                { wch: 20 }, // Partner
+                { wch: 22 }, // Waktu Tiket
+                { wch: 22 }, // Update Terakhir
             ];
-            wsDetail['!cols'] = wscolsDetail;
             XLSX.utils.book_append_sheet(workbook, wsDetail, "DATA DETAIL");
+
+            // Sheet 3 (Rekap SLA TTR)
+            if (slaRekapData.length > 0) {
+                const wsSla = XLSX.utils.json_to_sheet(slaRekapData);
+                wsSla['!cols'] = [
+                    { wch: 5 },  // No
+                    { wch: 25 }, // Nama
+                    { wch: 15 }, // NIK
+                    { wch: 12 }, // Kategori
+                    { wch: 15 }, // Total
+                    { wch: 15 }, // IN SLA
+                    { wch: 15 }, // OVER SLA
+                    { wch: 12 }, // % IN SLA
+                    { wch: 18 }, // Rata-rata TTR
+                ];
+                XLSX.utils.book_append_sheet(workbook, wsSla, "REKAP SLA TTR");
+            }
 
             // Save File
             XLSX.writeFile(workbook, `Laporan_Produktifitas_${months[selectedMonth - 1].label}_${selectedYear}.xlsx`);

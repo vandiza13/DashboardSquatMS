@@ -14,7 +14,7 @@ export async function GET(request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
 
-        // [UPDATE QUERY] Menambahkan kolom detail: priority, tacc, progres, deskripsi
+        // [UPDATE QUERY] Menambahkan kolom detail: priority, tacc, progres, deskripsi, district, ttr_tacc, close_time, partner
         let query = `
             SELECT 
                 tech.name as technician_name,
@@ -27,8 +27,11 @@ export async function GET(request) {
                 t.subcategory,
                 t.status,
                 t.sto,
+                t.district,
                 t.deskripsi,
                 t.update_progres,
+                t.ttr_tacc,
+                t.partner_technicians,
                 t.tiket_time,
                 t.last_update_time
             FROM technicians tech
