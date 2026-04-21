@@ -18,14 +18,12 @@ export default function Header({ onMenuClick }) {
     const dropdownRef = useRef(null);
 
     const quotes = [
-        "Quality means doing it right when no one is looking. - Henry Ford",
-        "The only way to do great work is to love what you do. - Steve Jobs",
-        "Success is not final, failure is not fatal: it is the courage to continue that counts. - Winston Churchill",
-        "Productivity is never an accident. It is always the result of a commitment to excellence, intelligent planning, and focused effort. - Paul J. Meyer",
-        "Don't watch the clock; do what it does. Keep going. - Sam Levenson",
-        "Teamwork makes the dream work.",
+        "⚠️ PERINGATAN PENTING: Masa berlaku server akan segera HABIS — Segera lakukan backup data penting Anda sebelum terlambat!",
+        "🚨 PERHATIAN: Server akan dinonaktifkan dalam waktu dekat — Pastikan semua data tiket, laporan, dan informasi penting sudah di-backup!",
+        "⛔ HARAP DIPERHATIKAN: Layanan server akan segera berakhir — Unduh dan simpan seluruh data Anda sekarang sebelum data hilang permanen!",
+        "📢 PEMBERITAHUAN KRITIS: Kontrak server hampir habis — Hubungi administrator dan lakukan backup SEGERA untuk menghindari kehilangan data!",
     ];
-    const runningTextContent = quotes.join("  ✦  ");
+    const runningTextContent = quotes.join("     •••     ");
 
     useEffect(() => {
         fetch('/api/me')
@@ -76,7 +74,7 @@ export default function Header({ onMenuClick }) {
                     </div>
 
                     <div className="w-full overflow-hidden">
-                        <div className="animate-marquee whitespace-nowrap text-sm font-medium text-[var(--text-secondary)] italic tracking-wide">
+                        <div className="animate-marquee whitespace-nowrap text-sm font-extrabold text-orange-600 dark:text-orange-400 tracking-wide uppercase">
                             {runningTextContent}
                         </div>
                     </div>
