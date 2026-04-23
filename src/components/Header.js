@@ -18,10 +18,6 @@ export default function Header({ onMenuClick }) {
     const dropdownRef = useRef(null);
 
     const quotes = [
-        "⚠️ PERINGATAN PENTING: Masa berlaku server akan segera HABIS — Segera lakukan backup data penting Anda sebelum terlambat!",
-        "🚨 PERHATIAN: Server akan dinonaktifkan dalam waktu dekat — Pastikan semua data tiket, laporan, dan informasi penting sudah di-backup!",
-        "⛔ HARAP DIPERHATIKAN: Layanan server akan segera berakhir — Unduh dan simpan seluruh data Anda sekarang sebelum data hilang permanen!",
-        "📢 PEMBERITAHUAN KRITIS: Kontrak server hampir habis — Hubungi administrator dan lakukan backup SEGERA untuk menghindari kehilangan data!",
     ];
     const runningTextContent = quotes.join("     •••     ");
 
