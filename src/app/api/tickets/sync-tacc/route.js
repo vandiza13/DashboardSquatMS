@@ -34,22 +34,37 @@ export async function POST(request) {
             
             const tiketIdFallback = row.tiket_id ? row.tiket_id.toString() : 'INVALID_FALLBACK';
 
-            // [SOLUSI PERMANEN TANGGAL] last_update_time = last_update_time
-            const [result] = await db.query(
-                `UPDATE tickets 
-                 SET ttr_tacc = ?, 
-                     id_tiket_tacc = ?,
-                     last_update_time = last_update_time 
-                 WHERE (id_tiket_tacc = ? OR id_tiket = ?) 
-                   AND category = ?`,
-                [
-                    row.ttr.toString(),        
-                    row.tacc_id.toString(),    
-                    row.tacc_id.toString(),    
-                    tiketIdFallback,           
-                    category                   
-                ]
-            );
+            let updateQuery = `UPDATE tickets SET ttr_tacc = ?, id_tiket_tacc = ?`;
+            let updateParams = [row.ttr.toString(), row.tacc_id.toString()];
+
+            // Jika ada nilai req_close yang valid (bukan null/kosong)
+            if (row.req_close && row.req_close.trim() !== '') {
+                // Validasi apakah ini format tanggal yang dikenali
+                const dateParsed = new Date(row.req_close);
+                if (!isNaN(dateParsed.getTime())) {
+                    const isYMD = /^\d{4}-\d{2}-\d{2}/.test(row.req_close);
+                    let finalDateStr = row.req_close;
+                    
+                    if (!isYMD) {
+                        // Ambil waktu lokal tanpa terpengaruh pergeseran UTC
+                        const y = dateParsed.getFullYear();
+                        const m = String(dateParsed.getMonth() + 1).padStart(2, '0');
+                        const d = String(dateParsed.getDate()).padStart(2, '0');
+                        const h = String(dateParsed.getHours()).padStart(2, '0');
+                        const min = String(dateParsed.getMinutes()).padStart(2, '0');
+                        const s = String(dateParsed.getSeconds()).padStart(2, '0');
+                        finalDateStr = `${y}-${m}-${d} ${h}:${min}:${s}`;
+                    }
+
+                    updateQuery += `, last_update_time = IF(status = 'CLOSED', ?, last_update_time)`;
+                    updateParams.push(finalDateStr);
+                }
+            }
+
+            updateQuery += ` WHERE (id_tiket_tacc = ? OR id_tiket = ?) AND category = ?`;
+            updateParams.push(row.tacc_id.toString(), tiketIdFallback, category);
+
+            const [result] = await db.query(updateQuery, updateParams);
 
             // Cek apakah ada baris yang berhasil diupdate
             if (result && result.affectedRows > 0) {

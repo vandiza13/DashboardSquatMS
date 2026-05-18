@@ -6,9 +6,9 @@ import * as XLSX from 'xlsx';
 
 // [UPDATE KONFIGURASI] Tambahkan "tiket_col" untuk mengambil ID internal (TR-xxx)
 const HEADER_CONFIG = {
-    UMT: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket' },
-    MTEL: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket' },
-    CENTRATAMA: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket' }
+    UMT: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' },
+    MTEL: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' },
+    CENTRATAMA: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' }
 };
 
 export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
@@ -41,7 +41,7 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                     const wb = XLSX.read(bstr, { type: 'binary' });
                     const wsname = wb.SheetNames[0];
                     const ws = wb.Sheets[wsname];
-                    const data = XLSX.utils.sheet_to_json(ws);
+                    const data = XLSX.utils.sheet_to_json(ws, { raw: false });
 
                     if (data.length === 0) {
                         setErrorMsg("File Excel kosong.");
@@ -51,8 +51,8 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                     const config = HEADER_CONFIG[dataSource];
                     const firstRow = data[0];
 
-                    if (!(config.id_col in firstRow) || !(config.ttr_col in firstRow) || !(config.tiket_col in firstRow)) {
-                        setErrorMsg(`Format Excel salah untuk ${dataSource}! Pastikan ada kolom '${config.id_col}', '${config.ttr_col}', dan '${config.tiket_col}'.`);
+                    if (!(config.id_col in firstRow) || !(config.ttr_col in firstRow) || !(config.tiket_col in firstRow) || !(config.close_time_col in firstRow)) {
+                        setErrorMsg(`Format Excel salah untuk ${dataSource}! Pastikan ada kolom '${config.id_col}', '${config.ttr_col}', '${config.tiket_col}', dan '${config.close_time_col}'.`);
                         return;
                     }
 
@@ -62,7 +62,8 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                         .map(row => ({
                             tacc_id: row[config.id_col],
                             ttr: row[config.ttr_col] || '0',
-                            tiket_id: row[config.tiket_col] || '' // Ambil ID Tiket
+                            tiket_id: row[config.tiket_col] || '', // Ambil ID Tiket
+                            req_close: row[config.close_time_col] ? String(row[config.close_time_col]) : null // Ambil CLOSED TIME dengan aman
                         }));
 
                     setPreviewData(mappedData);
