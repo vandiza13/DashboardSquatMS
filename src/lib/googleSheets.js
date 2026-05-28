@@ -185,3 +185,161 @@ export async function appendTicketToSheet(ticketData) {
         return false;
     }
 }
+
+export async function appendSiteToSheet(siteData, provider = 'TSEL') {
+    try {
+        console.log(`🛠️ [GSheet] Starting Site ${provider} input process...`);
+
+        // 1. SETUP AUTH (VERCEL COMPATIBLE)
+        const auth = new google.auth.GoogleAuth({
+            credentials: {
+                client_email: process.env.GOOGLE_CLIENT_EMAIL,
+                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            },
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const sheets = google.sheets({ version: 'v4', auth });
+        // Gunakan Google Sheet TERPISAH khusus data Site
+        const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID_SITES || '1lybP7L6_T9LUIM4tFCA7UhEgBEq4OllV37_g5RPhLj4';
+        const sheetName = provider; // Nama Tab di Google Sheet Site (TSEL, FSI, MTEL, UMT)
+
+        // 2. CHECK SHEET ACCESSIBILITY & GET COLUMNS
+        const responseB = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!B:B`,
+        }).catch(err => {
+            console.log(`⚠️ [GSheet] Tab ${sheetName} does not exist or sheet error:`, err.message);
+            return null;
+        });
+
+        if (!responseB) {
+            console.log(`⚠️ [GSheet] Skip Google Sheet sync for Site because Tab ${sheetName} is not accessible.`);
+            return false;
+        }
+
+        const rowsB = responseB.data.values || [];
+        const nextRow = rowsB.length + 1;
+
+        // Check if site_id already exists in column B
+        let targetRow = nextRow;
+        let isUpdate = false;
+        
+        for (let i = 0; i < rowsB.length; i++) {
+            if (rowsB[i][0] && String(rowsB[i][0]).trim() === String(siteData.site_id).trim()) {
+                targetRow = i + 1; // 1-indexed row number
+                isUpdate = true;
+                break;
+            }
+        }
+
+        const responseA = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A:A`,
+        });
+        const rowsA = responseA.data.values || [];
+
+        let nomorUrut = 1;
+        if (isUpdate) {
+            const responseRowA = await sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${sheetName}!A${targetRow}`,
+            });
+            const existingA = responseRowA.data.values;
+            if (existingA && existingA[0] && existingA[0][0]) {
+                nomorUrut = existingA[0][0];
+            } else {
+                nomorUrut = targetRow - 1;
+            }
+        } else {
+            let lastNumber = 0;
+            for (let i = rowsA.length - 1; i >= 0; i--) {
+                const val = rowsA[i][0];
+                if (val && !isNaN(parseInt(val))) {
+                    lastNumber = parseInt(val);
+                    break;
+                }
+            }
+            nomorUrut = lastNumber + 1;
+        }
+
+        // 3. DATA MAPPING
+        let rowValues = [];
+        const timestamp = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+
+        if (provider === 'TSEL') {
+            rowValues = [
+                nomorUrut,                               // A
+                siteData.site_id || '',                  // B
+                siteData.site_name || '',                // C
+                siteData.latitude || '',                 // D
+                siteData.longitude || '',                // E
+                siteData.site_class || '',               // F
+                siteData.branch || '',                   // G
+                siteData.sto || '',                      // H
+                siteData.metro || '',                    // I
+                siteData.port_metro || '',               // J
+                siteData.akses || '',                    // K
+                siteData.port_connection || '',          // L
+                siteData.ip_olt || '',                   // M
+                siteData.gpon || '',                     // N
+                siteData.port_gpon || '',                // O
+                siteData.ip_ont || '',                   // P
+                siteData.sn_ont || '',                   // Q
+                siteData.ea_subrack_core || '',          // R
+                siteData.oa_subrack_core || '',          // S
+                siteData.site_name_odc || '',            // T
+                siteData.capacity_odc || '',             // U
+                siteData.bastray_feeder_odc || '',       // V
+                siteData.core_feeder_odc || '',          // W
+                siteData.bastray_distribusi || '',       // X
+                siteData.distribusi_core || '',          // Y
+                siteData.latitude_odc || '',             // Z
+                siteData.longitude_odc || '',            // AA
+                siteData.site_name_odp || '',            // AB
+                siteData.latitude_odp || '',             // AC
+                siteData.longitude_odp || '',            // AD
+                siteData.keterangan || '',               // AE
+                timestamp                                // AF
+            ];
+        } else if (provider === 'FSI' || provider === 'UMT') {
+            rowValues = [
+                nomorUrut,                               // A
+                siteData.site_id || '',                  // B
+                siteData.site_name || '',                // C
+                siteData.latitude || '',                 // D
+                siteData.longitude || '',                // E
+                siteData.sto || '',                      // F
+                siteData.ring || '',                     // G
+                siteData.keterangan || '',               // H
+                timestamp                                // I
+            ];
+        } else if (provider === 'MTEL') {
+            rowValues = [
+                nomorUrut,                               // A
+                siteData.site_id || '',                  // B
+                siteData.site_name || '',                // C
+                siteData.latitude || '',                 // D
+                siteData.longitude || '',                // E
+                siteData.sto || '',                      // F
+                siteData.keterangan || '',               // G
+                timestamp                                // H
+            ];
+        }
+
+        // 4. EXECUTE UPDATE
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A${targetRow}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [rowValues] },
+        });
+
+        console.log(`✅ [GSheet] SUCCESS ${isUpdate ? 'UPDATE' : 'INSERT'} Site ${siteData.site_id} in Tab ${sheetName} (Row ${targetRow}, No. ${nomorUrut})`);
+        return true;
+
+    } catch (error) {
+        console.error('❌ [GSheet] Error appending Site:', error.message);
+        return false;
+    }
+}
