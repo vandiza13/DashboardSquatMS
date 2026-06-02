@@ -31,7 +31,7 @@ export default function Sidebar({ isOpen, onClose }) {
         { name: 'Produktifitas', href: '/dashboard/productivity', icon: FaChartLine, color: 'amber' },
     ];
 
-    if (user.role === 'Admin') {
+    if (user.role === 'SuperAdmin') {
         menuItems.splice(3, 0, {
             name: 'Manajemen User',
             href: '/dashboard/users',

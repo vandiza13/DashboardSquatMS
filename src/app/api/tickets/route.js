@@ -116,7 +116,7 @@ export async function POST(request) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || (user.role !== 'Admin' && user.role !== 'User')) {
+        if (!user || !['SuperAdmin', 'Admin', 'User'].includes(user.role)) {
             return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
         }
 
@@ -131,6 +131,13 @@ export async function POST(request) {
 
         if (!category || !subcategory || !id_tiket) {
             return NextResponse.json({ error: 'Data wajib tidak lengkap' }, { status: 400 });
+        }
+
+        // Validasi Divisi saat Create
+        if (user.role !== 'SuperAdmin' && user.division !== 'ALL') {
+            if (user.division !== category) {
+                return NextResponse.json({ error: `Akses ditolak. Anda hanya bisa membuat tiket kategori ${user.division}.` }, { status: 403 });
+            }
         }
 
         await connection.beginTransaction();

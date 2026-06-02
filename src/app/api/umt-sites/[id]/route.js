@@ -53,8 +53,9 @@ export async function PUT(request, props) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
+        const hasAccess = user.role === 'SuperAdmin' || (user.role === 'Admin' && ['ALL', 'MS'].includes(user.division));
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki wewenang untuk mengedit master site divisi MS.' }, { status: 403 });
         }
 
         const body = await request.json();
@@ -120,8 +121,8 @@ export async function DELETE(request, props) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
+        if (!user || user.role !== 'SuperAdmin') {
+            return NextResponse.json({ error: 'Akses ditolak. Hanya Super Admin yang bisa menghapus master site.' }, { status: 403 });
         }
 
         const result = await pgPool.query('DELETE FROM public.umt_sites WHERE id = $1 RETURNING *', [id]);

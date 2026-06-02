@@ -145,6 +145,7 @@ export default function TicketsPage() {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState('');
+    const [userDivision, setUserDivision] = useState('');
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({});
@@ -168,7 +169,17 @@ export default function TicketsPage() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
-        fetch('/api/me').then(res => res.json()).then(data => setUserRole(data.role)).catch(console.error);
+        fetch('/api/me').then(res => res.json()).then(data => {
+            setUserRole(data.role);
+            setUserDivision(data.division);
+            if (data.division === 'SQUAT') {
+                setActiveCategory('SQUAT');
+            } else if (data.division === 'MS') {
+                setActiveCategory('MTEL');
+            } else {
+                setActiveCategory('ALL');
+            }
+        }).catch(console.error);
     }, []);
 
     const fetchTickets = async () => {
@@ -293,7 +304,7 @@ export default function TicketsPage() {
                 <div className="grid grid-cols-3 gap-2">
                     {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 bg-[var(--bg-base)] hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaEdit /> Edit</button>}
                     <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className={`flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 bg-[var(--bg-base)] hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg border border-[var(--border-color)] shadow-sm ${userRole === 'View' ? 'col-span-3' : ''}`}><FaHistory /> Log</button>
-                    {userRole === 'Admin' && <button onClick={() => handleDeleteClick(ticket.id)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-[var(--bg-base)] hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaTrash /> Hapus</button>}
+                    {userRole === 'SuperAdmin' && <button onClick={() => handleDeleteClick(ticket.id)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-[var(--bg-base)] hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaTrash /> Hapus</button>}
                 </div>
             </div>
         </div>
@@ -467,7 +478,7 @@ export default function TicketsPage() {
                                         <div className="flex items-center justify-center gap-1">
                                             {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="p-1.5 text-blue-500 hover:bg-blue-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaEdit /></button>}
                                             <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="p-1.5 text-purple-500 hover:bg-purple-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaHistory /></button>
-                                            {userRole === 'Admin' && <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaTrash /></button>}
+                                            {userRole === 'SuperAdmin' && <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaTrash /></button>}
                                         </div>
                                     </td>
                                 </tr>

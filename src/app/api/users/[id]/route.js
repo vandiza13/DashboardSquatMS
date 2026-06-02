@@ -14,10 +14,10 @@ export async function PUT(request, props) {
     try {
         const token = request.cookies.get('token')?.value;
         const requester = await verifyJWT(token);
-        if (!requester || requester.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        if (!requester || requester.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
         const body = await request.json();
-        const { role, password } = body; 
+        const { role, password, division } = body; 
 
         if (password) {
             // Logic Reset Password
@@ -27,7 +27,7 @@ export async function PUT(request, props) {
             return NextResponse.json({ message: 'Password berhasil di-reset' });
         } 
         
-        if (role) {
+        if (role || division) {
             // --- SECURITY PATCH: PROTEKSI MUTLAK ID 1 ---
             // Mencegah perubahan role untuk User ID 1
             if (parseInt(id) === 1) {
@@ -35,9 +35,20 @@ export async function PUT(request, props) {
             }
             // --------------------------------------------
 
-            // Logic Ganti Role
-            await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
-            return NextResponse.json({ message: 'Role berhasil diubah' });
+            const updates = [];
+            const values = [];
+            if (role) {
+                updates.push('role = ?');
+                values.push(role);
+            }
+            if (division) {
+                updates.push('division = ?');
+                values.push(division);
+            }
+            values.push(id);
+
+            await db.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+            return NextResponse.json({ message: 'User berhasil diubah' });
         }
 
         return NextResponse.json({ message: 'Tidak ada perubahan' });
@@ -56,7 +67,7 @@ export async function DELETE(request, props) {
     try {
         const token = request.cookies.get('token')?.value;
         const requester = await verifyJWT(token);
-        if (!requester || requester.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        if (!requester || requester.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
         // --- SECURITY PATCH: PROTEKSI MUTLAK ID 1 ---
         // Mencegah penghapusan User ID 1

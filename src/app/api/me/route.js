@@ -16,6 +16,7 @@ export async function GET(request) {
     // Kembalikan Role User
     return NextResponse.json({ 
         username: user.username, 
-        role: user.role 
+        role: user.role,
+        division: user.division
     });
 }

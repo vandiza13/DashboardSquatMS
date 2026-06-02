@@ -10,14 +10,14 @@ export async function GET(request) {
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        // Validasi Role
-        if (!user || user.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        // Validasi Role (Hanya SuperAdmin yang bisa mengelola User)
+        if (!user || user.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
-        const [users] = await db.query('SELECT id, username, role FROM users ORDER BY username ASC');
+        const [users] = await db.query('SELECT id, username, role, division FROM users ORDER BY username ASC');
         return NextResponse.json(users);
     } catch (error) {
-        console.error("Get Users Error:", error);
-        return NextResponse.json({ error: 'Gagal ambil data user' }, { status: 500 });
+        console.error("Get Users Error:", error.message, error.stack);
+        return NextResponse.json({ error: 'Gagal ambil data user', details: error.message }, { status: 500 });
     }
 }
 
@@ -26,11 +26,11 @@ export async function POST(request) {
     try {
         const token = request.cookies.get('token')?.value;
         const requester = await verifyJWT(token);
-        // Validasi Role
-        if (!requester || requester.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        // Validasi Role (Hanya SuperAdmin)
+        if (!requester || requester.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
         const body = await request.json();
-        const { username, password, role } = body;
+        const { username, password, role, division } = body;
 
         // Validasi Input
         if (!username || !password) {
@@ -43,8 +43,8 @@ export async function POST(request) {
 
         // Insert ke DB
         await db.query(
-            'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-            [username, hashedPassword, role || 'User']
+            'INSERT INTO users (username, password, role, division) VALUES (?, ?, ?, ?)',
+            [username, hashedPassword, role || 'User', division || 'SQUAT']
         );
 
         return NextResponse.json({ message: 'User berhasil dibuat' }, { status: 201 });

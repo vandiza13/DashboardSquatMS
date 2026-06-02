@@ -97,8 +97,9 @@ export async function POST(request) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Menu ini khusus Admin.' }, { status: 403 });
+        const hasAccess = user.role === 'SuperAdmin' || (user.role === 'Admin' && ['ALL', 'SQUAT'].includes(user.division));
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki wewenang untuk menambah atau mengedit master site TSEL.' }, { status: 403 });
         }
 
         const body = await request.json();

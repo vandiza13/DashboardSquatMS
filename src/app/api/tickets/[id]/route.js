@@ -52,11 +52,24 @@ export async function PUT(request, props) {
 
         const body = await request.json();
 
-        const [oldData] = await connection.query('SELECT status, update_progres FROM tickets WHERE id = ?', [id]);
+        const [oldData] = await connection.query('SELECT status, update_progres, category FROM tickets WHERE id = ?', [id]);
         if (oldData.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
 
         const oldStatus = oldData[0].status;
         const oldProgress = oldData[0].update_progres || '-';
+        const oldCategory = oldData[0].category;
+
+        // Validasi Edit Tiket CLOSED
+        if (oldStatus === 'CLOSED' && user.role !== 'SuperAdmin') {
+            return NextResponse.json({ error: 'Akses ditolak: Hanya Super Admin (Role Dewa) yang diperbolehkan mengubah tiket yang sudah CLOSED.' }, { status: 403 });
+        }
+
+        // Validasi Edit Lintas Divisi
+        if (user.role !== 'SuperAdmin' && user.division !== 'ALL') {
+            if (user.division !== oldCategory) {
+                return NextResponse.json({ error: `Akses ditolak: Anda hanya bisa mengedit tiket kategori ${user.division}.` }, { status: 403 });
+            }
+        }
 
         await connection.beginTransaction();
 
@@ -203,8 +216,8 @@ export async function DELETE(request, props) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
+        if (!user || user.role !== 'SuperAdmin') {
+            return NextResponse.json({ error: 'Akses ditolak. Hanya Super Admin yang bisa menghapus tiket permanen.' }, { status: 403 });
         }
 
         await connection.beginTransaction();

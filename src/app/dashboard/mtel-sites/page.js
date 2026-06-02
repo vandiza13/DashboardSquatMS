@@ -15,6 +15,7 @@ export default function MtelSitesPage() {
     const [sites, setSites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState(null);
+    const [userDivision, setUserDivision] = useState(null);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({});
@@ -32,7 +33,7 @@ export default function MtelSitesPage() {
     useEffect(() => {
         fetch('/api/me')
             .then(res => res.ok ? res.json() : Promise.reject('Auth Error'))
-            .then(data => setUserRole(data.role))
+            .then(data => { setUserRole(data.role); setUserDivision(data.division); })
             .catch(() => setUserRole('Guest'));
     }, []);
 
@@ -159,7 +160,7 @@ export default function MtelSitesPage() {
                         </h2>
                         <p className="text-[var(--text-secondary)] text-xs md:text-sm mt-0.5">Kelola data Site MTEL & Infrastruktur</p>
                     </div>
-                    {userRole === 'Admin' && (
+                    {(userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'MS'].includes(userDivision))) && (
                         <button
                             onClick={handleCreateClick}
                             className="justify-center flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-xs md:text-sm font-black text-white hover:bg-red-700 shadow-lg shadow-red-500/25 transition-all w-full md:w-auto"
@@ -234,16 +235,18 @@ export default function MtelSitesPage() {
                                     <button onClick={() => handleViewClick(site)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
                                         <FaEye /> Detail
                                     </button>
-                                    {userRole === 'Admin' && (
+                                    {(userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'MS'].includes(userDivision))) ? (
                                         <>
                                             <button onClick={() => handleEditClick(site)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800/30">
                                                 <FaEdit /> Edit
                                             </button>
-                                            <button onClick={() => handleDeleteClick(site)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-800/30">
-                                                <FaTrash /> Hapus
-                                            </button>
+                                            {userRole === 'SuperAdmin' && (
+                                                <button onClick={() => handleDeleteClick(site)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-800/30">
+                                                    <FaTrash /> Hapus
+                                                </button>
+                                            )}
                                         </>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         ))
@@ -280,12 +283,14 @@ export default function MtelSitesPage() {
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     <button onClick={() => handleViewClick(site)} className="p-2 text-emerald-500 hover:bg-emerald-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-emerald-500/40 transition-colors" title="Lihat Detail Site"><FaEye size={12} /></button>
-                                                    {userRole === 'Admin' && (
+                                                    {(userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'MS'].includes(userDivision))) ? (
                                                         <>
                                                             <button onClick={() => handleEditClick(site)} className="p-2 text-blue-500 hover:bg-blue-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-blue-500/40 transition-colors" title="Edit Data Site"><FaEdit size={12} /></button>
-                                                            <button onClick={() => handleDeleteClick(site)} className="p-2 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-red-500/40 transition-colors" title="Hapus Site"><FaTrash size={12} /></button>
+                                                            {userRole === 'SuperAdmin' && (
+                                                                <button onClick={() => handleDeleteClick(site)} className="p-2 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-red-500/40 transition-colors" title="Hapus Site"><FaTrash size={12} /></button>
+                                                            )}
                                                         </>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             </td>
                                         </tr>

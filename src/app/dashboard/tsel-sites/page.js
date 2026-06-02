@@ -15,6 +15,7 @@ export default function TselSitesPage() {
     const [sites, setSites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState(null);
+    const [userDivision, setUserDivision] = useState(null);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({});
@@ -34,7 +35,7 @@ export default function TselSitesPage() {
     useEffect(() => {
         fetch('/api/me')
             .then(res => res.ok ? res.json() : Promise.reject('Auth Error'))
-            .then(data => setUserRole(data.role))
+            .then(data => { setUserRole(data.role); setUserDivision(data.division); })
             .catch(() => setUserRole('Guest'));
     }, []);
 
@@ -167,7 +168,7 @@ export default function TselSitesPage() {
                     </h2>
                     <p className="text-[var(--text-secondary)] text-xs md:text-sm mt-0.5">Kelola data Site TSEL, backbone IP, ODC & ODP fiber optic</p>
                 </div>
-                {userRole === 'Admin' && (
+                {(userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'SQUAT'].includes(userDivision))) && (
                     <button
                         onClick={handleCreateClick}
                         className="justify-center flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs md:text-sm font-black text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25 transition-all w-full md:w-auto"
@@ -309,7 +310,7 @@ export default function TselSitesPage() {
                                 >
                                     <FaEye /> Detail
                                 </button>
-                                {userRole === 'Admin' && (
+                                {userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'SQUAT'].includes(userDivision)) ? (
                                     <>
                                         <button
                                             onClick={() => handleEditClick(site)}
@@ -317,14 +318,16 @@ export default function TselSitesPage() {
                                         >
                                             <FaEdit /> Edit
                                         </button>
-                                        <button
-                                            onClick={() => handleDeleteClick(site)}
-                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-800/30"
-                                        >
-                                            <FaTrash /> Hapus
-                                        </button>
+                                        {userRole === 'SuperAdmin' && (
+                                            <button
+                                                onClick={() => handleDeleteClick(site)}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-800/30"
+                                            >
+                                                <FaTrash /> Hapus
+                                            </button>
+                                        )}
                                     </>
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     ))
@@ -410,7 +413,7 @@ export default function TselSitesPage() {
                                                 >
                                                     <FaEye size={12} />
                                                 </button>
-                                                {userRole === 'Admin' && (
+                                                {userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'SQUAT'].includes(userDivision)) ? (
                                                     <>
                                                         <button
                                                             onClick={() => handleEditClick(site)}
@@ -419,15 +422,17 @@ export default function TselSitesPage() {
                                                         >
                                                             <FaEdit size={12} />
                                                         </button>
-                                                        <button
-                                                            onClick={() => handleDeleteClick(site)}
-                                                            className="p-2 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-red-500/40 transition-colors"
-                                                            title="Hapus Site"
-                                                        >
-                                                            <FaTrash size={12} />
-                                                        </button>
+                                                        {userRole === 'SuperAdmin' && (
+                                                            <button
+                                                                onClick={() => handleDeleteClick(site)}
+                                                                className="p-2 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-red-500/40 transition-colors"
+                                                                title="Hapus Site"
+                                                            >
+                                                                <FaTrash size={12} />
+                                                            </button>
+                                                        )}
                                                     </>
-                                                )}
+                                                ) : null}
                                             </div>
                                         </td>
                                     </tr>

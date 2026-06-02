@@ -1,18 +1,41 @@
 import { google } from 'googleapis';
+import fs from 'fs';
+import path from 'path';
+
+function getGoogleAuth() {
+    let client_email = process.env.GOOGLE_CLIENT_EMAIL;
+    let private_key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+    // Fallback to service-account.json locally
+    if (!client_email || !private_key) {
+        try {
+            const saPath = path.join(process.cwd(), 'service-account.json');
+            if (fs.existsSync(saPath)) {
+                const sa = JSON.parse(fs.readFileSync(saPath, 'utf8'));
+                client_email = sa.client_email;
+                private_key = sa.private_key;
+            }
+        } catch (err) {
+            console.error("⚠️ [GSheet] Failed to load local service-account.json:", err.message);
+        }
+    }
+
+    return new google.auth.GoogleAuth({
+        credentials: {
+            client_email,
+            private_key,
+        },
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+}
+
 
 export async function appendTicketToSheet(ticketData) {
     try {
         console.log("🛠️ [GSheet] Starting input process...");
 
-        // 1. SETUP AUTH (VERCEL COMPATIBLE)
-        const auth = new google.auth.GoogleAuth({
-            credentials: {
-                client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                // Handle newlines for Private Key in Vercel
-                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-            },
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
+        // 1. SETUP AUTH (WITH LOCAL FALLBACK)
+        const auth = getGoogleAuth();
 
         const sheets = google.sheets({ version: 'v4', auth });
         const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '19OIHJz9U0KsCpeNcy0faoOuQzIvu6ChsZ4CpZQqOTCw';
@@ -190,14 +213,8 @@ export async function appendSiteToSheet(siteData, provider = 'TSEL') {
     try {
         console.log(`🛠️ [GSheet] Starting Site ${provider} input process...`);
 
-        // 1. SETUP AUTH (VERCEL COMPATIBLE)
-        const auth = new google.auth.GoogleAuth({
-            credentials: {
-                client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-            },
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
+        // 1. SETUP AUTH (WITH LOCAL FALLBACK)
+        const auth = getGoogleAuth();
 
         const sheets = google.sheets({ version: 'v4', auth });
         // Gunakan Google Sheet TERPISAH khusus data Site
@@ -226,7 +243,7 @@ export async function appendSiteToSheet(siteData, provider = 'TSEL') {
         let isUpdate = false;
         
         for (let i = 0; i < rowsB.length; i++) {
-            if (rowsB[i][0] && String(rowsB[i][0]).trim() === String(siteData.site_id).trim()) {
+            if (rowsB[i][0] && String(rowsB[i][0]).trim().toLowerCase() === String(siteData.site_id).trim().toLowerCase()) {
                 targetRow = i + 1; // 1-indexed row number
                 isUpdate = true;
                 break;

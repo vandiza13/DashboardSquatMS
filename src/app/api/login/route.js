@@ -34,13 +34,14 @@ export async function POST(request) {
         const token = await signJWT({ 
             userId: user.id, 
             username: user.username, 
-            role: user.role 
+            role: user.role,
+            division: user.division
         });
 
         // 5. Kirim Response dengan Cookie
         const response = NextResponse.json({ 
             message: 'Login Berhasil',
-            user: { username: user.username, role: user.role }
+            user: { username: user.username, role: user.role, division: user.division }
         });
 
         // Set Cookie yang Aman (HTTP Only)

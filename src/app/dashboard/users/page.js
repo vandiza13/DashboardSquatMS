@@ -20,7 +20,7 @@ export default function UsersPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('CREATE'); // 'CREATE', 'EDIT', 'RESET'
     const [selectedUser, setSelectedUser] = useState(null);
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'User' });
+    const [formData, setFormData] = useState({ username: '', password: '', role: 'User', division: 'SQUAT' });
 
     // --- FETCH DATA ---
     const fetchUsers = async () => {
@@ -30,6 +30,9 @@ export default function UsersPage() {
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
+            } else {
+                const err = await res.json();
+                alert('Gagal fetch users: ' + (err.error || err.details || 'Unknown'));
             }
         } catch (error) {
             console.error(error);
@@ -51,11 +54,11 @@ export default function UsersPage() {
             let method = 'POST';
             let body = formData;
 
-            // Mode EDIT (Ganti Role)
+            // Mode EDIT (Ganti Role / Divisi)
             if (modalMode === 'EDIT') {
                 url = `/api/users/${selectedUser.id}`;
                 method = 'PUT';
-                body = { role: formData.role }; // Hanya kirim role
+                body = { role: formData.role, division: formData.division };
             }
             // Mode RESET PASSWORD
             else if (modalMode === 'RESET') {
@@ -98,7 +101,7 @@ export default function UsersPage() {
     // --- MODAL TRIGGERS ---
     const openCreateModal = () => {
         setModalMode('CREATE');
-        setFormData({ username: '', password: '', role: 'User' });
+        setFormData({ username: '', password: '', role: 'User', division: 'SQUAT' });
         setIsModalOpen(true);
     };
 
@@ -106,24 +109,32 @@ export default function UsersPage() {
         setModalMode('EDIT');
         setSelectedUser(user);
         // Password dikosongkan karena tidak diedit disini
-        setFormData({ username: user.username, password: '', role: user.role });
+        setFormData({ username: user.username, password: '', role: user.role, division: user.division || 'SQUAT' });
         setIsModalOpen(true);
     };
 
     const openResetModal = (user) => {
         setModalMode('RESET');
         setSelectedUser(user);
-        setFormData({ username: user.username, password: '', role: '' });
+        setFormData({ username: user.username, password: '', role: '', division: '' });
         setIsModalOpen(true);
     };
 
     // --- HELPER UI ---
     const getRoleBadge = (role) => {
         switch (role) {
+            case 'SuperAdmin': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200"><FaShieldAlt /> Super Admin</span>;
             case 'Admin': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100"><FaShieldAlt /> Administrator</span>;
             case 'View': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><FaEye /> View Only</span>;
             default: return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"><FaUserCircle /> User Staff</span>;
         }
+    };
+
+    const getDivisionBadge = (div) => {
+        if (div === 'ALL') return <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">ALL</span>;
+        if (div === 'SQUAT') return <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded">SQUAT</span>;
+        if (div === 'MS') return <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">MS</span>;
+        return <span className="text-xs">{div || '-'}</span>;
     };
 
     // Judul Modal Dinamis
@@ -152,6 +163,7 @@ export default function UsersPage() {
                             <tr className="bg-[var(--bg-base)] border-b border-[var(--border-subtle)] text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">
                                 <th className="px-6 py-5">Username</th>
                                 <th className="px-6 py-5">Role Akses</th>
+                                <th className="px-6 py-5">Divisi</th>
                                 <th className="px-6 py-5 text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -172,6 +184,7 @@ export default function UsersPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">{getRoleBadge(u.role)}</td>
+                                    <td className="px-6 py-4">{getDivisionBadge(u.division)}</td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
 
@@ -232,17 +245,31 @@ export default function UsersPage() {
 
                             {/* Input Role (Tampil saat CREATE atau EDIT) */}
                             {(modalMode === 'CREATE' || modalMode === 'EDIT') && (
-                                <div>
-                                    <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Role Akses</label>
-                                    <select
-                                        value={formData.role}
-                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                        className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] text-[var(--text-primary)] p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                    >
-                                        <option value="Admin" className="bg-[var(--bg-base)] text-[var(--text-primary)]">Administrator (Full Akses)</option>
-                                        <option value="User" className="bg-[var(--bg-base)] text-[var(--text-primary)]">User (Staff Teknisi)</option>
-                                        <option value="View" className="bg-[var(--bg-base)] text-[var(--text-primary)]">View (Monitor Only)</option>
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Role Akses</label>
+                                        <select
+                                            value={formData.role}
+                                            onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                            className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] text-[var(--text-primary)] p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        >
+                                            <option value="Admin" className="bg-[var(--bg-base)] text-[var(--text-primary)]">Administrator</option>
+                                            <option value="User" className="bg-[var(--bg-base)] text-[var(--text-primary)]">User (Staff)</option>
+                                            <option value="View" className="bg-[var(--bg-base)] text-[var(--text-primary)]">View Only</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Divisi</label>
+                                        <select
+                                            value={formData.division}
+                                            onChange={e => setFormData({ ...formData, division: e.target.value })}
+                                            className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] text-[var(--text-primary)] p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        >
+                                            <option value="ALL" className="bg-[var(--bg-base)] text-[var(--text-primary)]">ALL (Global)</option>
+                                            <option value="SQUAT" className="bg-[var(--bg-base)] text-[var(--text-primary)]">SQUAT (TSEL)</option>
+                                            <option value="MS" className="bg-[var(--bg-base)] text-[var(--text-primary)]">MS (MTEL/UMT/FSI)</option>
+                                        </select>
+                                    </div>
                                 </div>
                             )}
 
