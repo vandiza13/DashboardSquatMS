@@ -10,7 +10,7 @@ export async function POST(request) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || (user.role !== 'Admin' && user.role !== 'User')) {
+        if (!user || !['SuperAdmin', 'Admin', 'User'].includes(user.role)) {
             return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
         }
 
@@ -32,8 +32,22 @@ export async function POST(request) {
 
         // Loop setiap baris
         for (const row of data) {
-            // Validasi Field Wajib (ID & Kategori)
+        // Validasi Field Wajib (ID & Kategori)
             if (!row.id_tiket || !row.category) continue;
+
+            const allowedCategoriesMap = {
+                SQUAT: ['SQUAT'],
+                MS: ['MTEL', 'UMT', 'CENTRATAMA'],
+                ALL: ['SQUAT', 'MTEL', 'UMT', 'CENTRATAMA']
+            };
+
+            const currentDivision = user.division || 'SQUAT';
+            if (user.role !== 'SuperAdmin' && currentDivision !== 'ALL') {
+                const allowedCategories = allowedCategoriesMap[currentDivision] || [];
+                if (!allowedCategories.includes(row.category)) {
+                    continue; // Skip tiket yang tidak sesuai divisinya
+                }
+            }
 
             // Konversi Tanggal (Prevent Invalid Date)
             let ticketTime = new Date();

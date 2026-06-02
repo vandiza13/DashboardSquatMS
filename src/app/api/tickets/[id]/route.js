@@ -65,9 +65,16 @@ export async function PUT(request, props) {
         }
 
         // Validasi Edit Lintas Divisi
+        const allowedCategoriesMap = {
+            SQUAT: ['SQUAT'],
+            MS: ['MTEL', 'UMT', 'CENTRATAMA'],
+            ALL: ['SQUAT', 'MTEL', 'UMT', 'CENTRATAMA']
+        };
+
         if (user.role !== 'SuperAdmin' && user.division !== 'ALL') {
-            if (user.division !== oldCategory) {
-                return NextResponse.json({ error: `Akses ditolak: Anda hanya bisa mengedit tiket kategori ${user.division}.` }, { status: 403 });
+            const allowedCategories = allowedCategoriesMap[user.division] || [];
+            if (!allowedCategories.includes(oldCategory)) {
+                return NextResponse.json({ error: `Akses ditolak: Anda hanya bisa mengedit tiket kategori divisi ${user.division}.` }, { status: 403 });
             }
         }
 

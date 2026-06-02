@@ -18,8 +18,8 @@ async function run() {
     });
     
     try {
-        const [rows] = await db.query('DESCRIBE technicians');
-        console.log(rows);
+        await db.query("ALTER TABLE technicians ADD COLUMN division ENUM('SQUAT', 'MS') DEFAULT 'SQUAT' AFTER name");
+        console.log("Success");
     } catch (e) {
         console.error(e);
     }

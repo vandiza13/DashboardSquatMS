@@ -133,10 +133,21 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Data wajib tidak lengkap' }, { status: 400 });
         }
 
+        // Fallback untuk token versi lama yang belum memiliki division
+        const currentRole = user.role || 'User';
+        const currentDivision = user.division || 'SQUAT';
+
         // Validasi Divisi saat Create
-        if (user.role !== 'SuperAdmin' && user.division !== 'ALL') {
-            if (user.division !== category) {
-                return NextResponse.json({ error: `Akses ditolak. Anda hanya bisa membuat tiket kategori ${user.division}.` }, { status: 403 });
+        const allowedCategoriesMap = {
+            SQUAT: ['SQUAT'],
+            MS: ['MTEL', 'UMT', 'CENTRATAMA'],
+            ALL: ['SQUAT', 'MTEL', 'UMT', 'CENTRATAMA']
+        };
+
+        if (currentRole !== 'SuperAdmin' && currentDivision !== 'ALL') {
+            const allowedCategories = allowedCategoriesMap[currentDivision] || [];
+            if (!allowedCategories.includes(category)) {
+                return NextResponse.json({ error: `Akses ditolak. Divisi ${currentDivision} tidak bisa membuat tiket kategori ${category}.` }, { status: 403 });
             }
         }
 

@@ -65,6 +65,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userRole, setUserRole] = useState('');
+    const [userDivision, setUserDivision] = useState('SQUAT');
 
     const [isWarningOpen, setIsWarningOpen] = useState(false);
 
@@ -111,11 +112,19 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 .then(([techData, userData]) => {
                     setTechnicians(techData || []);
                     setUserRole(userData.role);
+                    const div = userData.division || 'SQUAT';
+                    setUserDivision(div);
+                    if (!initialData) {
+                        setFormData(prev => ({
+                            ...prev,
+                            category: div === 'MS' ? 'MTEL' : 'SQUAT'
+                        }));
+                    }
                 })
                 .catch(err => console.error("Error loading data:", err))
                 .finally(() => setLoading(false));
         }
-    }, [isOpen]);
+    }, [isOpen, initialData]);
 
     // 2. SET DATA UNTUK EDIT
     useEffect(() => {
@@ -159,7 +168,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 update_progres: initialData.update_progres || '',
                 technician_nik: selectedTech,
             });
-        } else {
+        } else if (!initialData && !isOpen) {
             // Reset Form Baru
             setFormData({
                 category: 'SQUAT',
@@ -183,6 +192,14 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     if (!isOpen) return null;
 
     const isRestrictedEdit = userRole === 'User' && !!initialData;
+
+    // Menentukan kategori mana saja yang boleh dipilih berdasarkan Divisi User
+    const allowedCategories = Object.keys(SUB_CATEGORIES).filter(cat => {
+        if (userDivision === 'ALL') return true;
+        if (userDivision === 'SQUAT') return cat === 'SQUAT';
+        if (userDivision === 'MS') return ['MTEL', 'UMT', 'CENTRATAMA'].includes(cat);
+        return false;
+    });
 
     // --- LOGIKA SUBMIT ---
     const executeSubmit = async () => {
@@ -259,7 +276,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                 onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '', district: '' })}
                                 disabled={isRestrictedEdit}
                             >
-                                {Object.keys(SUB_CATEGORIES).map(cat => (
+                                {allowedCategories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </select>

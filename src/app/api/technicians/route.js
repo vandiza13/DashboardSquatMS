@@ -4,14 +4,27 @@ import { verifyJWT } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// GET: Ambil Semua Teknisi
+// GET: Ambil Semua Teknisi (dengan Filter)
 export async function GET(request) {
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const [technicians] = await db.query('SELECT * FROM technicians ORDER BY name ASC');
+        const { searchParams } = new URL(request.url);
+        const divisionFilter = searchParams.get('division') || 'ALL';
+
+        let query = 'SELECT * FROM technicians WHERE 1=1';
+        const params = [];
+
+        if (divisionFilter !== 'ALL') {
+            query += ' AND division = ?';
+            params.push(divisionFilter);
+        }
+
+        query += ' ORDER BY name ASC';
+
+        const [technicians] = await db.query(query, params);
         return NextResponse.json(technicians);
     } catch (error) {
         console.error('Technicians Error:', error);
@@ -25,22 +38,29 @@ export async function POST(request) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
         
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin.' }, { status: 403 });
+        const currentRole = user?.role || 'User';
+        const currentDivision = user?.division || 'SQUAT';
+
+        if (!user || (currentRole !== 'Admin' && currentRole !== 'SuperAdmin')) {
+            return NextResponse.json({ error: 'Akses ditolak. Hanya Admin atau SuperAdmin.' }, { status: 403 });
         }
 
         const body = await request.json();
-        // HAPUS sto & sector dari sini
-        const { nik, name, position_name, phone_number } = body;
+        const { nik, name, position_name, phone_number, division } = body;
 
-        if (!nik || !name) {
-            return NextResponse.json({ error: 'NIK dan nama harus diisi' }, { status: 400 });
+        if (!nik || !name || !division) {
+            return NextResponse.json({ error: 'NIK, nama, dan divisi harus diisi' }, { status: 400 });
         }
 
-        // Query Insert Tanpa STO & Sector
+        if (currentRole !== 'SuperAdmin' && currentDivision !== 'ALL') {
+            if (currentDivision !== division) {
+                return NextResponse.json({ error: `Akses ditolak. Anda hanya bisa membuat teknisi divisi ${currentDivision}.` }, { status: 403 });
+            }
+        }
+
         await db.query(
-            'INSERT INTO technicians (nik, name, position_name, phone_number, is_active) VALUES (?, ?, ?, ?, 1)',
-            [nik, name, position_name, phone_number]
+            'INSERT INTO technicians (nik, name, position_name, phone_number, division, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+            [nik, name, position_name, phone_number, division]
         );
 
         return NextResponse.json({ message: 'Teknisi berhasil ditambahkan' }, { status: 201 });

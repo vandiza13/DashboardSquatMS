@@ -13,19 +13,36 @@ export async function PUT(request, props) {
         // Cek Auth
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
+        
+        const currentRole = user?.role || 'User';
+        const currentDivision = user?.division || 'SQUAT';
 
-        if (!user || user.role !== 'Admin') {
+        if (!user || (currentRole !== 'Admin' && currentRole !== 'SuperAdmin')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
         const body = await request.json();
-        const { name, position_name, phone_number, is_active, new_nik } = body;
+        const { name, position_name, phone_number, is_active, new_nik, division } = body;
 
         // FIX: Pastikan status tidak NULL. Jika kosong, anggap 1 (Aktif)
         const status = (is_active === undefined || is_active === null) ? 1 : is_active;
 
         const updatedNik = new_nik || nik;
         const isNikChanged = updatedNik !== nik;
+
+        // Cek teknisi saat ini untuk validasi divisi
+        const [existingTech] = await db.query('SELECT division FROM technicians WHERE nik = ?', [nik]);
+        if (existingTech.length === 0) {
+            return NextResponse.json({ error: 'Teknisi tidak ditemukan' }, { status: 404 });
+        }
+
+        const techDivision = existingTech[0].division;
+
+        if (currentRole !== 'SuperAdmin' && currentDivision !== 'ALL') {
+            if (currentDivision !== techDivision || currentDivision !== division) {
+                return NextResponse.json({ error: `Akses ditolak. Anda hanya bisa mengedit teknisi divisi ${currentDivision}.` }, { status: 403 });
+            }
+        }
 
         // Gunakan transaction jika NIK berubah agar child table ikut terupdate
         const connection = await db.getConnection();
@@ -40,9 +57,9 @@ export async function PUT(request, props) {
             // 1. Update data teknisi di tabel parent
             const [result] = await connection.query(
                 `UPDATE technicians 
-                 SET nik = ?, name = ?, position_name = ?, phone_number = ?, is_active = ? 
+                 SET nik = ?, name = ?, position_name = ?, phone_number = ?, division = ?, is_active = ? 
                  WHERE nik = ?`,
-                [updatedNik, name, position_name, phone_number, status, nik]
+                [updatedNik, name, position_name, phone_number, division, status, nik]
             );
 
             if (result.affectedRows === 0) {
@@ -84,8 +101,8 @@ export async function DELETE(request, props) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || user.role !== 'Admin') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        if (!user || user.role !== 'SuperAdmin') {
+            return NextResponse.json({ error: 'Hanya SuperAdmin yang bisa menghapus data permanen' }, { status: 403 });
         }
 
         const [result] = await db.query('DELETE FROM technicians WHERE nik = ?', [nik]);

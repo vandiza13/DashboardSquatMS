@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { FaTimes, FaSave, FaUserTie } from 'react-icons/fa';
 
-export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit }) {
+export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit, activeDivision }) {
     const [formData, setFormData] = useState({
         nik: '',
         name: '',
         position_name: '',
         phone_number: '',
+        division: activeDivision || 'SQUAT',
         is_active: 1 // Default Active
     });
     const [loading, setLoading] = useState(false);
@@ -20,6 +21,7 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                 name: technicianToEdit.name || '',
                 position_name: technicianToEdit.position_name || '',
                 phone_number: technicianToEdit.phone_number || '',
+                division: technicianToEdit.division || activeDivision || 'SQUAT',
                 // FIX: Pastikan status is_active lama terbawa
                 is_active: technicianToEdit.is_active !== undefined ? technicianToEdit.is_active : 1
             });
@@ -29,10 +31,11 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                 name: '',
                 position_name: '',
                 phone_number: '',
+                division: activeDivision || 'SQUAT',
                 is_active: 1
             });
         }
-    }, [technicianToEdit, isOpen]);
+    }, [technicianToEdit, isOpen, activeDivision]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -56,7 +59,10 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error('Gagal menyimpan data');
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Gagal menyimpan data');
+            }
 
             onClose(true);
         } catch (error) {
@@ -105,43 +111,57 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit 
                         </div>
                     </div>
 
-                    {/* Jabatan */}
-                    <div>
-                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Jabatan / Posisi</label>
-                        <div className="relative">
-                            <FaUserTie className="absolute left-3 top-3 text-[var(--text-muted)]" />
-                            <input
-                                type="text"
-                                placeholder="Contoh: Helpdesk, Teknisi Lapangan"
-                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-blue-500"
-                                value={formData.position_name}
-                                onChange={(e) => setFormData({ ...formData, position_name: e.target.value })}
-                            />
+                    {/* Divisi & Jabatan */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Divisi</label>
+                            <select
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                value={formData.division}
+                                onChange={(e) => setFormData({ ...formData, division: e.target.value })}
+                                required
+                            >
+                                <option value="SQUAT">SQUAT</option>
+                                <option value="MS">MS</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Jabatan / Posisi</label>
+                            <div className="relative">
+                                <FaUserTie className="absolute left-3 top-3 text-[var(--text-muted)]" />
+                                <input
+                                    type="text"
+                                    placeholder="Contoh: Helpdesk"
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-blue-500"
+                                    value={formData.position_name}
+                                    onChange={(e) => setFormData({ ...formData, position_name: e.target.value })}
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* No HP */}
-                    <div>
-                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Nomor HP / WhatsApp</label>
-                        <input
-                            type="text"
-                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
-                            value={formData.phone_number}
-                            onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                        />
-                    </div>
-
-                    {/* FIELD BARU: STATUS AKTIF */}
-                    <div>
-                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Status Keaktifan</label>
-                        <select
-                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
-                            value={formData.is_active}
-                            onChange={(e) => setFormData({ ...formData, is_active: parseInt(e.target.value) })}
-                        >
-                            <option value={1}>Aktif</option>
-                            <option value={0}>Non-Aktif (Resign/Cuti)</option>
-                        </select>
+                    {/* No HP & Status Aktif */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Nomor HP / WA</label>
+                            <input
+                                type="text"
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                value={formData.phone_number}
+                                onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Status Keaktifan</label>
+                            <select
+                                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                value={formData.is_active}
+                                onChange={(e) => setFormData({ ...formData, is_active: parseInt(e.target.value) })}
+                            >
+                                <option value={1}>Aktif</option>
+                                <option value={0}>Non-Aktif</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
