@@ -119,10 +119,10 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="w-full max-w-lg bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="w-full max-w-lg bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-surface-2)]">
+                <div className="px-6 py-4 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-surface-2)] shrink-0">
                     <h3 className="font-bold text-lg text-[var(--text-primary)] flex items-center gap-2">
                         <FaFileUpload className="text-blue-600 dark:text-blue-400" /> Import Tiket (Excel)
                     </h3>
@@ -132,7 +132,7 @@ export default function BulkTicketModal({ isOpen, onClose, onSuccess }) {
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
 
                     {/* Step 1: Download Template */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex justify-between items-center">

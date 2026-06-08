@@ -76,17 +76,17 @@ export default function TechnicianFormModal({ isOpen, onClose, technicianToEdit,
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="w-full max-w-lg bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden">
-                <div className="bg-slate-900 px-6 py-4 flex justify-between items-center text-white">
+            <div className="w-full max-w-lg bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <h3 className="font-bold text-lg">
                         {technicianToEdit ? 'Edit Teknisi' : 'Tambah Teknisi Baru'}
                     </h3>
-                    <button onClick={() => onClose(false)} className="text-slate-400 hover:text-white">
+                    <button onClick={() => onClose(false)} className="text-slate-400 hover:text-white transition">
                         <FaTimes />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
                     {/* NIK & Nama */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>

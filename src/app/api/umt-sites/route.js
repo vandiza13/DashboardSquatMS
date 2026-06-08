@@ -23,7 +23,7 @@ export async function GET(request) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || !['Admin', 'User', 'View'].includes(user.role)) {
+        if (!user || !['SuperAdmin', 'Admin', 'User', 'View'].includes(user.role)) {
             return NextResponse.json({ error: 'Akses ditolak. Tidak memiliki izin yang cukup.' }, { status: 403 });
         }
 

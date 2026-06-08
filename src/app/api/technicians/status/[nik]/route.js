@@ -6,7 +6,7 @@ export async function PUT(request, props) {
     try {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
-        if (!user || user.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        if (!user || !['SuperAdmin', 'Admin'].includes(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
         const params = await props.params;
         const { nik } = params;

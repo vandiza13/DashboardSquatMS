@@ -127,7 +127,7 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col">
+            <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex justify-between items-center bg-slate-900 dark:bg-slate-800 text-white shrink-0">
                     <div>
@@ -139,7 +139,7 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                     </button>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 p-3 rounded-lg text-xs text-blue-700 dark:text-blue-300">
                         <p className="font-bold mb-1">Cara Penggunaan:</p>
                         <ul className="list-decimal pl-4 space-y-0.5">

@@ -8,8 +8,8 @@ export async function PUT(request, props) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        // HANYA ADMIN YANG BOLEH RESET PASSWORD ORANG LAIN
-        if (!user || user.role !== 'Admin') {
+        // HANYA ADMIN & SUPERADMIN YANG BOLEH RESET PASSWORD ORANG LAIN
+        if (!user || !['SuperAdmin', 'Admin'].includes(user.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 

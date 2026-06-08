@@ -64,7 +64,7 @@ export default function FsiSitesPage() {
     }, [search]);
 
     useEffect(() => {
-        if (['Admin', 'User', 'View'].includes(userRole)) {
+        if (['SuperAdmin', 'Admin', 'User', 'View'].includes(userRole)) {
             const timer = setTimeout(fetchSites, 400);
             return () => clearTimeout(timer);
         }
@@ -108,8 +108,8 @@ export default function FsiSitesPage() {
         );
     }
 
-    // Role Guard: Hanya Admin, User, View
-    if (!['Admin', 'User', 'View'].includes(userRole)) {
+    // Role Guard: Hanya SuperAdmin, Admin, User, View
+    if (!['SuperAdmin', 'Admin', 'User', 'View'].includes(userRole)) {
         return (
             <div className="flex h-[80vh] w-full flex-col items-center justify-center text-center px-6 animate-[fadeIn_0.3s_ease_forwards]">
                 <div className="bg-red-100 dark:bg-red-900/30 p-5 rounded-full mb-4 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/30 shadow-sm animate-pulse">

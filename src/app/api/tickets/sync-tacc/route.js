@@ -7,7 +7,7 @@ export async function POST(request) {
         const token = request.cookies.get('token')?.value;
         const user = await verifyJWT(token);
 
-        if (!user || (user.role !== 'Admin' && user.role !== 'User')) {
+        if (!user || !['SuperAdmin', 'Admin', 'User'].includes(user.role)) {
             return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
         }
 
