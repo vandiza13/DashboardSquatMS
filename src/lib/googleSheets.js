@@ -44,7 +44,7 @@ export async function appendTicketToSheet(ticketData) {
         const {
             category, subcategory, priority,
             id_tiket, id_tiket_tacc,
-            deskripsi, sto, district, tiket_time, close_time, root_cause, technician_full
+            deskripsi, sto, branch, tiket_time, close_time, root_cause, technician_full
         } = ticketData;
 
         // ==========================================================
@@ -119,15 +119,15 @@ export async function appendTicketToSheet(ticketData) {
         let rowValues = [];
 
         if (sheetName === 'TSEL') {
-            // --- TSEL: Has PRIORITY & DISTRICT Column ---
+            // --- TSEL: Has PRIORITY & BRANCH Column ---
             rowValues = [
                 nomorUrut,          // A
                 id_tiket,           // B
                 deskripsi,          // C
                 sto || '',          // D
                 priority || '-',     // E: PRIORITY
-                district || '',     // F: DISTRICT
-                '', '', '',     // G-I (Empty)
+                branch || '',       // F: BRANCH
+                '', '', '',         // G-I (Empty)
                 formatDate(tiket_time), // J
                 formatDate(close_time), // K
                 '', '',             // L-M
@@ -138,14 +138,14 @@ export async function appendTicketToSheet(ticketData) {
             ];
 
         } else if (sheetName === 'OLO') {
-            // --- OLO: With PRIORITY & DISTRICT ---
+            // --- OLO: With PRIORITY & BRANCH ---
             rowValues = [
                 nomorUrut,          // A
                 id_tiket,           // B
                 deskripsi,          // C
                 sto || '',          // D
                 priority || '-',     // E: PRIORITY
-                district || '',     // F: DISTRICT
+                branch || '',       // F: BRANCH
                 '', '',             // G-H (Empty)
                 formatDate(tiket_time), // I
                 formatDate(close_time), // J
@@ -157,38 +157,40 @@ export async function appendTicketToSheet(ticketData) {
             ];
 
         } else if (sheetName === 'MTEL') {
-            // --- MTEL: [NEW] Has ID TACC in Column C ---
-            // Ensure you add "ID TACC" column in Excel Column C
+            // --- MTEL: Has ID TACC, STO, BRANCH ---
             rowValues = [
                 nomorUrut,              // A
                 id_tiket_tacc || '-',   // B: ID TACC [NEW]
                 id_tiket,               // C
                 deskripsi,              // D
                 '',                     // E: TTR HOUR
-                subcategory || '',      // F: TICKET TYPE
-                formatDate(tiket_time), // G
-                formatDate(close_time), // H
-                'CLOSED',               // I
-                technician_full,        // J
-                root_cause,             // K
-                ''                      // L
+                sto || '',              // F: STO [NEW]
+                branch || '',           // G: BRANCH [NEW]
+                subcategory || '',      // H: TICKET TYPE
+                formatDate(tiket_time), // I
+                formatDate(close_time), // J
+                'CLOSED',               // K
+                technician_full,        // L
+                root_cause,             // M
+                ''                      // N
             ];
 
         } else if (sheetName === 'UMT' || sheetName === 'FSI') {
-            // --- UMT & FSI: [NEW] Has ID TACC in Column C ---
-            // Ensure you add "ID TACC" column in Excel Column C
+            // --- UMT & FSI: Has ID TACC, STO, BRANCH ---
             rowValues = [
                 nomorUrut,              // A
                 id_tiket_tacc || '-',   // B
                 id_tiket,               // C
                 deskripsi,              // D
                 '',                     // E: TTR HOUR
-                formatDate(tiket_time), // F
-                formatDate(close_time), // G
-                'CLOSED',               // H
-                technician_full,        // I
-                root_cause,             // J
-                ''                      // K
+                sto || '',              // F: STO [NEW]
+                branch || '',           // G: BRANCH [NEW]
+                formatDate(tiket_time), // H
+                formatDate(close_time), // I
+                'CLOSED',               // J
+                technician_full,        // K
+                root_cause,             // L
+                ''                      // M
             ];
         }
 

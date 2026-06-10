@@ -189,7 +189,7 @@ export default function ProductivityPage() {
                     'ID TACC': isTaccCategory ? (row.id_tiket_tacc || '-') : '-',
                     'Kategori': row.category,
                     'Sub Kategori': row.subcategory,
-                    'District': isSquat ? (row.district || '-') : '-',
+                    'Branch': row.branch || '-',
                     'Priority (SLA)': isTsel ? (row.priority || '-') : '-',
                     'Status': row.status,
                     'STO': row.sto || '-',
@@ -264,7 +264,7 @@ export default function ProductivityPage() {
                 { wch: 18 }, // ID TACC
                 { wch: 12 }, // Kategori
                 { wch: 15 }, // Sub Kategori
-                { wch: 12 }, // District
+                { wch: 12 }, // Branch
                 { wch: 15 }, // Priority
                 { wch: 10 }, // Status
                 { wch: 8 },  // STO

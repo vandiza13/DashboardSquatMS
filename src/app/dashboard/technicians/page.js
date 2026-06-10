@@ -14,6 +14,7 @@ export default function TechniciansPage() {
     // STATE BARU: Menyimpan Role User yang sedang login
     const [userRole, setUserRole] = useState('');
     const [userDivision, setUserDivision] = useState('');
+    const [selectedNiks, setSelectedNiks] = useState([]);
     
     // Default tab
     const [activeTab, setActiveTab] = useState('SQUAT');
@@ -61,12 +62,85 @@ export default function TechniciansPage() {
         if (userDivision !== 'ALL' && userDivision !== tab) {
             return; // Cegah pindah tab jika bukan divisi dia
         }
+        setSelectedNiks([]);
         setActiveTab(tab);
         fetchTechnicians(tab);
     };
 
     const handleSearch = (e) => {
         setSearch(e.target.value);
+        setSelectedNiks([]);
+    };
+
+    const handleSelectRow = (nik) => {
+        setSelectedNiks(prev => {
+            if (prev.includes(nik)) {
+                return prev.filter(n => n !== nik);
+            } else {
+                return [...prev, nik];
+            }
+        });
+    };
+
+    const handleSelectAll = () => {
+        const filteredNiks = filteredTechnicians.map(t => t.nik);
+        const allSelected = filteredNiks.length > 0 && filteredNiks.every(nik => selectedNiks.includes(nik));
+
+        if (allSelected) {
+            setSelectedNiks(prev => prev.filter(nik => !filteredNiks.includes(nik)));
+        } else {
+            setSelectedNiks(prev => {
+                const newSelection = [...prev];
+                filteredNiks.forEach(nik => {
+                    if (!newSelection.includes(nik)) {
+                        newSelection.push(nik);
+                    }
+                });
+                return newSelection;
+            });
+        }
+    };
+
+    const handleBulkAction = async (action, targetDivision = null) => {
+        if (selectedNiks.length === 0) return;
+
+        let confirmMsg = '';
+        if (action === 'delete') {
+            confirmMsg = `Apakah Anda yakin ingin menghapus ${selectedNiks.length} teknisi terpilih secara permanen? Tindakan ini tidak dapat dibatalkan.`;
+        } else if (action === 'edit-division') {
+            confirmMsg = `Apakah Anda yakin ingin memindahkan ${selectedNiks.length} teknisi terpilih ke divisi ${targetDivision}?`;
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/technicians/bulk-action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action,
+                    niks: selectedNiks,
+                    division: targetDivision
+                })
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+                alert(result.message || 'Aksi massal berhasil dilakukan.');
+                setSelectedNiks([]);
+                fetchTechnicians(activeTab);
+            } else {
+                alert(result.error || 'Gagal memproses aksi massal.');
+            }
+        } catch (error) {
+            console.error('Error bulk action:', error);
+            alert('Terjadi kesalahan saat memproses aksi massal.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleDelete = async (nik) => {
@@ -114,6 +188,14 @@ export default function TechniciansPage() {
             {/* Header: Nama & Status */}
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
+                    {userRole === 'SuperAdmin' && (
+                        <input 
+                            type="checkbox"
+                            className="rounded border-[var(--border-color)] text-blue-600 focus:ring-blue-500/20 h-4 w-4 cursor-pointer mr-1 shrink-0 bg-[var(--bg-base)]"
+                            checked={selectedNiks.includes(tech.nik)}
+                            onChange={() => handleSelectRow(tech.nik)}
+                        />
+                    )}
                     <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 shadow-sm">
                         <FaUserCog />
                     </div>
@@ -224,6 +306,59 @@ export default function TechniciansPage() {
                     />
                 </div>
             </div>
+            {/* --- BULK ACTION BAR (INLINE) --- */}
+            {selectedNiks.length > 0 && (
+                <div className="bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in shadow-sm">
+                    <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-600/20 shrink-0">
+                                {selectedNiks.length}
+                            </div>
+                            <div>
+                                <div className="text-sm font-bold text-blue-900 dark:text-blue-100">Data Terpilih</div>
+                                <div className="text-xs text-blue-700 dark:text-blue-300 hidden md:block">Pilih aksi massal untuk teknisi</div>
+                            </div>
+                        </div>
+                        {/* Tombol Batal Mobile */}
+                        <button 
+                            onClick={() => setSelectedNiks([])}
+                            className="md:hidden text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700/50"
+                        >
+                            Batal
+                        </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto custom-scrollbar pb-1 md:pb-0">
+                        <button 
+                            onClick={() => handleBulkAction('edit-division', activeTab === 'SQUAT' ? 'MS' : 'SQUAT')}
+                            className={`flex-1 md:flex-none px-4 py-2.5 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap text-white
+                                ${activeTab === 'SQUAT' 
+                                    ? 'bg-purple-600 border-purple-500 hover:bg-purple-700' 
+                                    : 'bg-blue-600 border-blue-500 hover:bg-blue-700'
+                                }`}
+                        >
+                            <FaUserCog size={14} />
+                            Pindah ke {activeTab === 'SQUAT' ? 'MS' : 'SQUAT'}
+                        </button>
+
+                        <button 
+                            onClick={() => handleBulkAction('delete')}
+                            className="flex-1 md:flex-none px-4 py-2.5 text-xs font-bold bg-red-600 text-white border-red-500 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+                        >
+                            <FaTrash size={14} />
+                            Hapus
+                        </button>
+
+                        {/* Tombol Batal Desktop */}
+                        <button 
+                            onClick={() => setSelectedNiks([])}
+                            className="hidden md:flex px-4 py-2.5 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-xl transition-colors whitespace-nowrap items-center justify-center"
+                        >
+                            Batal
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* --- CONTENT AREA --- */}
 
@@ -246,12 +381,22 @@ export default function TechniciansPage() {
                     <table className="w-full text-left text-sm">
                         <thead className="bg-[var(--bg-base)] text-[var(--text-muted)] border-b border-[var(--border-color)]">
                             <tr>
+                                {userRole === 'SuperAdmin' && (
+                                    <th className="px-6 py-4 w-12 text-center">
+                                        <input 
+                                            type="checkbox"
+                                            className="rounded border-[var(--border-color)] text-blue-600 focus:ring-blue-500/20 h-4 w-4 cursor-pointer bg-[var(--bg-base)]"
+                                            checked={filteredTechnicians.length > 0 && filteredTechnicians.every(t => selectedNiks.includes(t.nik))}
+                                            onChange={handleSelectAll}
+                                        />
+                                    </th>
+                                )}
                                 <th className="px-6 py-4 font-bold">Nama Teknisi</th>
                                 <th className="px-6 py-4 font-bold">Jabatan</th>
                                 <th className="px-6 py-4 font-bold">NIK</th>
                                 <th className="px-6 py-4 font-bold">No HP</th>
                                 <th className="px-6 py-4 font-bold">Status</th>
-
+ 
                                 {/* LOGIC HEADER AKSI: HANYA MUNCUL JIKA ADMIN / SUPERADMIN */}
                                 {(userRole === 'Admin' || userRole === 'SuperAdmin') && (
                                     <th className="px-6 py-4 font-bold text-center">Aksi</th>
@@ -261,15 +406,26 @@ export default function TechniciansPage() {
                         <tbody className="divide-y divide-[var(--border-subtle)]">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={(userRole === 'Admin' || userRole === 'SuperAdmin') ? 6 : 5} className="px-6 py-8 text-center text-[var(--text-muted)]">Memuat data teknisi...</td>
+                                    <td colSpan={userRole === 'SuperAdmin' ? 7 : (userRole === 'Admin' ? 6 : 5)} className="px-6 py-8 text-center text-[var(--text-muted)]">Memuat data teknisi...</td>
                                 </tr>
                             ) : filteredTechnicians.length === 0 ? (
                                 <tr>
-                                    <td colSpan={(userRole === 'Admin' || userRole === 'SuperAdmin') ? 6 : 5} className="px-6 py-8 text-center text-[var(--text-muted)]">Tidak ada data teknisi divisi ini.</td>
+                                    <td colSpan={userRole === 'SuperAdmin' ? 7 : (userRole === 'Admin' ? 6 : 5)} className="px-6 py-8 text-center text-[var(--text-muted)]">Tidak ada data teknisi divisi ini.</td>
                                 </tr>
                             ) : (
                                 filteredTechnicians.map((tech) => (
                                     <tr key={tech.nik} className="hover:bg-[var(--bg-base)] transition-colors group">
+                                        {userRole === 'SuperAdmin' && (
+                                            <td className="px-6 py-4 text-center">
+                                                <input 
+                                                    type="checkbox"
+                                                    className="rounded border-[var(--border-color)] text-blue-600 focus:ring-blue-500/20 h-4 w-4 cursor-pointer bg-[var(--bg-base)]"
+                                                    checked={selectedNiks.includes(tech.nik)}
+                                                    onChange={() => handleSelectRow(tech.nik)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            </td>
+                                        )}
                                         <td className="px-6 py-4 font-semibold text-[var(--text-secondary)] flex items-center gap-3">
                                             <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-slate-800 dark:text-slate-400 dark:group-hover:bg-blue-900/30 dark:group-hover:text-blue-400 transition-colors">
                                                 <FaUserCog />
@@ -319,13 +475,13 @@ export default function TechniciansPage() {
                 </div>
             </div>
 
-            {/* Modal Form hanya dirender, tapi logic di dalamnya sudah terlindungi API Backend */}
             <TechnicianFormModal
                 isOpen={isModalOpen}
                 onClose={handleModalClose}
                 technicianToEdit={editingTech}
                 activeDivision={activeTab}
             />
+
         </div>
     );
 }

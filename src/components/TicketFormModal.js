@@ -12,15 +12,7 @@ const SUB_CATEGORIES = {
 };
 
 // --- DATA STO (URUT ABJAD) ---
-const STO_LIST = [
-    'BBL', 'BEK', 'BGG', 'CBG', 'CBR', 'CIB', 'CIK',
-    'DNI', 'EJI', 'GDM', 'JBB', 'KLB', 'KRA', 'LMA',
-    'MGB', 'PBY', 'PDE', 'PKY', 'SMH', 'STN', 'SUE',
-    'TAR', 'TBL'
-].sort();
-
-// --- DATA DISTRICT (SQUAT ONLY) ---
-const DISTRICT_LIST = ['BEKASI', 'KARAWANG'];
+// Now fetched dynamically from mappings
 
 // --- [UPDATE] KONFIGURASI PRIORITY (SLA) ---
 // 1. TSEL (Ditambah CNQ)
@@ -49,7 +41,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         id_tiket: '',
         id_tiket_tacc: '',
         sto: '',
-        district: '',
+        branch: '',
         tiket_time: '',
         deskripsi: '',
         status: 'OPEN',
@@ -66,6 +58,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userRole, setUserRole] = useState('');
     const [userDivision, setUserDivision] = useState('SQUAT');
+    const [stoMappings, setStoMappings] = useState([]);
 
     const [isWarningOpen, setIsWarningOpen] = useState(false);
 
@@ -107,10 +100,12 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
             setLoading(true);
             const fetchTechs = fetch('/api/technicians/active').then(res => res.json());
             const fetchMe = fetch('/api/me').then(res => res.ok ? res.json() : Promise.reject('Auth Error'));
+            const fetchMappings = fetch('/api/admin/sto-mappings').then(res => res.json());
 
-            Promise.all([fetchTechs, fetchMe])
-                .then(([techData, userData]) => {
+            Promise.all([fetchTechs, fetchMe, fetchMappings])
+                .then(([techData, userData, mappingsData]) => {
                     setTechnicians(techData || []);
+                    setStoMappings(Array.isArray(mappingsData) ? mappingsData : []);
                     setUserRole(userData.role);
                     const div = userData.division || 'SQUAT';
                     setUserDivision(div);
@@ -161,7 +156,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 id_tiket: initialData.id_tiket || '',
                 id_tiket_tacc: initialData.id_tiket_tacc || '',
                 sto: initialData.sto || '',
-                district: initialData.district || '',
+                branch: initialData.branch || '',
                 tiket_time: formatDateTimeLocal(initialData.tiket_time),
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
@@ -177,7 +172,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 id_tiket: '',
                 id_tiket_tacc: '',
                 sto: '',
-                district: '',
+                branch: '',
                 tiket_time: '',
                 deskripsi: '',
                 status: 'OPEN',
@@ -273,7 +268,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <select
                                 className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                 value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '', district: '' })}
+                                onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '', branch: '' })}
                                 disabled={isRestrictedEdit}
                             >
                                 {allowedCategories.map(cat => (
@@ -318,43 +313,40 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     )}
 
-                    {/* --- INPUT STO (SQUAT) --- */}
-                    {formData.category === 'SQUAT' && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                            <label className="block text-xs font-bold text-blue-800 dark:text-blue-300 uppercase mb-1">
-                                Pilih STO (SQUAT Only)
-                            </label>
-                            <select
-                                className="w-full rounded-lg border border-blue-200 dark:border-blue-700 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]"
-                                value={formData.sto}
-                                onChange={e => setFormData({ ...formData, sto: e.target.value })}
-                            >
-                                <option value="">- Pilih Kode STO -</option>
-                                {STO_LIST.map((sto) => (
-                                    <option key={sto} value={sto}>{sto}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* --- INPUT STO (ALL CATEGORIES) --- */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                        <label className="block text-xs font-bold text-blue-800 dark:text-blue-300 uppercase mb-1">
+                            Pilih STO
+                        </label>
+                        <select
+                            className="w-full rounded-lg border border-blue-200 dark:border-blue-700 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]"
+                            value={formData.sto}
+                            onChange={e => {
+                                const selectedSto = e.target.value;
+                                const mapping = stoMappings.find(m => m.sto === selectedSto);
+                                setFormData({ ...formData, sto: selectedSto, branch: mapping ? mapping.branch : '' });
+                            }}
+                        >
+                            <option value="">- Pilih Kode STO -</option>
+                            {stoMappings.map((m) => (
+                                <option key={m.id} value={m.sto}>{m.sto}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                    {/* --- INPUT DISTRICT (SQUAT) --- */}
-                    {formData.category === 'SQUAT' && (
-                        <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800">
-                            <label className="block text-xs font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
-                                Pilih District (SQUAT Only)
-                            </label>
-                            <select
-                                className="w-full rounded-lg border border-teal-200 dark:border-teal-700 p-2.5 text-sm focus:ring-2 focus:ring-teal-500 bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]"
-                                value={formData.district}
-                                onChange={e => setFormData({ ...formData, district: e.target.value })}
-                            >
-                                <option value="">- Pilih District -</option>
-                                {DISTRICT_LIST.map((d) => (
-                                    <option key={d} value={d}>{d}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* --- INPUT BRANCH (AUTO FILLED) --- */}
+                    <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800">
+                        <label className="block text-xs font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
+                            Branch (Otomatis)
+                        </label>
+                        <input
+                            type="text"
+                            className="w-full rounded-lg border border-teal-200 dark:border-teal-700 p-2.5 text-sm focus:ring-2 focus:ring-teal-500 bg-[var(--bg-base)] font-medium text-[var(--text-primary)] opacity-70"
+                            value={formData.branch}
+                            readOnly
+                            placeholder="Terisi otomatis dari STO"
+                        />
+                    </div>
 
                     {/* Baris 2: ID & Waktu */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

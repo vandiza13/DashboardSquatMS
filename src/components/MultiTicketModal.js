@@ -1,7 +1,7 @@
 // src/components/MultiTicketModal.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaTimes, FaPlus, FaTrash, FaSave, FaSpinner, FaCopy, FaExclamationTriangle, FaTag } from 'react-icons/fa';
 
 // --- KONFIGURASI DATA ---
@@ -12,15 +12,7 @@ const SUB_CATEGORIES = {
     CENTRATAMA: ['FSI'],
 };
 
-const STO_LIST = [
-    'BBL', 'BEK', 'BGG', 'CBG', 'CBR', 'CIB', 'CIK',
-    'DNI', 'EJI', 'GDM', 'JBB', 'KLB', 'KRA', 'LMA',
-    'MGB', 'PBY', 'PDE', 'PKY', 'SMH', 'STN', 'SUE',
-    'TAR', 'TBL'
-].sort();
-
-// --- DATA DISTRICT (SQUAT ONLY) ---
-const DISTRICT_LIST = ['BEKASI', 'KARAWANG'];
+// STO mappings will be fetched from API
 
 // Data Priority
 const TSEL_PRIORITIES = ['PREMIUM', 'CRITICAL', 'MAJOR', 'MINOR', 'LOW', 'CNQ'];
@@ -29,10 +21,21 @@ const OLO_PRIORITIES = ['NON-GAMAS', 'GAMAS', 'QUALITY'];
 export default function MultiTicketModal({ isOpen, onClose, onSuccess }) {
     // Inisialisasi state
     const [rows, setRows] = useState([
-        { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', district: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' },
-        { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', district: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' },
-        { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', district: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' }
+        { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', branch: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' },
+        { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', branch: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' },
+        { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', branch: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' }
     ]);
+
+    const [stoMappings, setStoMappings] = useState([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetch('/api/admin/sto-mappings')
+                .then(res => res.json())
+                .then(data => setStoMappings(Array.isArray(data) ? data : []))
+                .catch(err => console.error(err));
+        }
+    }, [isOpen]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,7 +44,7 @@ export default function MultiTicketModal({ isOpen, onClose, onSuccess }) {
     // --- LOGIKA FORM ---
 
     const handleAddRow = () => {
-        setRows([...rows, { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', district: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' }]);
+        setRows([...rows, { id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', branch: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' }]);
     };
 
     const handleRemoveRow = (index) => {
@@ -58,10 +61,15 @@ export default function MultiTicketModal({ isOpen, onClose, onSuccess }) {
             newRows[index]['subcategory'] = '';
             newRows[index]['priority'] = '';
             newRows[index]['id_tiket_tacc'] = '';
+        }
 
-            if (value !== 'SQUAT') {
-                newRows[index]['sto'] = '';
-                newRows[index]['district'] = '';
+        // Auto-fill branch jika sto berubah
+        if (field === 'sto') {
+            const mapping = stoMappings.find(m => m.sto === value);
+            if (mapping) {
+                newRows[index]['branch'] = mapping.branch;
+            } else {
+                newRows[index]['branch'] = '';
             }
         }
 
@@ -110,7 +118,7 @@ export default function MultiTicketModal({ isOpen, onClose, onSuccess }) {
                 if (result.details?.failed === 0) {
                     onSuccess();
                     onClose();
-                    setRows([{ id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', district: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' }]);
+                    setRows([{ id_tiket: '', category: 'SQUAT', subcategory: '', sto: '', branch: '', priority: '', id_tiket_tacc: '', deskripsi: '', tiket_time: '' }]);
                 }
             } else {
                 throw new Error(result.error || 'Gagal menyimpan');
@@ -146,7 +154,7 @@ export default function MultiTicketModal({ isOpen, onClose, onSuccess }) {
                                 <th className="px-2 w-28">Sub</th>
                                 <th className="px-2 w-36">Priority / TACC</th>
                                 <th className="px-2 w-24">STO</th>
-                                <th className="px-2 w-28">District</th>
+                                <th className="px-2 w-28">Branch</th>
                                 <th className="px-2 w-40">Waktu</th>
                                 <th className="px-2">Deskripsi</th>
                             </tr>
@@ -214,17 +222,14 @@ export default function MultiTicketModal({ isOpen, onClose, onSuccess }) {
                                         </td>
 
                                         <td className="p-2">
-                                            <select className="w-full border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] rounded p-1.5 focus:ring-2 focus:ring-blue-500 text-xs disabled:opacity-60" value={row.sto} onChange={(e) => handleChange(index, 'sto', e.target.value)} disabled={row.category !== 'SQUAT'}>
+                                            <select className="w-full border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] rounded p-1.5 focus:ring-2 focus:ring-blue-500 text-xs" value={row.sto} onChange={(e) => handleChange(index, 'sto', e.target.value)}>
                                                 <option value="">-</option>
-                                                {STO_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+                                                {stoMappings.map(s => <option key={s.id} value={s.sto}>{s.sto}</option>)}
                                             </select>
                                         </td>
 
                                         <td className="p-2">
-                                            <select className="w-full border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] rounded p-1.5 focus:ring-2 focus:ring-teal-500 text-xs disabled:opacity-60" value={row.district} onChange={(e) => handleChange(index, 'district', e.target.value)} disabled={row.category !== 'SQUAT'}>
-                                                <option value="">-</option>
-                                                {DISTRICT_LIST.map(d => <option key={d} value={d}>{d}</option>)}
-                                            </select>
+                                            <input className="w-full border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] rounded p-1.5 focus:ring-2 focus:ring-teal-500 text-xs opacity-70" value={row.branch} readOnly placeholder="-" />
                                         </td>
 
                                         <td className="p-2">

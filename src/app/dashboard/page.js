@@ -108,6 +108,17 @@ export default function DashboardPage() {
             }
         } catch (err) {
             console.error("Fetch Error:", err);
+            // Fix infinite loading: set fallback data if fetch throws
+            setData({
+                stats: { total: 0, open: 0, sc: 0, closed_total: 0, closed_today: 0, closed_month: 0 },
+                runningBySub: [],
+                closedTodayBySub: [],
+                monthlyType: [],
+                dailyTrend: [],
+                recent: [],
+                aging: [],
+                ttr: {}
+            });
         } finally {
             setLoading(false);
         }

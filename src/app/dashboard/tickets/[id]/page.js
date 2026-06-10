@@ -168,12 +168,20 @@ export default function TicketDetailPage({ params }) {
                                 <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{ticket.id_tiket}</h1>
                                 <p className="text-[var(--text-muted)] text-sm mt-1">{ticket.subcategory}</p>
                             </div>
-                            {ticket.sto && (
-                                <div className="text-center bg-[var(--bg-base)] border border-[var(--border-color)] p-2 rounded-lg shadow-sm">
-                                    <span className="block text-[10px] text-[var(--text-muted)] font-bold uppercase">STO</span>
-                                    <span className="block text-lg font-bold text-[var(--text-secondary)]">{ticket.sto}</span>
-                                </div>
-                            )}
+                            <div className="flex gap-2">
+                                {ticket.sto && (
+                                    <div className="text-center bg-[var(--bg-base)] border border-[var(--border-color)] p-2 px-3 rounded-lg shadow-sm">
+                                        <span className="block text-[10px] text-[var(--text-muted)] font-bold uppercase">STO</span>
+                                        <span className="block text-lg font-bold text-[var(--text-secondary)]">{ticket.sto}</span>
+                                    </div>
+                                )}
+                                {ticket.branch && (
+                                    <div className="text-center bg-[var(--bg-base)] border border-[var(--border-color)] p-2 px-3 rounded-lg shadow-sm">
+                                        <span className="block text-[10px] text-[var(--text-muted)] font-bold uppercase">Branch</span>
+                                        <span className="block text-lg font-bold text-[var(--text-secondary)]">{ticket.branch}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="p-6">

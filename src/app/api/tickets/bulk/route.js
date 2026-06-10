@@ -56,10 +56,19 @@ export async function POST(request) {
                 if (!isNaN(parsed)) ticketTime = parsed;
             }
 
+            // Look up branch if STO is provided
+            let finalBranch = row.branch || null;
+            if (row.sto) {
+                const [mappingRes] = await connection.query('SELECT branch FROM sto_branch_mappings WHERE sto = ?', [row.sto.toUpperCase()]);
+                if (mappingRes.length > 0) {
+                    finalBranch = mappingRes[0].branch;
+                }
+            }
+
             // INSERT DATA
             await connection.query(
                 `INSERT INTO tickets 
-                (id_tiket, category, subcategory, tiket_time, deskripsi, sto, district, priority, id_tiket_tacc, status, created_by_user_id, updated_by_user_id, last_update_time) 
+                (id_tiket, category, subcategory, tiket_time, deskripsi, sto, branch, priority, id_tiket_tacc, status, created_by_user_id, updated_by_user_id, last_update_time) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW())`,
                 [
                     row.id_tiket,
@@ -68,7 +77,7 @@ export async function POST(request) {
                     ticketTime,
                     row.deskripsi || '-',
                     row.sto || null,
-                    row.district || null,      // District (SQUAT)
+                    finalBranch,               // Branch
                     row.priority || null,      // Priority (SQUAT)
                     row.id_tiket_tacc || null, // TACC (Provider Lain)
                     user.userId,

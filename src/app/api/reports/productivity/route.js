@@ -27,7 +27,7 @@ export async function GET(request) {
                 t.subcategory,
                 t.status,
                 t.sto,
-                t.district,
+                t.branch,
                 t.deskripsi,
                 t.update_progres,
                 t.ttr_tacc,

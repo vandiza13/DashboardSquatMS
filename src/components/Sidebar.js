@@ -38,6 +38,12 @@ export default function Sidebar({ isOpen, onClose }) {
             icon: FaUserCog,
             color: 'rose'
         });
+        menuItems.splice(4, 0, {
+            name: 'Mapping STO',
+            href: '/dashboard/sto-mappings',
+            icon: FaNetworkWired,
+            color: 'blue'
+        });
     }
 
     // Auto-open dropdown jika user sedang di halaman terkait

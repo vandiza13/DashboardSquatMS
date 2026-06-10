@@ -272,7 +272,7 @@ export default function TicketsPage() {
             <div className="flex flex-wrap gap-1">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-[var(--bg-base)] ${CATEGORY_COLORS[ticket.category] || CATEGORY_COLORS.DEFAULT}`}>{ticket.category} - {ticket.subcategory}</span>
                 {ticket.sto && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span>}
-                {ticket.district && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">District: {ticket.district}</span>}
+                {ticket.branch && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">Branch: {ticket.branch}</span>}
                 {ticket.priority && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white dark:bg-slate-700 dark:border-slate-600 shadow-sm whitespace-nowrap">{ticket.priority}</span>}
             </div>
 
@@ -441,7 +441,7 @@ export default function TicketsPage() {
                                             {ticket.priority && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white dark:bg-slate-700 dark:border-slate-600 whitespace-nowrap">{ticket.priority}</span>}
                                         </div>
                                         {ticket.sto && <div className="mt-1"><span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span></div>}
-                                        {ticket.district && <div className="mt-1"><span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">District: {ticket.district}</span></div>}
+                                        {ticket.branch && <div className="mt-1"><span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">Branch: {ticket.branch}</span></div>}
                                         <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                                     </td>
                                     <td className="px-6 py-4 align-top max-w-sm">
