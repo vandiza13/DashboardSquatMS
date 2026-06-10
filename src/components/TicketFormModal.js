@@ -212,7 +212,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
             const payload = {
                 ...formData,
-                tiket_time: formData.tiket_time ? new Date(formData.tiket_time).toISOString() : null,
+                tiket_time: formData.tiket_time ? formData.tiket_time : null,
                 technician_niks: formData.technician_nik ? [formData.technician_nik] : [],
                 partner_technicians: partnerNames
             };

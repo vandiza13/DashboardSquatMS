@@ -7,8 +7,9 @@ import {
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel,
     FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
     FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag,
-    FaSyncAlt
+    FaSyncAlt, FaEye
 } from 'react-icons/fa';
+import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import TicketFormModal from '@/components/TicketFormModal';
 import ReportModal from '@/components/ReportModal';
@@ -19,6 +20,7 @@ import EmptyState from '@/components/EmptyState';
 import BulkTicketModal from '@/components/BulkTicketModal';
 import MultiTicketModal from '@/components/MultiTicketModal';
 import SyncTaccModal from '@/components/SyncTaccModal'; 
+import TRModal from '@/components/TRModal';
 // [PUSHER] 1. Import Client
 import { pusherClient } from '@/lib/pusher-client';
 
@@ -161,6 +163,8 @@ export default function TicketsPage() {
     const [selectedTicketId, setSelectedTicketId] = useState('');
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isMultiRowModalOpen, setIsMultiRowModalOpen] = useState(false);
+    const [isTRModalOpen, setIsTRModalOpen] = useState(false);
+    const [selectedTicketForTR, setSelectedTicketForTR] = useState(null);
     
     // State Modal Sync TACC
     const [isSyncTaccModalOpen, setIsSyncTaccModalOpen] = useState(false); 
@@ -221,6 +225,10 @@ export default function TicketsPage() {
         setSelectedTicketId(id_tiket); setIsHistoryOpen(true); setHistoryData([]);
         try { const res = await fetch(`/api/tickets/${id}/history`); if (res.ok) setHistoryData(await res.json()); } catch (error) { console.error(error); }
     };
+    const handleOpenTRModal = (ticket) => {
+        setSelectedTicketForTR(ticket);
+        setIsTRModalOpen(true);
+    };
     const handleExportExcel = async () => {
         if (!confirm("Download data?")) return;
         const params = new URLSearchParams({ page: 1, limit: 10000, search, status: 'CLOSED', category: activeCategory, startDate, endDate });
@@ -237,7 +245,7 @@ export default function TicketsPage() {
         <div className={`p-4 rounded-xl border shadow-sm flex flex-col gap-3 relative transition-colors ${getRowSeverityStyle(ticket)}`}>
             <div className="flex justify-between items-start border-b border-black/5 pb-2 mb-1">
                 <div className="flex flex-col">
-                    <span className="font-extrabold text-[var(--text-primary)] text-base">{ticket.id_tiket}</span>
+                    <Link href={`/dashboard/tickets/${ticket.id}`} className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline text-base">{ticket.id_tiket}</Link>
 
                     {/* [UPDATE MOBILE] Menampilkan TACC dan TTR jika ada */}
                     {ticket.id_tiket_tacc && (
@@ -301,10 +309,11 @@ export default function TicketsPage() {
                     <span className="flex items-center gap-1"><FaHistory /> Updated: {new Date(ticket.last_update_time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                     <span className="italic">by {ticket.updater_name || 'System'}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                    {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 bg-[var(--bg-base)] hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaEdit /> Edit</button>}
-                    <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className={`flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 bg-[var(--bg-base)] hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg border border-[var(--border-color)] shadow-sm ${userRole === 'View' ? 'col-span-3' : ''}`}><FaHistory /> Log</button>
-                    {userRole === 'SuperAdmin' && <button onClick={() => handleDeleteClick(ticket.id)} className="flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-[var(--bg-base)] hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaTrash /> Hapus</button>}
+                <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handleOpenTRModal(ticket)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-[var(--bg-base)] hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaEye /> TR</button>
+                    {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 bg-[var(--bg-base)] hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaEdit /> Edit</button>}
+                    <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 bg-[var(--bg-base)] hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaHistory /> Log</button>
+                    {userRole === 'SuperAdmin' && <button onClick={() => handleDeleteClick(ticket.id)} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-[var(--bg-base)] hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg border border-[var(--border-color)] shadow-sm"><FaTrash /> Hapus</button>}
                 </div>
             </div>
         </div>
@@ -317,6 +326,7 @@ export default function TicketsPage() {
             <MultiTicketModal isOpen={isMultiRowModalOpen} onClose={() => setIsMultiRowModalOpen(false)} onSuccess={fetchTickets} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
+            <TRModal isOpen={isTRModalOpen} onClose={() => setIsTRModalOpen(false)} ticket={selectedTicketForTR} />
             
             {/* Modal Sync TACC */}
             <SyncTaccModal isOpen={isSyncTaccModalOpen} onClose={() => setIsSyncTaccModalOpen(false)} onSuccess={fetchTickets} />
@@ -416,7 +426,7 @@ export default function TicketsPage() {
                             ) : tickets.map(ticket => (
                                 <tr key={ticket.id} className={`transition group border-b ${getRowSeverityStyle(ticket)}`}>
                                     <td className="px-6 py-4 align-top">
-                                        <div className="font-bold text-[var(--text-primary)] text-xs">{ticket.id_tiket}</div>
+                                        <div className="mb-1"><Link href={`/dashboard/tickets/${ticket.id}`} className="font-bold text-blue-600 dark:text-blue-400 hover:underline text-xs">{ticket.id_tiket}</Link></div>
 
                                         {/* [BARU] TAMPILAN TACC & TTR DI DESKTOP DENGAN LOGIKA WARNA MERAH */}
                                         {ticket.id_tiket_tacc && (
@@ -476,6 +486,7 @@ export default function TicketsPage() {
                                     </td>
                                     <td className="px-6 py-4 align-top text-center">
                                         <div className="flex items-center justify-center gap-1">
+                                            <button onClick={() => handleOpenTRModal(ticket)} className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm" title="Salin TR"><FaEye /></button>
                                             {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="p-1.5 text-blue-500 hover:bg-blue-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaEdit /></button>}
                                             <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="p-1.5 text-purple-500 hover:bg-purple-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaHistory /></button>
                                             {userRole === 'SuperAdmin' && <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaTrash /></button>}
