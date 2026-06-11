@@ -16,7 +16,7 @@ Gunakan perintah /help untuk melihat daftar fitur yang tersedia.
 }
 
 export async function handleHelp(chatId, user) {
-  const text = `📋 *Daftar Perintah Bot*
+  let text = `📋 *Daftar Perintah Bot*
 
 *Umum:*
 /start - Pesan selamat datang
@@ -27,8 +27,13 @@ export async function handleHelp(chatId, user) {
 /buat - Buat tiket baru (Wizard interaktif)
 /tiket <ID> - Lihat detail tiket (contoh: /tiket TR-1234 atau /tiket 552)
 /tr <ID> - Ambil Time Report (TR) untuk tiket (contoh: /tr TR-1234 atau /tr 552)
-/running - Lihat daftar tiket aktif (OPEN/SC)
-/update <ID> - Update progres atau status tiket
+/running [kategori] - Lihat daftar tiket aktif (contoh: /running SQUAT)`;
+
+  if (user.role === 'SuperAdmin') {
+    text += `\n/hapus <ID> - Hapus tiket secara permanen (Super Admin Only)`;
+  }
+
+  text += `\n/update <ID> - Update progres atau status tiket
 /tutup <ID> - Tutup tiket & ekspor ke GSheet
 
 *Statistik:*
@@ -87,8 +92,11 @@ export async function handleProfil(chatId, user) {
   const timeStr = user.registered_at
     ? new Date(user.registered_at).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'}) + ' WIB'
     : '-';
+  const nameLine = user.display_name 
+    ? `\n👤 *Nama*: ${user.display_name}${user.full_name ? ` (${user.full_name})` : ''}` 
+    : '';
   const text = `👤 *Info Akun Anda*
-─────────────────────────
+─────────────────────────${nameLine}
 👤 *Username*: ${user.username}
 🔑 *Role*: ${user.role}
 💼 *Divisi*: ${user.division || '-'}

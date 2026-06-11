@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 export async function authenticateTelegramUser(chatId) {
   try {
     const [rows] = await db.query(
-      `SELECT tu.telegram_chat_id, tu.registered_at, u.id as user_id, u.username, u.role, u.division 
+      `SELECT tu.telegram_chat_id, tu.registered_at, u.id as user_id, u.username, u.role, u.division, u.full_name, u.display_name 
        FROM telegram_users tu 
        JOIN users u ON tu.user_id = u.id 
        WHERE tu.telegram_chat_id = ? AND tu.is_active = 1`,
@@ -12,7 +12,7 @@ export async function authenticateTelegramUser(chatId) {
     );
     
     if (rows.length === 0) return null;
-    return rows[0]; // { user_id, username, role, division }
+    return rows[0]; // { user_id, username, role, division, full_name, display_name }
   } catch (error) {
     console.error("Auth Error:", error);
     return null;

@@ -17,7 +17,7 @@ export async function PUT(request, props) {
         if (!requester || requester.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
         const body = await request.json();
-        const { role, password, division } = body; 
+        const { role, password, division, full_name, display_name } = body; 
 
         if (password) {
             // Logic Reset Password
@@ -27,10 +27,10 @@ export async function PUT(request, props) {
             return NextResponse.json({ message: 'Password berhasil di-reset' });
         } 
         
-        if (role || division) {
+        if (role || division || full_name !== undefined || display_name !== undefined) {
             // --- SECURITY PATCH: PROTEKSI MUTLAK ID 1 ---
-            // Mencegah perubahan role untuk User ID 1
-            if (parseInt(id) === 1) {
+            // Mencegah perubahan role / divisi untuk User ID 1
+            if (parseInt(id) === 1 && (role || division)) {
                 return NextResponse.json({ error: 'Role Super Admin (ID: 1) bersifat mutlak dan tidak bisa diubah.' }, { status: 403 });
             }
             // --------------------------------------------
@@ -44,6 +44,14 @@ export async function PUT(request, props) {
             if (division) {
                 updates.push('division = ?');
                 values.push(division);
+            }
+            if (full_name !== undefined) {
+                updates.push('full_name = ?');
+                values.push(full_name);
+            }
+            if (display_name !== undefined) {
+                updates.push('display_name = ?');
+                values.push(display_name);
             }
             values.push(id);
 

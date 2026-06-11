@@ -23,7 +23,7 @@ export async function GET(request) {
         let query = `
             SELECT 
                 t.*, 
-                MAX(u.username) as updater_name,
+                COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
                 GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks,
                 MAX(tech.name) as technician_name,
                 MAX(tech.phone_number) as technician_phone
@@ -190,9 +190,12 @@ export async function POST(request) {
             }
         }
 
+        const [userRows] = await connection.query('SELECT display_name, username FROM users WHERE id = ?', [user.userId]);
+        const updaterDisplayName = userRows.length > 0 ? (userRows[0].display_name || userRows[0].username) : user.username;
+
         await connection.query(
             `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
-            [ticketId, `Tiket dibuat dengan status OPEN`, user.username]
+            [ticketId, `Tiket dibuat dengan status OPEN`, updaterDisplayName]
         );
 
         // Commit transaksi database dulu

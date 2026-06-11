@@ -117,7 +117,7 @@ export default function Header({ onMenuClick }) {
                                 <Skeleton className="h-4 w-24 mb-1 ml-auto" />
                             ) : (
                                 <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-blue-500 transition-colors">
-                                    {user.username}
+                                    {user.display_name || user.username}
                                 </p>
                             )}
                         </div>
@@ -131,7 +131,7 @@ export default function Header({ onMenuClick }) {
                     {isDropdownOpen && (
                         <div className="absolute right-0 mt-3 w-52 origin-top-right rounded-2xl bg-[var(--bg-surface)] py-1 shadow-2xl border border-[var(--border-color)] overflow-hidden">
                             <div className="px-4 py-3 border-b border-[var(--border-subtle)] sm:hidden">
-                                <p className="text-sm font-bold text-[var(--text-primary)]">{user.username}</p>
+                                <p className="text-sm font-bold text-[var(--text-primary)]">{user.display_name || user.username}</p>
                                 <p className="text-xs text-[var(--text-muted)]">{user.role}</p>
                             </div>
 

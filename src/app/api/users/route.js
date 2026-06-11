@@ -13,7 +13,7 @@ export async function GET(request) {
         // Validasi Role (Hanya SuperAdmin yang bisa mengelola User)
         if (!user || user.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
-        const [users] = await db.query('SELECT id, username, role, division FROM users ORDER BY username ASC');
+        const [users] = await db.query('SELECT id, username, full_name, display_name, role, division FROM users ORDER BY username ASC');
         return NextResponse.json(users);
     } catch (error) {
         console.error("Get Users Error:", error.message, error.stack);
@@ -30,7 +30,7 @@ export async function POST(request) {
         if (!requester || requester.role !== 'SuperAdmin') return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
 
         const body = await request.json();
-        const { username, password, role, division } = body;
+        const { username, password, role, division, full_name, display_name } = body;
 
         // Validasi Input
         if (!username || !password) {
@@ -43,8 +43,8 @@ export async function POST(request) {
 
         // Insert ke DB
         await db.query(
-            'INSERT INTO users (username, password, role, division) VALUES (?, ?, ?, ?)',
-            [username, hashedPassword, role || 'User', division || 'SQUAT']
+            'INSERT INTO users (username, full_name, display_name, password, role, division) VALUES (?, ?, ?, ?, ?, ?)',
+            [username, full_name || null, display_name || null, hashedPassword, role || 'User', division || 'SQUAT']
         );
 
         return NextResponse.json({ message: 'User berhasil dibuat' }, { status: 201 });

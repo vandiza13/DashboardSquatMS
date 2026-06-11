@@ -21,7 +21,34 @@ export default function UsersPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('CREATE'); // 'CREATE', 'EDIT', 'RESET'
     const [selectedUser, setSelectedUser] = useState(null);
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'User', division: 'SQUAT' });
+    const [formData, setFormData] = useState({ username: '', full_name: '', display_name: '', password: '', role: 'User', division: 'SQUAT' });
+    const [nameSuggestions, setNameSuggestions] = useState([]);
+
+    const handleFullNameChange = (val) => {
+        setFormData(prev => {
+            const updated = { ...prev, full_name: val };
+            
+            const words = val.trim().split(/\s+/).filter(Boolean);
+            if (words.length > 1) {
+                const firstWord = words[0];
+                const lastWord = words[words.length - 1];
+                const uniqueSug = Array.from(new Set([val.trim(), firstWord, lastWord]));
+                setNameSuggestions(uniqueSug);
+                
+                // Auto-fill display_name if it is currently empty
+                if (!prev.display_name) {
+                    updated.display_name = firstWord;
+                }
+            } else {
+                setNameSuggestions([]);
+                if (!prev.display_name) {
+                    updated.display_name = val.trim();
+                }
+            }
+            
+            return updated;
+        });
+    };
 
     // --- FETCH DATA ---
     const fetchUsers = async () => {
@@ -55,11 +82,16 @@ export default function UsersPage() {
             let method = 'POST';
             let body = formData;
 
-            // Mode EDIT (Ganti Role / Divisi)
+            // Mode EDIT (Ganti Role / Divisi / Detail)
             if (modalMode === 'EDIT') {
                 url = `/api/users/${selectedUser.id}`;
                 method = 'PUT';
-                body = { role: formData.role, division: formData.division };
+                body = { 
+                    role: formData.role, 
+                    division: formData.division,
+                    full_name: formData.full_name,
+                    display_name: formData.display_name
+                };
             }
             // Mode RESET PASSWORD
             else if (modalMode === 'RESET') {
@@ -120,22 +152,37 @@ export default function UsersPage() {
     // --- MODAL TRIGGERS ---
     const openCreateModal = () => {
         setModalMode('CREATE');
-        setFormData({ username: '', password: '', role: 'User', division: 'SQUAT' });
+        setFormData({ username: '', full_name: '', display_name: '', password: '', role: 'User', division: 'SQUAT' });
+        setNameSuggestions([]);
         setIsModalOpen(true);
     };
 
     const openEditModal = (user) => {
         setModalMode('EDIT');
         setSelectedUser(user);
-        // Password dikosongkan karena tidak diedit disini
-        setFormData({ username: user.username, password: '', role: user.role, division: user.division || 'SQUAT' });
+        setFormData({ 
+            username: user.username, 
+            full_name: user.full_name || '', 
+            display_name: user.display_name || '', 
+            password: '', 
+            role: user.role, 
+            division: user.division || 'SQUAT' 
+        });
+        const words = (user.full_name || '').trim().split(/\s+/).filter(Boolean);
+        if (words.length > 1) {
+            const uniqueSug = Array.from(new Set([(user.full_name || '').trim(), words[0], words[words.length - 1]]));
+            setNameSuggestions(uniqueSug);
+        } else {
+            setNameSuggestions([]);
+        }
         setIsModalOpen(true);
     };
 
     const openResetModal = (user) => {
         setModalMode('RESET');
         setSelectedUser(user);
-        setFormData({ username: user.username, password: '', role: '', division: '' });
+        setFormData({ username: user.username, full_name: '', display_name: '', password: '', role: '', division: '' });
+        setNameSuggestions([]);
         setIsModalOpen(true);
     };
 
@@ -202,8 +249,10 @@ export default function UsersPage() {
                                                 <FaUserCircle className="text-xl" />
                                             </div>
                                             <div>
-                                                <p className="font-bold text-[var(--text-primary)]">{u.username}</p>
-                                                <p className="text-xs text-[var(--text-muted)]">ID: #{u.id}</p>
+                                                <p className="font-bold text-[var(--text-primary)]">{u.display_name || u.username}</p>
+                                                <p className="text-xs text-[var(--text-muted)]">
+                                                    {u.full_name && `${u.full_name} | `}Username/NIK: {u.username} | ID: #{u.id}
+                                                </p>
                                             </div>
                                         </div>
                                     </td>
@@ -255,7 +304,7 @@ export default function UsersPage() {
 
                             {/* Input Username (Disabled saat Edit/Reset) */}
                             <div>
-                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Username</label>
+                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Username / NIK</label>
                                 <input
                                     type="text"
                                     required
@@ -263,9 +312,53 @@ export default function UsersPage() {
                                     value={formData.username}
                                     onChange={e => setFormData({ ...formData, username: e.target.value })}
                                     className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm disabled:opacity-50 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                                    placeholder="Masukkan username..."
+                                    placeholder="Masukkan username atau NIK..."
                                 />
                             </div>
+
+                            {/* Input Nama Lengkap & Nama Tampilan (Tampil saat CREATE atau EDIT) */}
+                            {(modalMode === 'CREATE' || modalMode === 'EDIT') && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Nama Lengkap</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.full_name}
+                                            onChange={e => handleFullNameChange(e.target.value)}
+                                            className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                                            placeholder="Contoh: Ahmad Syarifudin Jamil"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Nama Tampilan (Name on Display)</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.display_name}
+                                            onChange={e => setFormData({ ...formData, display_name: e.target.value })}
+                                            className="w-full rounded-lg bg-[var(--bg-base)] border-[var(--border-color)] focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all p-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                                            placeholder="Nama panggilan untuk update tiket..."
+                                        />
+                                        {/* Auto suggestions if full name has multiple words */}
+                                        {nameSuggestions.length > 0 && (
+                                            <div className="flex gap-2 mt-2 items-center flex-wrap">
+                                                <span className="text-[10px] text-[var(--text-muted)] font-semibold">Saran:</span>
+                                                {nameSuggestions.map((sug, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => setFormData(prev => ({ ...prev, display_name: sug }))}
+                                                        className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800/40 font-medium"
+                                                    >
+                                                        {sug}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
 
                             {/* Input Role (Tampil saat CREATE atau EDIT) */}
                             {(modalMode === 'CREATE' || modalMode === 'EDIT') && (
