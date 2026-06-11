@@ -9,7 +9,8 @@ import {
     FaShieldAlt,
     FaSpinner,
     FaUserCircle,
-    FaEye
+    FaEye,
+    FaTelegramPlane // Tambahan icon telegram
 } from 'react-icons/fa';
 
 export default function UsersPage() {
@@ -98,6 +99,24 @@ export default function UsersPage() {
         }
     };
 
+    const handleRegisterWebhook = async () => {
+        if (!confirm('Apakah Anda yakin ingin mendaftarkan URL Webhook Telegram saat ini?')) return;
+        setLoading(true);
+        try {
+            const res = await fetch('/api/telegram/register-webhook', { method: 'POST' });
+            const result = await res.json();
+            if (res.ok) {
+                alert('✅ ' + result.message);
+            } else {
+                alert('❌ Gagal: ' + result.error);
+            }
+        } catch (error) {
+            alert('❌ Terjadi kesalahan pada server');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // --- MODAL TRIGGERS ---
     const openCreateModal = () => {
         setModalMode('CREATE');
@@ -151,9 +170,14 @@ export default function UsersPage() {
                     <h2 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Manajemen Pengguna</h2>
                     <p className="text-[var(--text-muted)] mt-1">Kontrol akses (Admin, User, View)</p>
                 </div>
-                <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95">
-                    <FaUserPlus /> Tambah User
-                </button>
+                <div className="flex items-center gap-3">
+                    <button onClick={handleRegisterWebhook} className="flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/30 transition-all hover:bg-sky-600 hover:scale-105 active:scale-95">
+                        <FaTelegramPlane className="text-lg" /> Setup Bot Webhook
+                    </button>
+                    <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95">
+                        <FaUserPlus /> Tambah User
+                    </button>
+                </div>
             </div>
 
             <div className="rounded-2xl bg-[var(--bg-surface)] shadow-sm border border-[var(--border-color)] overflow-hidden">
