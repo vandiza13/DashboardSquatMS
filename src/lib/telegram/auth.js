@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 export async function authenticateTelegramUser(chatId) {
   try {
     const [rows] = await db.query(
-      `SELECT tu.telegram_chat_id, u.id as user_id, u.username, u.role, u.division 
+      `SELECT tu.telegram_chat_id, tu.registered_at, u.id as user_id, u.username, u.role, u.division 
        FROM telegram_users tu 
        JOIN users u ON tu.user_id = u.id 
        WHERE tu.telegram_chat_id = ? AND tu.is_active = 1`,

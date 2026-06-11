@@ -25,7 +25,8 @@ export async function handleHelp(chatId, user) {
 
 *Tiket:*
 /buat - Buat tiket baru (Wizard interaktif)
-/tiket <ID> - Lihat detail tiket (contoh: /tiket TR-1234)
+/tiket <ID> - Lihat detail tiket (contoh: /tiket TR-1234 atau /tiket 552)
+/tr <ID> - Ambil Time Report (TR) untuk tiket (contoh: /tr TR-1234 atau /tr 552)
 /running - Lihat daftar tiket aktif (OPEN/SC)
 /update <ID> - Update progres atau status tiket
 /tutup <ID> - Tutup tiket & ekspor ke GSheet
@@ -81,3 +82,19 @@ export async function handleRegister(chatId, text) {
     await sendMessage(chatId, "❌ Terjadi kesalahan pada server saat registrasi.");
   }
 }
+
+export async function handleProfil(chatId, user) {
+  const timeStr = user.registered_at
+    ? new Date(user.registered_at).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'}) + ' WIB'
+    : '-';
+  const text = `👤 *Info Akun Anda*
+─────────────────────────
+👤 *Username*: ${user.username}
+🔑 *Role*: ${user.role}
+💼 *Divisi*: ${user.division || '-'}
+⏰ *Terhubung Pada*: ${timeStr}
+─────────────────────────`;
+
+  await sendMessage(chatId, text);
+}
+
