@@ -112,31 +112,31 @@ export function generateTRText(ticket, history = []) {
     }
   }
 
-  const timelineText = timeline.map(item => `⏱️ ${formatTimeOnly(item.time)} | ${item.text}`).join('\n');
+  const timelineText = timeline.map(item => `⏱️ ${formatTimeOnly(item.time)} | ${escapeMarkdown(item.text)}`).join('\n');
   const durationEndTime = ticket.status === 'CLOSED' ? (closeTimeStr || ticket.last_update_time) : new Date().toISOString();
   const ttrDuration = calculateDuration(ticket.tiket_time, durationEndTime);
 
   const subCat = ticket.subcategory ? ticket.subcategory.toUpperCase() : ticket.category;
   
-  // Follow the exact format as TRModal.js
-  const generatedText = `🚨 *TIME REPORT (TR) - TICKET ${subCat}* 🚨
+  // Follow the exact format as TRModal.js, but escape dynamic inputs to avoid Telegram Markdown issues
+  const generatedText = `🚨 *TIME REPORT (TR) - TICKET ${escapeMarkdown(subCat)}* 🚨
 ======================================
 
-${ticket.id_tiket}
-${ticket.deskripsi || '-'}
-${ticket.category === 'SQUAT' ? `*Priority:* ${ticket.priority || '-'}` : `*TACC ID:* ${ticket.id_tiket_tacc || '-'}`}
+${escapeMarkdown(ticket.id_tiket)}
+${escapeMarkdown(ticket.deskripsi || '-')}
+${ticket.category === 'SQUAT' ? `*Priority:* ${escapeMarkdown(ticket.priority || '-')}` : `*TACC ID:* ${escapeMarkdown(ticket.id_tiket_tacc || '-')}`}
 *Status:* ${statusEmoji} ${ticket.status}
-*STO / Branch:* ${ticket.sto || '-'} / ${ticket.branch || '-'}
+*STO / Branch:* ${escapeMarkdown(ticket.sto || '-')} / ${escapeMarkdown(ticket.branch || '-')}
 
-*PIC Teknisi:* ${ticket.technician_name || '-'} ${ticket.technician_phone ? '(' + ticket.technician_phone + ')' : ''}
-*Partner:* ${ticket.partner_technicians || '-'}
+*PIC Teknisi:* ${escapeMarkdown(ticket.technician_name || '-')} ${ticket.technician_phone ? '(' + escapeMarkdown(ticket.technician_phone) + ')' : ''}
+*Partner:* ${escapeMarkdown(ticket.partner_technicians || '-')}
 
 --------------------------------------
 *ALUR PROGRESS & TIMELINE*
 --------------------------------------
 ${timelineText}
 
-⌛ *Durasi Penanganan (TTR):* ${ttrDuration}`;
+⌛ *Durasi Penanganan (TTR):* ${escapeMarkdown(ttrDuration)}`;
 
   return generatedText;
 }

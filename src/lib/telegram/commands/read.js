@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { sendMessage } from '../client';
-import { formatTicketDetail, buildInlineKeyboard, generateTRText } from '../helpers';
+import { formatTicketDetail, buildInlineKeyboard, generateTRText, escapeMarkdown } from '../helpers';
 
 export async function handleTiket(chatId, text, user) {
   const parts = text.split(' ');
@@ -64,7 +64,7 @@ export async function handleRunning(chatId, user) {
       let icon = t.status === 'SC' ? '⏸️' : '🔴';
       const isTaccCategory = ['UMT', 'MTEL', 'CENTRATAMA'].includes(t.category);
       const val = isTaccCategory ? (t.id_tiket_tacc || '-') : (t.priority || '-');
-      text += `${i + 1}. ${icon} *${t.id_tiket}* | ${t.category}-${t.subcategory} | ${val}\n`;
+      text += `${i + 1}. ${icon} *${escapeMarkdown(t.id_tiket)}* | ${escapeMarkdown(t.category)}-${escapeMarkdown(t.subcategory)} | ${escapeMarkdown(val)}\n`;
     });
     text += `─────────────────────────\nGunakan \`/tiket <ID>\` untuk detail.`;
 
