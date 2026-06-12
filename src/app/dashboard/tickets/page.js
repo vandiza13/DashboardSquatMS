@@ -199,7 +199,11 @@ export default function TicketsPage() {
     useEffect(() => { setPage(1); }, [activeTab, activeCategory, startDate, endDate]);
 
     // [PUSHER] 3. Tambahkan 'refreshTrigger' ke dependency array agar fetchTickets dipanggil saat ada update
-    useEffect(() => { const t = setTimeout(fetchTickets, 500); return () => clearTimeout(t); }, [page, search, activeTab, activeCategory, startDate, endDate, refreshTrigger]);
+    useEffect(() => { 
+        if (!userRole) return; // Mencegah double-fetch sebelum data user/divisi terisi
+        const t = setTimeout(fetchTickets, 500); 
+        return () => clearTimeout(t); 
+    }, [page, search, activeTab, activeCategory, startDate, endDate, refreshTrigger, userRole]);
 
     // [PUSHER] 4. Setup Listener Realtime
     useEffect(() => {
