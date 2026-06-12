@@ -13,7 +13,7 @@ export async function PUT(request, { params }) {
             return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
         const { sto, branch } = body;
 
@@ -49,7 +49,7 @@ export async function DELETE(request, { params }) {
             return NextResponse.json({ error: 'Forbidden: Requires SuperAdmin' }, { status: 403 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const [result] = await db.query('DELETE FROM sto_branch_mappings WHERE id = ?', [id]);
 
         if (result.affectedRows === 0) {
