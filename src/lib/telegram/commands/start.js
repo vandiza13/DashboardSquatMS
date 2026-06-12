@@ -3,7 +3,7 @@ import { sendMessage } from '../client';
 import bcrypt from 'bcryptjs';
 
 export async function handleStart(chatId) {
-  const text = `👋 *Selamat Datang di Bot Dashboard Tiket Modern*!
+  const text = `👋 *Selamat Datang di Bot Dashboard Tiket SQUATMS*!
 
 Bot ini membantu Anda memantau dan mengelola tiket gangguan secara langsung dari Telegram.
 
