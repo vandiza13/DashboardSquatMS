@@ -21,9 +21,11 @@ export function formatTicketDetail(ticket) {
     ? `🎯 *TACC ID*: ${escapeMarkdown(ticket.id_tiket_tacc || '-')}`
     : `⚡ *Prioritas*: ${escapeMarkdown(ticket.priority || '-')}`;
 
+  const statusStr = (ticket.category === 'SQUAT' && ticket.status === 'SC') ? 'PENDING' : ticket.status;
+
   return `📋 *DETAIL TIKET ${escapeMarkdown(ticket.id_tiket)}*
 ─────────────────────────
-📌 *Status*: ${ticket.status}
+📌 *Status*: ${statusStr}
 🏷️ *Kategori*: ${ticket.category} - ${ticket.subcategory}
 ${priorityOrTacc}
 📝 *Deskripsi*: ${escapeMarkdown(ticket.deskripsi)}
@@ -118,6 +120,8 @@ export function generateTRText(ticket, history = []) {
 
   const subCat = ticket.subcategory ? ticket.subcategory.toUpperCase() : ticket.category;
   
+  const statusStr = (ticket.category === 'SQUAT' && ticket.status === 'SC') ? 'PENDING' : ticket.status;
+
   // Follow the exact format as TRModal.js, but escape dynamic inputs to avoid Telegram Markdown issues
   const generatedText = `🚨 *TIME REPORT (TR) - TICKET ${escapeMarkdown(subCat)}* 🚨
 ======================================
@@ -125,7 +129,7 @@ export function generateTRText(ticket, history = []) {
 ${escapeMarkdown(ticket.id_tiket)}
 ${escapeMarkdown(ticket.deskripsi || '-')}
 ${ticket.category === 'SQUAT' ? `*Priority:* ${escapeMarkdown(ticket.priority || '-')}` : `*TACC ID:* ${escapeMarkdown(ticket.id_tiket_tacc || '-')}`}
-*Status:* ${statusEmoji} ${ticket.status}
+*Status:* ${statusEmoji} ${statusStr}
 *STO / Branch:* ${escapeMarkdown(ticket.sto || '-')} / ${escapeMarkdown(ticket.branch || '-')}
 
 *PIC Teknisi:* ${escapeMarkdown(ticket.technician_name || '-')} ${ticket.technician_phone ? '(' + escapeMarkdown(ticket.technician_phone) + ')' : ''}
