@@ -196,6 +196,9 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         return false;
     });
 
+    const ticketDivision = formData.category === 'SQUAT' ? 'SQUAT' : 'MS';
+    const filteredTechnicians = technicians.filter(t => t.division === ticketDivision);
+
     // --- LOGIKA SUBMIT ---
     const executeSubmit = async () => {
         setIsSubmitting(true);
@@ -268,7 +271,19 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                             <select
                                 className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                 value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value, subcategory: '', priority: '', sto: '', branch: '' })}
+                                onChange={e => {
+                                    setFormData({ 
+                                        ...formData, 
+                                        category: e.target.value, 
+                                        subcategory: '', 
+                                        priority: '', 
+                                        sto: '', 
+                                        branch: '',
+                                        technician_nik: '' 
+                                    });
+                                    setPartnerNiks([]);
+                                    setTempPartner('');
+                                }}
                                 disabled={isRestrictedEdit}
                             >
                                 {allowedCategories.map(cat => (
@@ -452,11 +467,15 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     onChange={e => setFormData({ ...formData, technician_nik: e.target.value })}
                                 >
                                     <option value="">- Pilih Sesuai Assign Lensa -</option>
-                                    {technicians.map(t => (
-                                        <option key={t.nik} value={String(t.nik)}>
-                                            {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
-                                        </option>
-                                    ))}
+                                    {filteredTechnicians.map(t => {
+                                        const isPartner = partnerNiks.includes(String(t.nik));
+                                        if (isPartner) return null;
+                                        return (
+                                            <option key={t.nik} value={String(t.nik)}>
+                                                {t.name} {t.phone_number ? `(${t.phone_number})` : ''}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                                 <FaHardHat className="absolute left-3 top-3 text-blue-500 pointer-events-none" />
                             </div>
@@ -477,7 +496,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                         disabled={partnerNiks.length >= 4}
                                     >
                                         <option value="">- Tambah Partner -</option>
-                                        {technicians.map(t => (
+                                        {filteredTechnicians.map(t => (
                                             (String(t.nik) !== String(formData.technician_nik) && !partnerNiks.includes(String(t.nik))) && (
                                                 <option key={t.nik} value={String(t.nik)}>
                                                     {t.name} {t.phone_number ? `(${t.phone_number})` : ''}

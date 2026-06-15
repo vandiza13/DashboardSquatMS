@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { sendMessage, answerCallbackQuery, editMessageText } from '../client';
-import { buildInlineKeyboard } from '../helpers';
+import { buildInlineKeyboard, escapeMarkdown } from '../helpers';
 import { getSession, setSession, clearSession } from '../conversation';
 import { pusherServer } from '@/lib/pusher';
 
@@ -40,7 +40,7 @@ export async function handleCreateWizard(chatId, user, text, isFollowUp = false)
   if (step === 'CREATE_ID_TIKET') {
     data.id_tiket = text.trim();
     await setSession(chatId, 'CREATE_DESKRIPSI', data);
-    await sendMessage(chatId, `📝 Kategori: ${data.category} - ${data.subcategory}\nID Tiket: *${data.id_tiket}*\n\nKetikan *Deskripsi Gangguan*:`);
+    await sendMessage(chatId, `📝 Kategori: ${escapeMarkdown(data.category)} - ${escapeMarkdown(data.subcategory)}\nID Tiket: *${escapeMarkdown(data.id_tiket)}*\n\nKetikan *Deskripsi Gangguan*:`);
     return true;
   }
 
@@ -53,28 +53,167 @@ export async function handleCreateWizard(chatId, user, text, isFollowUp = false)
 
   if (step === 'CREATE_STO') {
     data.sto = text.trim() === '-' ? null : text.trim().toUpperCase();
-    await setSession(chatId, 'CREATE_CONFIRM', data);
-    
-    // Konfirmasi Akhir
-    let confirmText = `✅ *KONFIRMASI TIKET BARU*
-─────────────────
-Kategori: ${data.category} - ${data.subcategory}
-Prioritas: ${data.priority || '-'}
-ID Tiket: ${data.id_tiket}
-STO: ${data.sto || '-'}
-Deskripsi: ${data.deskripsi}
-─────────────────`;
+    await setSession(chatId, 'CREATE_TIKET_TIME', data);
+    await sendMessage(chatId, "⏰ Ketikan *Waktu Tiket Open* (format: `YYYY-MM-DD HH:mm`, contoh: `2026-06-15 14:30`):");
+    return true;
+  }
 
-    const keyboard = buildInlineKeyboard([
-      { text: "✅ Simpan", callback_data: "CREATE_SAVE" },
-      { text: "❌ Batal", callback_data: "CREATE_CANCEL" }
-    ]);
-
-    await sendMessage(chatId, confirmText, { reply_markup: keyboard });
+  if (step === 'CREATE_TIKET_TIME') {
+    const timeText = text.trim();
+    // Validasi format YYYY-MM-DD HH:mm
+    const regex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+    if (!regex.test(timeText)) {
+      await sendMessage(chatId, "❌ Format salah! Harap masukkan dengan format `YYYY-MM-DD HH:mm` (contoh: `2026-06-15 14:30`):");
+      return true;
+    }
+    data.tiket_time = timeText;
+    await askTechnician(chatId, data);
     return true;
   }
 
   return false;
+}
+
+async function askTechnician(chatId, sessionData) {
+  const div = sessionData.category === 'SQUAT' ? 'SQUAT' : 'MS';
+  const [techs] = await db.query(
+    'SELECT nik, name, phone_number FROM technicians WHERE is_active = 1 AND division = ? ORDER BY name ASC',
+    [div]
+  );
+  
+  const buttons = techs.map(t => ({
+    text: t.name,
+    callback_data: `CREATE_TECH_${t.nik}`
+  }));
+  
+  buttons.push({ text: "⏩ Belum Assign (Lewati)", callback_data: "CREATE_TECH_NONE" });
+  buttons.push({ text: "❌ Batal", callback_data: "CREATE_CANCEL" });
+  
+  // Build keyboard dengan 2 kolom
+  const inline_keyboard = [];
+  let row = [];
+  for (const btn of buttons) {
+    row.push(btn);
+    if (row.length === 2) {
+      inline_keyboard.push(row);
+      row = [];
+    }
+  }
+  if (row.length > 0) {
+    inline_keyboard.push(row);
+  }
+  
+  await setSession(chatId, 'CREATE_SELECT_TECH', sessionData);
+  await sendMessage(chatId, "👷 *Pilih/Assign Teknisi Utama (LENSA):*", {
+    reply_markup: { inline_keyboard }
+  });
+}
+
+async function showPartnerSelection(chatId, messageId, sessionData) {
+  const div = sessionData.category === 'SQUAT' ? 'SQUAT' : 'MS';
+  const [techs] = await db.query(
+    'SELECT nik, name, phone_number FROM technicians WHERE is_active = 1 AND division = ? ORDER BY name ASC',
+    [div]
+  );
+  
+  // Filter out the main technician and already selected partners
+  const availableTechs = techs.filter(t => 
+    String(t.nik) !== String(sessionData.technician_nik) && 
+    !(sessionData.partner_niks || []).includes(String(t.nik))
+  );
+  
+  // Map selected NIKs to names for display
+  const partnerNames = (sessionData.partner_niks || []).map(nik => {
+    const t = techs.find(tech => String(tech.nik) === String(nik));
+    return t ? t.name : nik;
+  });
+  
+  const partnerListStr = partnerNames.length > 0 ? partnerNames.join(', ') : 'Tidak ada';
+  
+  // Build keyboard buttons
+  const buttons = [];
+  
+  // If we haven't reached max 4 partners, show remaining available techs
+  if ((sessionData.partner_niks || []).length < 4) {
+    availableTechs.forEach(t => {
+      buttons.push({
+        text: `+ ${t.name}`,
+        callback_data: `CREATE_PART_ADD_${t.nik}`
+      });
+    });
+  }
+  
+  const inline_keyboard = [];
+  let row = [];
+  for (const btn of buttons) {
+    row.push(btn);
+    if (row.length === 2) {
+      inline_keyboard.push(row);
+      row = [];
+    }
+  }
+  if (row.length > 0) {
+    inline_keyboard.push(row);
+  }
+  
+  // Control buttons
+  const controlRow = [];
+  controlRow.push({ text: "✅ Selesai", callback_data: "CREATE_PART_DONE" });
+  if ((sessionData.partner_niks || []).length === 0) {
+    controlRow.push({ text: "⏩ Tanpa Partner (Lewati)", callback_data: "CREATE_PART_DONE" });
+  }
+  controlRow.push({ text: "❌ Batal", callback_data: "CREATE_CANCEL" });
+  
+  inline_keyboard.push(controlRow);
+  
+  await setSession(chatId, 'CREATE_SELECT_PARTNER', sessionData);
+  
+  const mainTechObj = techs.find(t => String(t.nik) === String(sessionData.technician_nik));
+  const mainTechName = mainTechObj ? mainTechObj.name : 'Belum Assign';
+  
+  const textMsg = `👥 *Pilih Partner / Support (Maksimal 4)*\n\n` +
+                  `*Teknisi Utama:* ${escapeMarkdown(mainTechName)}\n` +
+                  `*Partner Terpilih:* ${escapeMarkdown(partnerListStr)}\n\n` +
+                  `Silakan ketuk nama teknisi di bawah untuk menambahkannya sebagai partner:`;
+                  
+  await editMessageText(chatId, messageId, textMsg, {
+    reply_markup: { inline_keyboard }
+  });
+}
+
+async function showFinalConfirmation(chatId, messageId, sessionData) {
+  const [techs] = await db.query('SELECT nik, name, phone_number FROM technicians WHERE is_active = 1');
+  
+  const mainTechObj = techs.find(t => String(t.nik) === String(sessionData.technician_nik));
+  const mainTechStr = mainTechObj ? `${mainTechObj.name} (${mainTechObj.phone_number || '-'})` : 'Belum Assign';
+  
+  const partnerNames = (sessionData.partner_niks || []).map(nik => {
+    const t = techs.find(tech => String(tech.nik) === String(nik));
+    return t ? `${t.name} (${t.phone_number || '-'})` : nik;
+  });
+  const partnerStr = partnerNames.length > 0 ? partnerNames.join(', ') : '-';
+  
+  // Format partner_technicians exact string for DB insertion
+  sessionData.partner_technicians = partnerNames.length > 0 ? partnerNames.join(', ') : null;
+
+  const confirmText = `✅ *KONFIRMASI TIKET BARU*
+─────────────────
+Kategori: ${escapeMarkdown(sessionData.category)} \\- ${escapeMarkdown(sessionData.subcategory)}
+Prioritas: ${escapeMarkdown(sessionData.priority || '-')}
+ID Tiket: ${escapeMarkdown(sessionData.id_tiket)}
+Waktu Tiket Open: ${escapeMarkdown(sessionData.tiket_time)}
+STO: ${escapeMarkdown(sessionData.sto || '-')}
+Deskripsi: ${escapeMarkdown(sessionData.deskripsi)}
+Teknisi Utama: ${escapeMarkdown(mainTechStr)}
+Partner: ${escapeMarkdown(partnerStr)}
+─────────────────`;
+
+  const keyboard = buildInlineKeyboard([
+    { text: "✅ Simpan", callback_data: "CREATE_SAVE" },
+    { text: "❌ Batal", callback_data: "CREATE_CANCEL" }
+  ]);
+
+  await editMessageText(chatId, messageId, confirmText, { reply_markup: keyboard });
 }
 
 export async function handleCreateCallback(chatId, messageId, data, user, callbackQueryId) {
@@ -141,6 +280,31 @@ export async function handleCreateCallback(chatId, messageId, data, user, callba
     return answerCallbackQuery(callbackQueryId);
   }
 
+  if (data.startsWith('CREATE_TECH_')) {
+    const nik = data.replace('CREATE_TECH_', '');
+    sessionData.technician_nik = nik === 'NONE' ? null : nik;
+    sessionData.partner_niks = [];
+    await showPartnerSelection(chatId, messageId, sessionData);
+    return answerCallbackQuery(callbackQueryId);
+  }
+
+  if (data.startsWith('CREATE_PART_ADD_')) {
+    const nik = data.replace('CREATE_PART_ADD_', '');
+    if (!sessionData.partner_niks) {
+      sessionData.partner_niks = [];
+    }
+    if (sessionData.partner_niks.length < 4 && !sessionData.partner_niks.includes(nik)) {
+      sessionData.partner_niks.push(nik);
+    }
+    await showPartnerSelection(chatId, messageId, sessionData);
+    return answerCallbackQuery(callbackQueryId);
+  }
+
+  if (data === 'CREATE_PART_DONE') {
+    await showFinalConfirmation(chatId, messageId, sessionData);
+    return answerCallbackQuery(callbackQueryId);
+  }
+
   if (data === 'CREATE_SAVE') {
     // 1. Simpan ke database
     const connection = await db.getConnection();
@@ -155,20 +319,31 @@ export async function handleCreateCallback(chatId, messageId, data, user, callba
         }
       }
 
+      const formattedTime = sessionData.tiket_time ? `${sessionData.tiket_time}:00` : new Date();
+
       const [result] = await connection.query(
         `INSERT INTO tickets 
-        (category, subcategory, priority, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, sto, branch) 
-        VALUES (?, ?, ?, ?, NOW(), ?, 'OPEN', ?, ?, NOW(), ?, ?)`,
+        (category, subcategory, priority, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto, branch) 
+        VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?, ?)`,
         [
           sessionData.category, sessionData.subcategory, sessionData.priority || null, 
-          sessionData.id_tiket, sessionData.deskripsi, user.user_id, user.user_id, 
-          sessionData.sto, finalBranch
+          sessionData.id_tiket, formattedTime, sessionData.deskripsi, user.user_id, user.user_id, 
+          sessionData.partner_technicians || null, sessionData.sto, finalBranch
         ]
       );
 
+      const ticketId = result.insertId;
+
+      if (sessionData.technician_nik) {
+        await connection.query(
+          'INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)',
+          [ticketId, sessionData.technician_nik]
+        );
+      }
+
       await connection.query(
         `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
-        [result.insertId, `Tiket dibuat via Telegram (OPEN)`, user.username]
+        [ticketId, `Tiket dibuat via Telegram (OPEN)`, user.username]
       );
 
       await connection.commit();
@@ -184,13 +359,13 @@ export async function handleCreateCallback(chatId, messageId, data, user, callba
         console.error("Pusher error:", e);
       }
 
-      await editMessageText(chatId, messageId, `✅ *TIKET BERHASIL DIBUAT!*\nID Tiket: ${sessionData.id_tiket}`);
+      await editMessageText(chatId, messageId, `✅ *TIKET BERHASIL DIBUAT!*\nID Tiket: ${escapeMarkdown(sessionData.id_tiket)}`);
       await clearSession(chatId);
     } catch (e) {
       await connection.rollback();
       console.error("Create DB error:", e);
       if (e.code === 'ER_DUP_ENTRY') {
-        await editMessageText(chatId, messageId, `❌ Gagal: ID Tiket *${sessionData.id_tiket}* sudah ada.`);
+        await editMessageText(chatId, messageId, `❌ Gagal: ID Tiket *${escapeMarkdown(sessionData.id_tiket)}* sudah ada.`);
       } else {
         await editMessageText(chatId, messageId, `❌ Terjadi kesalahan saat menyimpan ke database.`);
       }
