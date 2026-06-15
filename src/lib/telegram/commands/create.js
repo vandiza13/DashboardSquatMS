@@ -52,23 +52,37 @@ export async function handleCreateWizard(chatId, user, text, isFollowUp = false)
   }
 
   if (step === 'CREATE_STO') {
-    data.sto = text.trim() === '-' ? null : text.trim().toUpperCase();
-    await setSession(chatId, 'CREATE_TIKET_TIME', data);
-    await sendMessage(chatId, "⏰ Ketikan *Waktu Tiket Open* (format: `YYYY-MM-DD HH:mm`, contoh: `2026-06-15 14:30`):");
-    return true;
+    try {
+      console.log(`[DEBUG] CREATE_STO input: ${text.trim()}`);
+      data.sto = text.trim() === '-' ? null : text.trim().toUpperCase();
+      await setSession(chatId, 'CREATE_TIKET_TIME', data);
+      await sendMessage(chatId, "⏰ Ketikan Waktu Tiket Open (format: YYYY-MM-DD HH:mm, contoh: 2026-06-15 14:30):");
+      return true;
+    } catch (e) {
+      console.error(`[ERROR CREATE_STO]:`, e);
+      await sendMessage(chatId, "❌ Terjadi kesalahan pada server saat memproses STO.");
+      return true;
+    }
   }
 
   if (step === 'CREATE_TIKET_TIME') {
-    const timeText = text.trim();
-    // Validasi format YYYY-MM-DD HH:mm
-    const regex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
-    if (!regex.test(timeText)) {
-      await sendMessage(chatId, "❌ Format salah! Harap masukkan dengan format `YYYY-MM-DD HH:mm` (contoh: `2026-06-15 14:30`):");
+    try {
+      const timeText = text.trim();
+      console.log(`[DEBUG] CREATE_TIKET_TIME input: ${timeText}`);
+      // Validasi format YYYY-MM-DD HH:mm
+      const regex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+      if (!regex.test(timeText)) {
+        await sendMessage(chatId, "❌ Format salah! Harap masukkan dengan format YYYY-MM-DD HH:mm (contoh: 2026-06-15 14:30):");
+        return true;
+      }
+      data.tiket_time = timeText;
+      await askTechnician(chatId, data);
+      return true;
+    } catch (e) {
+      console.error(`[ERROR CREATE_TIKET_TIME]:`, e);
+      await sendMessage(chatId, "❌ Terjadi kesalahan pada server saat memproses Waktu Tiket.");
       return true;
     }
-    data.tiket_time = timeText;
-    await askTechnician(chatId, data);
-    return true;
   }
 
   return false;
