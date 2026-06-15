@@ -316,6 +316,7 @@ export async function handleCreateCallback(chatId, messageId, data, user, callba
 
   if (data === 'CREATE_PART_DONE') {
     await showFinalConfirmation(chatId, messageId, sessionData);
+    await setSession(chatId, 'CREATE_CONFIRM', sessionData);
     return answerCallbackQuery(callbackQueryId);
   }
 
