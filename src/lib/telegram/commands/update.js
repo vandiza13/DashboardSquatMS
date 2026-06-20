@@ -60,7 +60,7 @@ export async function handleUpdateWizard(chatId, user, text, isFollowUp = false)
       if (step === 'UPDATE_RCA') {
         historyNote = `Status berubah: ${data.status} ➝ CLOSED. RCA: "${data.update_text}"`;
         await connection.query(
-          `UPDATE tickets SET status = 'CLOSED', update_progres = ?, updated_by_user_id = ?, close_time = NOW(), last_update_time = NOW() WHERE id = ?`,
+          `UPDATE tickets SET status = 'CLOSED', update_progres = ?, updated_by_user_id = ?, last_update_time = NOW() WHERE id = ?`,
           [data.update_text, user.user_id, data.ticket_id]
         );
       } else {
