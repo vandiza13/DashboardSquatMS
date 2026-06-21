@@ -10,7 +10,7 @@ export function escapeMarkdown(text) {
 
 export function formatTicketDetail(ticket) {
   const agingStr = ticket.ttr_tacc ? `TTR: ${ticket.ttr_tacc} jam` : 
-                   ticket.close_time ? `Selesai` : `Berjalan`;
+                   (ticket.status === 'CLOSED' ? `Selesai` : `Berjalan`);
                    
   const picInfo = ticket.technician_name 
     ? `${ticket.technician_name} (${ticket.technician_phone || '-'})` 
@@ -22,6 +22,7 @@ export function formatTicketDetail(ticket) {
     : `⚡ *Prioritas*: ${escapeMarkdown(ticket.priority || '-')}`;
 
   const statusStr = (ticket.category === 'SQUAT' && ticket.status === 'SC') ? 'PENDING' : ticket.status;
+  const progressLabel = ticket.status === 'CLOSED' ? 'RCA' : 'Progress';
 
   return `📋 *DETAIL TIKET ${escapeMarkdown(ticket.id_tiket)}*
 ─────────────────────────
@@ -33,7 +34,7 @@ ${priorityOrTacc}
 👤 *PIC*: ${escapeMarkdown(picInfo)}
 ⏰ *TIKET OPEN*: ${new Date(ticket.tiket_time).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'})} WIB
 ⏳ *Info Waktu*: ${agingStr}
-📊 *Progress*: ${escapeMarkdown(ticket.update_progres || '-')}
+📊 *${progressLabel}*: ${escapeMarkdown(ticket.update_progres || '-')}
 ─────────────────────────`;
 }
 
