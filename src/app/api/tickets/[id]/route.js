@@ -180,30 +180,25 @@ export async function PUT(request, props) {
         const telegramNik = (body.technician_niks && body.technician_niks.length > 0) ? body.technician_niks[0] : null;
 
         if (isNewTechnician && telegramNik && body.category === 'SQUAT') {
-            const botToken = process.env.TELEGRAM_LENSA_BOT_TOKEN;
-            const chatId = process.env.TELEGRAM_LENSA_CHAT_ID;
-            const customBotUrl = process.env.TELEGRAM_LENSA_API_URL;
+            const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.82:8347/ambil';
 
-            if (chatId && botToken && customBotUrl) {
-                const messageText = `/assign\nNo. Tiket : ${body.id_tiket}\nNik Teknisi : ${telegramNik}`;
-                
-                try {
-                    const telegramUrl = `${customBotUrl}${botToken}/sendMessage`;
-                    fetch(telegramUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            text: messageText
-                        })
-                    }).then(res => res.json()).then(data => {
-                        if (!data.ok) console.error(">>> Telegram Lensa Bot Error:", data.description);
-                    }).catch(err => console.error(">>> Telegram Lensa Fetch Error:", err.message));
-                } catch (telegramErr) {
-                    console.error(">>> Failed to send Telegram Lensa Assign:", telegramErr);
-                }
-            } else {
-                console.warn(">>> TELEGRAM_LENSA_CHAT_ID tidak disetting di .env, pesan /assign batal dikirim.");
+            try {
+                fetch(lensaApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        incident: body.id_tiket,
+                        em: telegramNik
+                    })
+                }).then(async res => {
+                    if (!res.ok) {
+                        console.error(">>> Lensa API Error HTTP Status:", res.status);
+                    } else {
+                        console.log(`>>> Lensa Assign Berhasil untuk tiket ${body.id_tiket} ke teknisi ${telegramNik}`);
+                    }
+                }).catch(err => console.error(">>> Lensa API Fetch Error:", err.message));
+            } catch (lensaErr) {
+                console.error(">>> Failed to hit Lensa API:", lensaErr);
             }
         }
 
