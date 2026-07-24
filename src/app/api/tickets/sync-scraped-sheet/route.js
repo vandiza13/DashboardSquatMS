@@ -51,6 +51,7 @@ export async function POST(request) {
         const webhookSecret = request.headers.get('x-webhook-secret');
         const expectedSecret = process.env.WEBHOOK_SECRET || 'SquatSync2026';
         let isWebhook = false;
+        let user = null;
 
         if (webhookSecret === expectedSecret) {
             isWebhook = true;
@@ -60,7 +61,7 @@ export async function POST(request) {
             if (!token) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             }
-            const user = await verifyJWT(token);
+            user = await verifyJWT(token);
             if (!user || user.role !== 'SuperAdmin') {
                 return NextResponse.json({ error: 'Hanya SuperAdmin yang dapat melakukan sync manual.' }, { status: 403 });
             }
@@ -135,8 +136,8 @@ export async function POST(request) {
                     incident,
                     tiketTime,
                     summary || '-',
-                    isWebhook ? null : user.userId,
-                    isWebhook ? null : user.userId,
+                    isWebhook ? 1 : user.userId,
+                    isWebhook ? 1 : user.userId,
                     workzone || null,
                     witel || null
                 ]
