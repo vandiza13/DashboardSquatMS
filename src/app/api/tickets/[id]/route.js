@@ -184,10 +184,10 @@ export async function PUT(request, props) {
             const customBotUrl = process.env.TELEGRAM_LENSA_API_URL || 'http://161.118.252.92:8081/bot';
 
             if (chatId) {
-                const messageText = \`/assign\\nNo. Tiket : \${body.id_tiket}\\nNik Teknisi : \${newNik}\`;
+                const messageText = `/assign\nNo. Tiket : ${body.id_tiket}\nNik Teknisi : ${newNik}`;
                 
                 try {
-                    const telegramUrl = \`\${customBotUrl}\${botToken}/sendMessage\`;
+                    const telegramUrl = `${customBotUrl}${botToken}/sendMessage`;
                     fetch(telegramUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
