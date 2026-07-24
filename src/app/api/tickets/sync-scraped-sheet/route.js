@@ -90,6 +90,15 @@ export async function POST(request) {
             return idx !== -1 && row[idx] !== undefined ? String(row[idx]).trim() : '';
         };
 
+        // Fetch STO mappings to accurately map STO to Branch
+        const [mappings] = await connection.query('SELECT sto, branch FROM sto_branch_mappings');
+        const stoToBranch = {};
+        for (const m of mappings) {
+            if (m.sto && m.branch) {
+                stoToBranch[m.sto.toUpperCase()] = m.branch;
+            }
+        }
+
         let syncedCount = 0;
         let skippedCount = 0;
 
@@ -113,8 +122,14 @@ export async function POST(request) {
             }
 
             // Map WITEL to branch and WORKZONE to sto
-            const witel = getVal(row, 'WITEL');
-            const workzone = getVal(row, 'WORKZONE');
+            const rawWitel = getVal(row, 'WITEL');
+            const rawWorkzone = getVal(row, 'WORKZONE');
+            
+            const sto = rawWorkzone ? rawWorkzone.toUpperCase() : null;
+            let branch = rawWitel || null;
+            if (sto && stoToBranch[sto]) {
+                branch = stoToBranch[sto];
+            }
 
             let subcategory = null;
             if (layanan === 'TSEL' || reportedBy === 'INAP_TSEL' || summary.toUpperCase().startsWith('TSEL_')) {
@@ -146,8 +161,8 @@ export async function POST(request) {
                     summary || '-',
                     isWebhook ? 1 : user.userId,
                     isWebhook ? 1 : user.userId,
-                    workzone || null,
-                    witel || null
+                    sto,
+                    branch
                 ]
             );
 
