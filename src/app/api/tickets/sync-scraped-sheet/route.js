@@ -47,13 +47,23 @@ function determinePriority(subcategory, summary, rawPriority) {
 export async function POST(request) {
     const connection = await db.getConnection();
     try {
-        const token = request.cookies.get('token')?.value;
-        if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const user = await verifyJWT(token);
-        if (!user || user.role !== 'SuperAdmin') {
-            return NextResponse.json({ error: 'Hanya SuperAdmin yang dapat melakukan sync manual.' }, { status: 403 });
+        // Cek apakah request berasal dari Webhook menggunakan custom header
+        const webhookSecret = request.headers.get('x-webhook-secret');
+        const expectedSecret = process.env.WEBHOOK_SECRET || 'SquatSync2026';
+        let isWebhook = false;
+
+        if (webhookSecret === expectedSecret) {
+            isWebhook = true;
+        } else {
+            // Jika bukan Webhook, verifikasi melalui JWT dari cookies browser
+            const token = request.cookies.get('token')?.value;
+            if (!token) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+            const user = await verifyJWT(token);
+            if (!user || user.role !== 'SuperAdmin') {
+                return NextResponse.json({ error: 'Hanya SuperAdmin yang dapat melakukan sync manual.' }, { status: 403 });
+            }
         }
 
         const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID_SCRAPE || '15JQXtM0p_pXIyYzuuV7tdC0mdIR75ZVvQtSXh1Zztp0';
@@ -125,8 +135,8 @@ export async function POST(request) {
                     incident,
                     tiketTime,
                     summary || '-',
-                    user.userId,
-                    user.userId,
+                    isWebhook ? null : user.userId,
+                    isWebhook ? null : user.userId,
                     workzone || null,
                     witel || null
                 ]
