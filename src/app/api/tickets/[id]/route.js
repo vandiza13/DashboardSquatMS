@@ -165,6 +165,47 @@ export async function PUT(request, props) {
         // Commit transaksi DB dulu
         await connection.commit();
 
+        // [TELEGRAM] Integrasi Lensa Bot (Send /assign message)
+        // Hanya dikirim jika ada teknisi baru yang di-assign (bukan update biasa) dan kategori SQUAT
+        const newNik = (body.technician_niks && body.technician_niks.length > 0) ? body.technician_niks[0] : null;
+        let isNewTechnician = false;
+        
+        if (newNik) {
+            // Cek apakah teknisi lama berbeda dengan yang baru (berarti baru diassign/diubah)
+            const [oldTechs] = await connection.query('SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ?', [id]);
+            if (oldTechs.length === 0 || oldTechs[0].technician_nik !== newNik) {
+                isNewTechnician = true;
+            }
+        }
+
+        if (isNewTechnician && body.category === 'SQUAT') {
+            const botToken = process.env.TELEGRAM_LENSA_BOT_TOKEN || '5794422200:AAGzCb-2zCnP_s8vKvXCXBUxQgN0bFbtfaI';
+            const chatId = process.env.TELEGRAM_LENSA_CHAT_ID;
+            const customBotUrl = process.env.TELEGRAM_LENSA_API_URL || 'http://161.118.252.92:8081/bot';
+
+            if (chatId) {
+                const messageText = \`/assign\\nNo. Tiket : \${body.id_tiket}\\nNik Teknisi : \${newNik}\`;
+                
+                try {
+                    const telegramUrl = \`\${customBotUrl}\${botToken}/sendMessage\`;
+                    fetch(telegramUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            text: messageText
+                        })
+                    }).then(res => res.json()).then(data => {
+                        if (!data.ok) console.error(">>> Telegram Lensa Bot Error:", data.description);
+                    }).catch(err => console.error(">>> Telegram Lensa Fetch Error:", err.message));
+                } catch (telegramErr) {
+                    console.error(">>> Failed to send Telegram Lensa Assign:", telegramErr);
+                }
+            } else {
+                console.warn(">>> TELEGRAM_LENSA_CHAT_ID tidak disetting di .env, pesan /assign batal dikirim.");
+            }
+        }
+
         // [PUSHER] 2. Kirim Notifikasi Edit (PUT)
         try {
             await pusherServer.trigger('dashboard-channel', 'ticket-update', {
