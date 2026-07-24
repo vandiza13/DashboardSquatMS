@@ -119,15 +119,25 @@ export async function PUT(request, props) {
         // 2. Update Teknisi
         let picName = '';
         let picPhone = '';
+        let isNewTechnician = false; // Flag untuk Lensa Telegram
 
         if (body.technician_niks && Array.isArray(body.technician_niks) && body.technician_niks.length > 0) {
+            const newNik = body.technician_niks[0];
+
+            // Cek teknisi lama sebelum dihapus untuk mendeteksi perubahan assign
+            if (newNik) {
+                const [oldTechs] = await connection.query('SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ?', [id]);
+                if (oldTechs.length === 0 || oldTechs[0].technician_nik !== newNik) {
+                    isNewTechnician = true;
+                }
+            }
+
             await connection.query('DELETE FROM ticket_technicians WHERE ticket_id = ?', [id]);
 
-            const nik = body.technician_niks[0];
-            if (nik) {
-                await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, nik]);
+            if (newNik) {
+                await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, newNik]);
 
-                const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [nik]);
+                const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [newNik]);
                 if (techRows.length > 0) {
                     picName = techRows[0].name;
                     picPhone = techRows[0].phone_number;
@@ -167,24 +177,15 @@ export async function PUT(request, props) {
 
         // [TELEGRAM] Integrasi Lensa Bot (Send /assign message)
         // Hanya dikirim jika ada teknisi baru yang di-assign (bukan update biasa) dan kategori SQUAT
-        const newNik = (body.technician_niks && body.technician_niks.length > 0) ? body.technician_niks[0] : null;
-        let isNewTechnician = false;
-        
-        if (newNik) {
-            // Cek apakah teknisi lama berbeda dengan yang baru (berarti baru diassign/diubah)
-            const [oldTechs] = await connection.query('SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ?', [id]);
-            if (oldTechs.length === 0 || oldTechs[0].technician_nik !== newNik) {
-                isNewTechnician = true;
-            }
-        }
+        const telegramNik = (body.technician_niks && body.technician_niks.length > 0) ? body.technician_niks[0] : null;
 
-        if (isNewTechnician && body.category === 'SQUAT') {
-            const botToken = process.env.TELEGRAM_LENSA_BOT_TOKEN || '5794422200:AAGzCb-2zCnP_s8vKvXCXBUxQgN0bFbtfaI';
+        if (isNewTechnician && telegramNik && body.category === 'SQUAT') {
+            const botToken = process.env.TELEGRAM_LENSA_BOT_TOKEN;
             const chatId = process.env.TELEGRAM_LENSA_CHAT_ID;
-            const customBotUrl = process.env.TELEGRAM_LENSA_API_URL || 'http://161.118.252.92:8081/bot';
+            const customBotUrl = process.env.TELEGRAM_LENSA_API_URL;
 
-            if (chatId) {
-                const messageText = `/assign\nNo. Tiket : ${body.id_tiket}\nNik Teknisi : ${newNik}`;
+            if (chatId && botToken && customBotUrl) {
+                const messageText = `/assign\nNo. Tiket : ${body.id_tiket}\nNik Teknisi : ${telegramNik}`;
                 
                 try {
                     const telegramUrl = `${customBotUrl}${botToken}/sendMessage`;
