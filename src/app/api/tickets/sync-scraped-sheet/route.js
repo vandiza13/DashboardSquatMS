@@ -103,7 +103,15 @@ export async function POST(request) {
             const customerSegment = getVal(row, 'CUSTOMER SEGMENT').toUpperCase();
             const rawPriority = getVal(row, 'REPORTED PRIORITY');
             const reportedDateStr = getVal(row, 'REPORTED DATE');
+            const spreadsheetStatus = getVal(row, 'STATUS').toUpperCase();
             
+            // Skip tickets that are already closed in the spreadsheet
+            const closedStatuses = ['CLOSED', 'RESOLVED', 'COMPLETED', 'CANCELED', 'CANCELLED', 'DONE', 'SALAMSIM', 'MEDIACARE', 'FINALCHECK'];
+            if (closedStatuses.includes(spreadsheetStatus) || spreadsheetStatus.includes('CLOSE')) {
+                skippedCount++;
+                continue;
+            }
+
             // Map WITEL to branch and WORKZONE to sto
             const witel = getVal(row, 'WITEL');
             const workzone = getVal(row, 'WORKZONE');
