@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-    FaBars, FaUserCircle, FaSignOutAlt, FaUser, FaChevronDown, FaBell, FaQuoteLeft
+    FaBars, FaUserCircle, FaSignOutAlt, FaUser, FaChevronDown, FaBell, FaQuoteLeft, FaSync
 } from 'react-icons/fa';
 import { HiSun, HiMoon } from 'react-icons/hi2';
 import Skeleton from '@/components/Skeleton';
@@ -48,6 +48,25 @@ export default function Header({ onMenuClick }) {
         }
     };
 
+    const [isSyncing, setIsSyncing] = useState(false);
+    const handleSync = async () => {
+        if (!confirm('Apakah Anda yakin ingin mensinkronisasi data dari Google Sheets sekarang?')) return;
+        setIsSyncing(true);
+        try {
+            const res = await fetch('/api/tickets/sync-scraped-sheet', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Sinkronisasi selesai! ${data.synced} tiket baru, ${data.skipped} dilewati.`);
+            } else {
+                alert(`Gagal: ${data.error}`);
+            }
+        } catch (error) {
+            alert('Terjadi kesalahan saat sinkronisasi');
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     return (
         <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between bg-[var(--bg-surface)] px-6 shadow-sm border-b border-[var(--border-color)]">
 
@@ -79,6 +98,18 @@ export default function Header({ onMenuClick }) {
 
             {/* KANAN: Theme Toggle, Notifikasi & User Profile */}
             <div className="flex items-center gap-3 shrink-0">
+
+                {/* === SYNC BUTTON (SuperAdmin Only) === */}
+                {user?.role === 'SuperAdmin' && (
+                    <button
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        title="Sync with Google Sheets"
+                        className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-secondary)] hover:text-blue-500 bg-[var(--bg-base)] border border-[var(--border-color)] hover:border-blue-500 shadow-sm transition-all duration-300 disabled:opacity-50"
+                    >
+                        <FaSync size={16} className={isSyncing ? 'animate-spin' : ''} />
+                    </button>
+                )}
 
                 {/* === THEME TOGGLE BUTTON === */}
                 <button

@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 
-function getGoogleAuth() {
+export function getGoogleAuth() {
     let client_email = process.env.GOOGLE_CLIENT_EMAIL;
     let private_key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 

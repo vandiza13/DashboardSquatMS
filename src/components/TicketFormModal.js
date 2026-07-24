@@ -163,7 +163,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 update_progres: initialData.update_progres || '',
                 technician_nik: selectedTech,
             });
-        } else if (!initialData && !isOpen) {
+        } else if (!initialData && isOpen) {
             // Reset Form Baru
             setFormData({
                 category: 'SQUAT',
