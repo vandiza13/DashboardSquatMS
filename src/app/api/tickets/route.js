@@ -201,6 +201,27 @@ export async function POST(request) {
         // Commit transaksi database dulu
         await connection.commit();
 
+        // [LENSA API] Integrasi Lensa Bot (Send /assign message)
+        const telegramNik = (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) ? technician_niks[0] : null;
+        if (telegramNik && category === 'SQUAT') {
+            const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.82:8347/ambil';
+            try {
+                fetch(lensaApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        incident: id_tiket,
+                        em: telegramNik
+                    })
+                }).then(async res => {
+                    if (!res.ok) console.error(">>> Lensa API Error (Create) HTTP Status:", res.status);
+                    else console.log(`>>> Lensa Assign Berhasil (Create) untuk tiket ${id_tiket} ke teknisi ${telegramNik}`);
+                }).catch(err => console.error(">>> Lensa API Fetch Error (Create):", err.message));
+            } catch (lensaErr) {
+                console.error(">>> Failed to hit Lensa API (Create):", lensaErr);
+            }
+        }
+
         // [PUSHER] 2. Kirim Notifikasi Realtime SETELAH commit sukses
         try {
             await pusherServer.trigger('dashboard-channel', 'ticket-update', {
