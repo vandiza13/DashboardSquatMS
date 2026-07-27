@@ -126,12 +126,17 @@ export async function PUT(request, props) {
 
             // Cek teknisi lama sebelum dihapus untuk mendeteksi perubahan assign atau retry yang gagal
             if (newNik) {
-                const [oldTechs] = await connection.query('SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(async () => {
-                    await db.query('ALTER TABLE ticket_technicians ADD COLUMN lensa_status VARCHAR(20) DEFAULT NULL').catch(() => {});
-                    return connection.query('SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(() => [[]]);
+                const [oldTechs] = await connection.query('SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(() => {
+                    // Fallback if lensa_status column doesn't exist yet to avoid deadlock
+                    return connection.query('SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(() => [[]]);
                 });
                 const oldTech = oldTechs && oldTechs[0];
-                if (!oldTech || oldTech.technician_nik !== newNik || oldTech.lensa_status !== 'SUCCESS') {
+                
+                // Jika teknisi baru atau berbeda
+                if (!oldTech || oldTech.technician_nik !== newNik) {
+                    isNewTechnician = true;
+                } else if (oldTech.lensa_status !== undefined && oldTech.lensa_status !== 'SUCCESS') {
+                    // Jika teknisi sama tapi sebelumnya gagal, retry!
                     isNewTechnician = true;
                 }
             }
