@@ -124,10 +124,14 @@ export async function PUT(request, props) {
         if (body.technician_niks && Array.isArray(body.technician_niks) && body.technician_niks.length > 0) {
             const newNik = body.technician_niks[0];
 
-            // Cek teknisi lama sebelum dihapus untuk mendeteksi perubahan assign
+            // Cek teknisi lama sebelum dihapus untuk mendeteksi perubahan assign atau retry yang gagal
             if (newNik) {
-                const [oldTechs] = await connection.query('SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ?', [id]);
-                if (oldTechs.length === 0 || oldTechs[0].technician_nik !== newNik) {
+                const [oldTechs] = await connection.query('SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(async () => {
+                    await db.query('ALTER TABLE ticket_technicians ADD COLUMN lensa_status VARCHAR(20) DEFAULT NULL').catch(() => {});
+                    return connection.query('SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(() => [[]]);
+                });
+                const oldTech = oldTechs && oldTechs[0];
+                if (!oldTech || oldTech.technician_nik !== newNik || oldTech.lensa_status !== 'SUCCESS') {
                     isNewTechnician = true;
                 }
             }
@@ -179,26 +183,38 @@ export async function PUT(request, props) {
         // Hanya dikirim jika ada teknisi baru yang di-assign (bukan update biasa) dan kategori SQUAT
         const telegramNik = (body.technician_niks && body.technician_niks.length > 0) ? body.technician_niks[0] : null;
 
+        let lensaMessage = '';
         if (isNewTechnician && telegramNik && body.category === 'SQUAT') {
             const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.82:8347/ambil';
 
             try {
-                fetch(lensaApiUrl, {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 seconds timeout
+
+                const res = await fetch(lensaApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         incident: body.id_tiket,
                         em: telegramNik
-                    })
-                }).then(async res => {
-                    if (!res.ok) {
-                        console.error(">>> Lensa API Error HTTP Status:", res.status);
-                    } else {
-                        console.log(`>>> Lensa Assign Berhasil untuk tiket ${body.id_tiket} ke teknisi ${telegramNik}`);
-                    }
-                }).catch(err => console.error(">>> Lensa API Fetch Error:", err.message));
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    console.error(">>> Lensa API Error HTTP Status:", res.status);
+                    lensaMessage = ' (TAPI Assign Lensa GAGAL)';
+                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', id]).catch(() => {});
+                } else {
+                    console.log(`>>> Lensa Assign Berhasil untuk tiket ${body.id_tiket} ke teknisi ${telegramNik}`);
+                    lensaMessage = ' & Assign Lensa SUKSES';
+                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['SUCCESS', id]).catch(() => {});
+                }
             } catch (lensaErr) {
-                console.error(">>> Failed to hit Lensa API:", lensaErr);
+                console.error(">>> Failed to hit Lensa API:", lensaErr.message);
+                lensaMessage = ' (TAPI API Lensa Down/Timeout)';
+                await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', id]).catch(() => {});
             }
         }
 
@@ -243,7 +259,7 @@ export async function PUT(request, props) {
             }
         }
 
-        return NextResponse.json({ message: 'Berhasil update tiket' });
+        return NextResponse.json({ message: `Berhasil update tiket${lensaMessage}` });
 
     } catch (error) {
         await connection.rollback();

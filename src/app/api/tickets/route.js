@@ -201,24 +201,38 @@ export async function POST(request) {
         // Commit transaksi database dulu
         await connection.commit();
 
-        // [LENSA API] Integrasi Lensa Bot (Send /assign message)
+        let lensaMessage = '';
         const telegramNik = (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) ? technician_niks[0] : null;
         if (telegramNik && category === 'SQUAT') {
             const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.82:8347/ambil';
             try {
-                fetch(lensaApiUrl, {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 seconds timeout
+
+                const res = await fetch(lensaApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         incident: id_tiket,
                         em: telegramNik
-                    })
-                }).then(async res => {
-                    if (!res.ok) console.error(">>> Lensa API Error (Create) HTTP Status:", res.status);
-                    else console.log(`>>> Lensa Assign Berhasil (Create) untuk tiket ${id_tiket} ke teknisi ${telegramNik}`);
-                }).catch(err => console.error(">>> Lensa API Fetch Error (Create):", err.message));
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    console.error(">>> Lensa API Error (Create) HTTP Status:", res.status);
+                    lensaMessage = ' (TAPI Assign Lensa GAGAL)';
+                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', ticketId]).catch(() => {});
+                } else {
+                    console.log(`>>> Lensa Assign Berhasil (Create) untuk tiket ${id_tiket} ke teknisi ${telegramNik}`);
+                    lensaMessage = ' & Assign Lensa SUKSES';
+                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['SUCCESS', ticketId]).catch(() => {});
+                }
             } catch (lensaErr) {
-                console.error(">>> Failed to hit Lensa API (Create):", lensaErr);
+                console.error(">>> Failed to hit Lensa API (Create):", lensaErr.message);
+                lensaMessage = ' (TAPI API Lensa Down/Timeout)';
+                await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', ticketId]).catch(() => {});
             }
         }
 
@@ -234,7 +248,7 @@ export async function POST(request) {
             console.error(">>> Pusher Trigger Error:", pusherError);
         }
 
-        return NextResponse.json({ message: 'Tiket berhasil dibuat', ticketId }, { status: 201 });
+        return NextResponse.json({ message: `Tiket berhasil dibuat${lensaMessage}`, ticketId }, { status: 201 });
 
     } catch (error) {
         await connection.rollback();
