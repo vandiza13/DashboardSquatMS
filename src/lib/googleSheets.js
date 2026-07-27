@@ -361,4 +361,91 @@ export async function appendSiteToSheet(siteData, provider = 'TSEL') {
         console.error('❌ [GSheet] Error appending Site:', error.message);
         return false;
     }
+}
+
+export async function updateOwnerGroupInScrapeSheet(incidentId) {
+    try {
+        console.log(`🛠️ [GSheet] Starting OWNER GROUP update for incident: ${incidentId}`);
+        if (!incidentId) return false;
+
+        // 1. SETUP AUTH (WITH LOCAL FALLBACK)
+        const auth = getGoogleAuth();
+        const sheets = google.sheets({ version: 'v4', auth });
+        
+        // Gunakan Google Sheet SCRAPE (Sumber data)
+        const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID_SCRAPE || '15JQXtM0p_pXIyYzuuV7tdC0mdIR75ZVvQtSXh1Zztp0';
+        const sheetName = 'MainSheet'; 
+
+        // 2. FETCH HEADERS TO FIND COLUMNS
+        const responseHeaders = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A1:FF1`,
+        });
+
+        const headers = responseHeaders.data.values && responseHeaders.data.values[0] ? responseHeaders.data.values[0] : [];
+        if (headers.length === 0) {
+            console.log(`⚠️ [GSheet] Could not find headers in ${sheetName}`);
+            return false;
+        }
+
+        const incidentColIdx = headers.indexOf('INCIDENT');
+        const ownerGroupColIdx = headers.indexOf('OWNER GROUP');
+
+        if (incidentColIdx === -1 || ownerGroupColIdx === -1) {
+            console.log(`⚠️ [GSheet] Columns INCIDENT or OWNER GROUP not found in ${sheetName}`);
+            return false;
+        }
+
+        // 3. Convert Index to Column Letter (e.g. 0 -> A, 1 -> B, 26 -> AA)
+        const getColLetter = (idx) => {
+            let letter = '';
+            let temp = idx;
+            while (temp >= 0) {
+                letter = String.fromCharCode((temp % 26) + 65) + letter;
+                temp = Math.floor(temp / 26) - 1;
+            }
+            return letter;
+        };
+
+        const incidentColLetter = getColLetter(incidentColIdx);
+        const ownerGroupColLetter = getColLetter(ownerGroupColIdx);
+
+        // 4. GET INCIDENT COLUMN DATA TO FIND THE ROW
+        const responseIncidents = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!${incidentColLetter}:${incidentColLetter}`,
+        });
+
+        const incidentRows = responseIncidents.data.values || [];
+        let targetRowIndex = -1;
+
+        // Search for the incident ID
+        for (let i = 0; i < incidentRows.length; i++) {
+            if (incidentRows[i][0] && String(incidentRows[i][0]).trim().toUpperCase() === String(incidentId).trim().toUpperCase()) {
+                targetRowIndex = i + 1; // Google Sheets is 1-indexed
+                break;
+            }
+        }
+
+        if (targetRowIndex === -1) {
+            console.log(`⚠️ [GSheet] Incident ${incidentId} not found in sheet. Cannot update OWNER GROUP.`);
+            return false;
+        }
+
+        // 5. UPDATE THE CELL
+        const updateRange = `${sheetName}!${ownerGroupColLetter}${targetRowIndex}`;
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: updateRange,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [['DI MYSTAFF']] },
+        });
+
+        console.log(`✅ [GSheet] SUCCESS updated OWNER GROUP for ${incidentId} to 'DI MYSTAFF' at ${updateRange}`);
+        return true;
+
+    } catch (error) {
+        console.error(`❌ [GSheet] Error updating OWNER GROUP for ${incidentId}:`, error.message);
+        return false;
+    }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyJWT } from '@/lib/auth';
-import { appendTicketToSheet } from '@/lib/googleSheets';
+import { appendTicketToSheet, updateOwnerGroupInScrapeSheet } from '@/lib/googleSheets';
 // [PUSHER] 1. Import Pusher Server
 import { pusherServer } from '@/lib/pusher';
 
@@ -237,6 +237,7 @@ export async function PUT(request, props) {
 
             try {
                 await appendTicketToSheet(sheetData);
+                await updateOwnerGroupInScrapeSheet(body.id_tiket);
             } catch (sheetError) {
                 console.error("❌ Exception Google Sheet:", sheetError);
             }
