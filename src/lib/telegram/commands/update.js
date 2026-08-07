@@ -125,7 +125,8 @@ export async function handleUpdateWizard(chatId, user, text, isFollowUp = false)
               tiket_time: finalTicketData.tiket_time,
               close_time: finalTicketData.close_time || new Date().toISOString(),
               root_cause: finalTicketData.update_progres,
-              technician_full: fullTechInfo
+              technician_full: fullTechInfo,
+              material: finalTicketData.material
           };
           
           await appendTicketToSheet(sheetData);

@@ -44,7 +44,7 @@ export async function appendTicketToSheet(ticketData) {
         const {
             category, subcategory, priority,
             id_tiket, id_tiket_tacc,
-            deskripsi, sto, branch, tiket_time, close_time, root_cause, technician_full
+            deskripsi, sto, branch, tiket_time, close_time, root_cause, technician_full, material
         } = ticketData;
 
         // ==========================================================
@@ -127,7 +127,9 @@ export async function appendTicketToSheet(ticketData) {
                 sto || '',          // D
                 priority || '-',     // E: PRIORITY
                 branch || '',       // F: BRANCH
-                '', '', '',         // G-I (Empty)
+                '',                 // G: (Empty)
+                material || '',     // H: MATERIAL
+                '',                 // I: (Empty)
                 formatDate(tiket_time), // J
                 formatDate(close_time), // K
                 '', '',             // L-M
@@ -146,7 +148,8 @@ export async function appendTicketToSheet(ticketData) {
                 sto || '',          // D
                 priority || '-',     // E: PRIORITY
                 branch || '',       // F: BRANCH
-                '', '',             // G-H (Empty)
+                '',                 // G: (Empty)
+                material || '',     // H: MATERIAL
                 formatDate(tiket_time), // I
                 formatDate(close_time), // J
                 '', '',             // K-L

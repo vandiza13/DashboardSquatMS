@@ -298,6 +298,12 @@ export default function TicketsPage() {
                     <p className="italic text-[var(--text-secondary)] mt-0.5 bg-yellow-50 dark:bg-yellow-900/20 p-1.5 rounded border-l-2 border-yellow-300 dark:border-yellow-600 break-words text-[11px] whitespace-pre-wrap">{ticket.update_progres}</p>
                 </div>
             )}
+            {ticket.material && (
+                <div className="text-[var(--text-primary)] text-xs mt-2">
+                    <span className="font-semibold text-[var(--text-muted)] text-[10px] uppercase">Material:</span>
+                    <p className="italic text-[var(--text-secondary)] mt-0.5 bg-[var(--bg-base)] p-1.5 rounded border border-[var(--border-color)] break-words text-[11px] whitespace-pre-wrap">{ticket.material}</p>
+                </div>
+            )}
             <div className="border-t border-[var(--border-subtle)] pt-2 mt-1">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -464,6 +470,12 @@ export default function TicketsPage() {
                                             <div className="text-[10px] text-[var(--text-secondary)] bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-600/50 flex gap-1">
                                                 <span className="font-bold text-yellow-700 dark:text-yellow-400 shrink-0">{ticket.status === 'CLOSED' ? 'RCA:' : 'Note:'}</span>
                                                 <span className="italic whitespace-pre-wrap">{ticket.update_progres}</span>
+                                            </div>
+                                        )}
+                                        {ticket.material && (
+                                            <div className="text-[10px] text-[var(--text-secondary)] bg-[var(--bg-base)] mt-1 p-2 rounded border border-[var(--border-color)] flex gap-1">
+                                                <span className="font-bold text-[var(--text-muted)] shrink-0">Material:</span>
+                                                <span className="italic whitespace-pre-wrap">{ticket.material}</span>
                                             </div>
                                         )}
                                     </td>

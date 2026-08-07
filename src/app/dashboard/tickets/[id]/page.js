@@ -286,6 +286,17 @@ export default function TicketDetailPage({ params }) {
                                     </div>
                                 </div>
                             )}
+                            
+                            {ticket.material && (
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide mb-2 flex items-center gap-2">
+                                        <FaTools className="opacity-70 text-[var(--text-muted)] text-sm" /> Material
+                                    </h3>
+                                    <div className="bg-[var(--bg-base)] p-4 rounded-xl border border-[var(--border-color)] text-[var(--text-secondary)] text-sm leading-relaxed whitespace-pre-wrap">
+                                        {ticket.material}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

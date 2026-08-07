@@ -47,6 +47,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
         status: 'OPEN',
         update_progres: '',
         technician_nik: '',
+        material: '',
     });
 
     // State Khusus Partner
@@ -161,6 +162,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 deskripsi: initialData.deskripsi || '',
                 status: initialData.status || 'OPEN',
                 update_progres: initialData.update_progres || '',
+                material: initialData.material || '',
                 technician_nik: selectedTech,
             });
         } else if (!initialData && isOpen) {
@@ -177,6 +179,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 deskripsi: '',
                 status: 'OPEN',
                 update_progres: '',
+                material: '',
                 technician_nik: '',
             });
             setPartnerNiks([]);
@@ -424,7 +427,7 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
 
                     {/* --- STATUS & UPDATE (EDIT ONLY) --- */}
                     {initialData && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 mb-4">
+                        <div className={`grid grid-cols-1 ${formData.category === 'SQUAT' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 mb-4`}>
                             <div>
                                 <label className="block text-xs font-bold text-yellow-800 dark:text-yellow-300 uppercase mb-1">Status Tiket</label>
                                 <select
@@ -450,6 +453,18 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                                     placeholder="Tulis update terbaru / Root Cause..."
                                 ></textarea>
                             </div>
+                            {formData.category === 'SQUAT' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-yellow-800 dark:text-yellow-300 uppercase mb-1">Material</label>
+                                    <textarea
+                                        rows="3"
+                                        className="w-full rounded-lg border border-yellow-200 dark:border-yellow-700 bg-[var(--bg-base)] text-[var(--text-primary)] p-2.5 text-sm focus:ring-2 focus:ring-yellow-500"
+                                        value={formData.material}
+                                        onChange={e => setFormData({ ...formData, material: e.target.value })}
+                                        placeholder="Kabel FO 50m, dll..."
+                                    ></textarea>
+                                </div>
+                            )}
                         </div>
                     )}
 

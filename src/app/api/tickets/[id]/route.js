@@ -52,12 +52,13 @@ export async function PUT(request, props) {
 
         const body = await request.json();
 
-        const [oldData] = await connection.query('SELECT status, update_progres, category FROM tickets WHERE id = ?', [id]);
+        const [oldData] = await connection.query('SELECT status, update_progres, category, material FROM tickets WHERE id = ?', [id]);
         if (oldData.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
 
         const oldStatus = oldData[0].status;
         const oldProgress = oldData[0].update_progres || '-';
         const oldCategory = oldData[0].category;
+        const oldMaterial = oldData[0].material || '';
 
         // Validasi Edit Tiket CLOSED
         if (oldStatus === 'CLOSED' && user.role !== 'SuperAdmin') {
@@ -96,7 +97,8 @@ export async function PUT(request, props) {
                 update_progres = ?, 
                 updated_by_user_id = ?, 
                 last_update_time = NOW(), 
-                partner_technicians = ?
+                partner_technicians = ?,
+                material = ?
             WHERE id = ?`,
             [
                 body.category,
@@ -112,6 +114,7 @@ export async function PUT(request, props) {
                 body.update_progres,
                 user.userId,
                 body.partner_technicians || null,
+                body.material || null,
                 id
             ]
         );
@@ -171,6 +174,7 @@ export async function PUT(request, props) {
         let historyNote = [];
         if (oldStatus !== body.status) historyNote.push(`Status berubah: ${oldStatus} ➝ ${body.status}`);
         if (body.update_progres && body.update_progres !== oldProgress) historyNote.push(`Update Progress: "${body.update_progres}"`);
+        if (body.material && body.material !== oldMaterial) historyNote.push(`Update Material Pekerjaan`);
         if (historyNote.length === 0) historyNote.push('Melakukan update detail tiket');
 
         const [userRows] = await connection.query('SELECT display_name, username FROM users WHERE id = ?', [user.userId]);
@@ -253,7 +257,8 @@ export async function PUT(request, props) {
                 tiket_time: body.tiket_time,
                 close_time: new Date().toISOString(),
                 root_cause: body.update_progres,
-                technician_full: fullTechInfo
+                technician_full: fullTechInfo,
+                material: body.material
             };
 
             try {
