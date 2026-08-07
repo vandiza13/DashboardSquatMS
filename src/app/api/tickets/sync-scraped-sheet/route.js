@@ -134,7 +134,7 @@ export async function POST(request) {
             let subcategory = null;
             if (layanan === 'TSEL' || reportedBy === 'INAP_TSEL' || summary.toUpperCase().startsWith('TSEL_')) {
                 subcategory = 'TSEL';
-            } else if (layanan === 'OLO' && (customerSegment === 'DWS' || customerSegment === 'TELKOM INFRACO')) {
+            } else if (layanan.includes('OLO') && (customerSegment === 'DWS' || customerSegment === 'TELKOM INFRACO')) {
                 subcategory = 'OLO';
             }
 

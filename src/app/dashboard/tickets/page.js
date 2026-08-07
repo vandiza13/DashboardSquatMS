@@ -362,22 +362,22 @@ export default function TicketsPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 rounded-xl bg-[var(--bg-base)] p-1 md:w-96 shadow-inner w-full border border-[var(--border-color)]">
+            <div className="grid grid-cols-2 rounded-xl bg-[var(--bg-base)] p-1 md:w-96 w-full">
                 <button onClick={() => setActiveTab('RUNNING')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'RUNNING' ? 'bg-[var(--bg-surface)] text-blue-500 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}><FaRunning /> RUNNING</button>
                 <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-[var(--bg-surface)] text-emerald-500 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}><FaCheckCircle /> CLOSED</button>
             </div>
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-[var(--bg-surface)] p-4 shadow-sm border border-[var(--border-color)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-[var(--bg-surface)] p-4 shadow-sm">
                 <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
                     {CATEGORY_TABS.map((cat) => <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${activeCategory === cat ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow' : 'bg-[var(--bg-base)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}>{cat}</button>)}
                 </div>
                 <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[var(--bg-base)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[var(--bg-base)] px-3 py-1.5 rounded-lg w-full md:w-auto">
                         <div className="flex items-center gap-2"><FaCalendarAlt className="text-[var(--text-muted)] text-xs hidden sm:block" /><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-xs text-[var(--text-secondary)] focus:outline-none w-full sm:w-auto p-1" /></div>
                         <span className="text-[var(--text-muted)] hidden sm:block">-</span>
                         <div className="flex items-center gap-2 border-t sm:border-t-0 border-[var(--border-color)] pt-1 sm:pt-0"><span className="text-[10px] text-[var(--text-muted)] sm:hidden">Sampai:</span><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs text-[var(--text-secondary)] focus:outline-none w-full sm:w-auto p-1" /></div>
                     </div>
-                    <div className="relative w-full md:w-auto"><FaSearch className="absolute left-3 top-2.5 text-[var(--text-muted)] text-xs" /><input type="text" placeholder="Cari ID / Deskripsi..." className="w-full md:w-48 rounded-lg border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-primary)] pl-9 pr-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+                    <div className="relative w-full md:w-auto"><FaSearch className="absolute left-3 top-2.5 text-[var(--text-muted)] text-xs" /><input type="text" placeholder="Cari ID / Deskripsi..." className="w-full md:w-48 rounded-lg bg-[var(--bg-base)] text-[var(--text-primary)] pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/50 focus:outline-none" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
                     {activeTab === 'CLOSED' && <button onClick={handleExportExcel} className="flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 shadow-sm transition whitespace-nowrap w-full md:w-auto"><FaFileExcel /> Excel</button>}
                 </div>
             </div>
@@ -408,10 +408,10 @@ export default function TicketsPage() {
                 )}
             </div>
 
-            <div className="hidden md:block overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-sm border border-[var(--border-color)]">
+            <div className="hidden md:block overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-[var(--bg-base)] text-[var(--text-muted)] uppercase tracking-wider font-semibold border-b border-[var(--border-color)] text-xs">
+                        <thead className="bg-transparent text-[var(--text-muted)] uppercase tracking-wider font-semibold border-b border-[var(--border-subtle)] text-xs">
                             <tr><th className="px-6 py-4">Info Tiket</th><th className="px-6 py-4">Deskripsi</th><th className="px-6 py-4">Teknisi</th><th className="px-6 py-4">Status & SLA</th><th className="px-6 py-4">Update</th><th className="px-6 py-4 text-center">Aksi</th></tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-subtle)]">

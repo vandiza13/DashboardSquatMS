@@ -5,20 +5,24 @@
 
 /* === DESIGN TOKENS === */
 :root {
-  /* Light Mode Colors */
-  --bg-base: #f1f5f9;
-  --bg-surface: #ffffff;
-  --bg-surface-2: #f8fafc;
-  --bg-sidebar: #ffffff;
-  --border-color: #e2e8f0;
-  --border-subtle: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-sidebar: #64748b;
-  --accent-primary: #3b82f6;
-  --accent-hover: #2563eb;
-  --shadow-color: 0 0 0 / 0.08;
+  /* Light Mode Colors - Balanced Neutral (Zinc) */
+  --bg-base: #f4f4f5;      /* Zinc 100: Abu-abu netral (tanpa rona biru) sbg kanvas */
+  --bg-surface: #ffffff;   /* Card & Panel: Putih Murni */
+  --bg-surface-2: #fafafa; /* Zinc 50: Area sekunder / hover */
+  --bg-sidebar: #ffffff;   
+  
+  --border-color: #e4e4e7; /* Zinc 200: Garis tepi netral */
+  --border-subtle: #f4f4f5; /* Zinc 100: Pemisah antar baris tabel yg sangat halus */
+  
+  --text-primary: #18181b; /* Zinc 900: Teks utama tegas tapi tidak absolute black */
+  --text-secondary: #52525b; /* Zinc 600: Teks deskripsi / sekunder */
+  --text-muted: #71717a;   /* Zinc 500: Teks placeholder / non-aktif */
+  --text-sidebar: #52525b;
+  
+  --accent-primary: #3b82f6; /* Blue 500: Biru utama yang lebih bersahabat */
+  --accent-hover: #2563eb;   
+  
+  --shadow-color: 0 2px 10px -3px rgba(0, 0, 0, 0.05); /* Bayangan yang jauh lebih elegan */
 }
 
 .dark {

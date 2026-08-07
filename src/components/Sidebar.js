@@ -148,7 +148,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 transition-transform duration-300 ease-out
                 bg-[var(--bg-sidebar)] backdrop-blur-xl
                 border-r border-[var(--border-color)]
-                shadow-[4px_0_24px_-2px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_24px_-2px_rgba(0,0,0,0.3)]
+                shadow-sm md:shadow-none dark:shadow-[4px_0_24px_-2px_rgba(0,0,0,0.3)]
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
             `}>
 
