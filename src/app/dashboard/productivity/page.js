@@ -50,6 +50,7 @@ export default function ProductivityPage() {
 
     // --- STATE DOWNLOAD ---
     const [downloadLoading, setDownloadLoading] = useState(false);
+    const [downloadPbsLoading, setDownloadPbsLoading] = useState(false);
 
     const months = [
         { value: 1, label: 'Januari' }, { value: 2, label: 'Februari' }, { value: 3, label: 'Maret' },
@@ -306,6 +307,45 @@ export default function ProductivityPage() {
         }
     };
 
+    const handleDownloadPBS = async () => {
+        setDownloadPbsLoading(true);
+        try {
+            const yearStr = selectedYear.toString();
+            const monthStr = selectedMonth.toString().padStart(2, '0');
+            const monthParam = `${yearStr}-${monthStr}`;
+            
+            const res = await fetch(`/api/reports/pbs?month=${monthParam}`);
+            
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || `Error ${res.status}: Gagal download laporan`);
+            }
+            
+            const blob = await res.blob();
+            
+            if (blob.size === 0) {
+                alert("Tidak ada data tiket SQUAT CLOSED pada bulan tersebut.");
+                setDownloadPbsLoading(false);
+                return;
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Laporan_PBS_SQUAT_${yearStr}_${monthStr}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            console.error(error);
+            alert(error.message || "Gagal mendownload laporan PBS.");
+        } finally {
+            setDownloadPbsLoading(false);
+        }
+    };
+
     // --- LOGIC PERHITUNGAN CHART ---
     const chartData = useMemo(() => {
         if (!data.length) return null;
@@ -413,6 +453,16 @@ export default function ProductivityPage() {
                     >
                         {downloadLoading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
                         <span className="hidden md:inline">Download</span> Excel
+                    </button>
+
+                    {/* 3. TOMBOL DOWNLOAD Laporan PBS */}
+                    <button
+                        onClick={handleDownloadPBS}
+                        disabled={downloadPbsLoading || loading || data.length === 0}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-sm shadow-blue-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        {downloadPbsLoading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
+                        <span className="hidden md:inline">Download</span> Laporan PBS (SQUAT)
                     </button>
 
                 </div>

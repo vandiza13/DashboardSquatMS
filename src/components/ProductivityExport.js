@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 
 export default function ProductivityExport() {
     const [loading, setLoading] = useState(false);
+    const [loadingPbs, setLoadingPbs] = useState(false);
 
     // Default tanggal: Awal bulan ini s/d Hari ini
     const today = new Date();
@@ -100,6 +101,46 @@ export default function ProductivityExport() {
         }
     };
 
+    const handleDownloadPBS = async () => {
+        setLoadingPbs(true);
+        try {
+            // Extract YYYY-MM from startDate
+            const month = startDate.substring(0, 7);
+            
+            const res = await fetch(`/api/reports/pbs?month=${month}`);
+            
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || `Error ${res.status}: Gagal download laporan`);
+            }
+            
+            // It's a file stream (blob)
+            const blob = await res.blob();
+            
+            if (blob.size === 0) {
+                alert("Tidak ada data tiket SQUAT CLOSED pada bulan tersebut.");
+                setLoadingPbs(false);
+                return;
+            }
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Laporan_PBS_SQUAT_${month.replace('-', '_')}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            console.error(error);
+            alert(error.message || "Gagal mendownload laporan PBS.");
+        } finally {
+            setLoadingPbs(false);
+        }
+    };
+
     return (
         <div className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm mb-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -141,6 +182,16 @@ export default function ProductivityExport() {
                     >
                         {loading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
                         Download Excel
+                    </button>
+                    
+                    <button
+                        onClick={handleDownloadPBS}
+                        disabled={loadingPbs}
+                        className="w-full sm:w-auto px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
+                        title="Download berdasarkan bulan pada Tanggal Awal"
+                    >
+                        {loadingPbs ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
+                        Download Laporan PBS (SQUAT)
                     </button>
                 </div>
             </div>
