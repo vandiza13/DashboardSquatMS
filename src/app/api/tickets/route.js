@@ -14,6 +14,7 @@ export async function GET(request) {
     const search = searchParams.get('search') || '';
     const statusFilter = searchParams.get('status') || 'ALL';
     const categoryFilter = searchParams.get('category') || 'ALL';
+    const subcategoryFilter = searchParams.get('subcategory') || 'ALL';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
@@ -51,9 +52,16 @@ export async function GET(request) {
             queryParams.push(statusFilter);
         }
 
-        if (categoryFilter && categoryFilter !== 'ALL') {
+        if (categoryFilter === 'MS') {
+            query += ` AND t.category IN ('UMT', 'CENTRATAMA', 'MTEL')`;
+        } else if (categoryFilter && categoryFilter !== 'ALL') {
             query += ` AND t.category = ?`;
             queryParams.push(categoryFilter);
+        }
+
+        if (subcategoryFilter && subcategoryFilter !== 'ALL') {
+            query += ` AND t.subcategory = ?`;
+            queryParams.push(subcategoryFilter);
         }
 
         if (startDate && endDate) {
@@ -83,9 +91,15 @@ export async function GET(request) {
             countQuery += ` AND t.status = ?`;
             countParams.push(statusFilter);
         }
-        if (categoryFilter && categoryFilter !== 'ALL') {
+        if (categoryFilter === 'MS') {
+            countQuery += ` AND t.category IN ('UMT', 'CENTRATAMA', 'MTEL')`;
+        } else if (categoryFilter && categoryFilter !== 'ALL') {
             countQuery += ` AND t.category = ?`;
             countParams.push(categoryFilter);
+        }
+        if (subcategoryFilter && subcategoryFilter !== 'ALL') {
+            countQuery += ` AND t.subcategory = ?`;
+            countParams.push(subcategoryFilter);
         }
         if (startDate && endDate) {
             countQuery += ` AND DATE(t.tiket_time) BETWEEN ? AND ?`;

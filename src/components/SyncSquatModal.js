@@ -4,20 +4,16 @@ import { useState } from 'react';
 import { FaTimes, FaCloudUploadAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaTrash, FaTerminal } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
-// Konfigurasi kolom
+// Konfigurasi kolom Simarvel Insera
 const HEADER_CONFIG = {
-    UMT: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' },
-    MTEL_FIBERISASI: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close Time' },
-    MTEL_TIS: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close Time' },
-    CENTRATAMA: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' }
+    TSEL: { id_col: 'Incident', ttr_col: 'TTR_Finale', close_time_col: 'c_resolve_date' },
+    OLO: { id_col: 'Incident', ttr_col: 'TTR_Finale', close_time_col: 'c_resolve_date' }
 };
 
-export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
+export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
     const [files, setFiles] = useState({
-        UMT: null,
-        MTEL_FIBERISASI: null,
-        MTEL_TIS: null,
-        CENTRATAMA: null
+        TSEL: null,
+        OLO: null
     });
     const [isUploading, setIsUploading] = useState(false);
     const [logs, setLogs] = useState([]);
@@ -61,10 +57,9 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                 const firstRow = data[0];
 
                 const requiredCols = [
-                    { key: config.id_col, label: 'ID' },
-                    { key: config.ttr_col, label: 'TTR' },
-                    { key: config.tiket_col, label: 'Tiket' },
-                    { key: config.close_time_col, label: 'Req Close' }
+                    { key: config.id_col, label: config.id_col },
+                    { key: config.ttr_col, label: config.ttr_col },
+                    { key: config.close_time_col, label: config.close_time_col }
                 ];
 
                 const missingCols = requiredCols.filter(col => !(col.key in firstRow)).map(col => col.key);
@@ -75,17 +70,16 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                 }
 
                 const mappedData = data
-                    .filter(row => row[config.id_col]) 
+                    .filter(row => row[config.id_col])
                     .map(row => ({
-                        tacc_id: row[config.id_col],
-                        ttr: row[config.ttr_col] || '0',
-                        tiket_id: row[config.tiket_col] || '', 
-                        req_close: row[config.close_time_col] ? String(row[config.close_time_col]) : null 
+                        id_tiket: String(row[config.id_col]).trim(),
+                        ttr: row[config.ttr_col] !== undefined ? String(row[config.ttr_col]) : '0',
+                        close_time: row[config.close_time_col] ? String(row[config.close_time_col]) : null
                     }));
 
-                updateFile(category, { status: 'ready', previewData: mappedData, message: `${mappedData.length} Tiket siap` });
+                updateFile(category, { status: 'ready', previewData: mappedData, message: `${mappedData.length} Tiket siap di-sync` });
             } catch (err) {
-                updateFile(category, { status: 'error', message: "Bukan file excel." });
+                updateFile(category, { status: 'error', message: "Bukan file excel valid." });
             }
         };
         reader.readAsBinaryString(selectedFile);
@@ -104,25 +98,24 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
 
         setIsUploading(true);
         setLogs([]);
-        addLog('info', 'Memulai proses bulk sync TACC...');
+        addLog('info', 'Memulai proses Sync SQUAT (Simarvel)...');
 
         let allSuccess = true;
 
         for (let i = 0; i < categoriesToUpload.length; i++) {
             const cat = categoriesToUpload[i];
             const fObj = files[cat];
-            const catLabel = cat.replace('_', ' ');
-            
+
             updateFile(cat, { status: 'uploading', message: 'Sinkronisasi...' });
-            addLog('info', `Mengirim file ${catLabel} (${fObj.name})...`);
+            addLog('info', `Mengirim file SQUAT ${cat} (${fObj.name})...`);
 
             try {
-                const res = await fetch('/api/tickets/sync-tacc', {
+                const res = await fetch('/api/tickets/sync-squat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        category: cat, 
-                        data: fObj.previewData 
+                    body: JSON.stringify({
+                        category: cat,
+                        data: fObj.previewData
                     })
                 });
 
@@ -130,24 +123,24 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
 
                 if (res.ok) {
                     updateFile(cat, { status: 'success', message: 'Selesai!' });
-                    addLog('success', `[Sukses ${catLabel}] ${result.message}`);
+                    addLog('success', `[Sukses ${cat}] ${result.message}`);
                 } else {
                     throw new Error(result.error || "Gagal dari server.");
                 }
             } catch (error) {
                 allSuccess = false;
                 updateFile(cat, { status: 'error_sync', message: 'Gagal upload' });
-                addLog('error', `[Gagal ${catLabel}] ${error.message}`);
+                addLog('error', `[Gagal ${cat}] ${error.message}`);
             }
         }
 
-        addLog(allSuccess ? 'success' : 'warning', allSuccess ? 'Semua file berhasil disinkronisasi.' : 'Proses selesai, namun terdapat error pada beberapa file.');
+        addLog(allSuccess ? 'success' : 'warning', allSuccess ? 'Semua file berhasil disinkronisasi.' : 'Proses selesai, namun terdapat error.');
         setIsUploading(false);
-        if (allSuccess) onSuccess(); 
+        if (allSuccess) onSuccess();
     };
 
     const handleClose = () => {
-        setFiles({ UMT: null, MTEL_FIBERISASI: null, MTEL_TIS: null, CENTRATAMA: null });
+        setFiles({ TSEL: null, OLO: null });
         setLogs([]);
         setIsUploading(false);
         onClose();
@@ -158,12 +151,12 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="w-full max-w-5xl bg-[var(--bg-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[95vh]">
+            <div className="w-full max-w-3xl bg-[var(--bg-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[95vh]">
                 
                 <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex justify-between items-center bg-slate-900 dark:bg-slate-800 text-white shrink-0">
                     <div>
-                        <h3 className="font-bold text-lg text-white">Bulk Sync MS</h3>
-                        <p className="text-[10px] text-slate-300 dark:text-slate-400 tracking-wider">Upload file MS per kategori secara bersamaan (TACC)</p>
+                        <h3 className="font-bold text-lg text-white">Bulk Sync SQUAT</h3>
+                        <p className="text-[10px] text-slate-300 dark:text-slate-400 tracking-wider">Sync TTR & Closed Time tiket SQUAT dari Simarvel Insera</p>
                     </div>
                     <button onClick={handleClose} disabled={isUploading} className="text-slate-400 hover:text-red-400 transition disabled:opacity-50">
                         <FaTimes size={20} />
@@ -171,22 +164,25 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                 </div>
 
                 <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar bg-[var(--bg-base)]">
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 p-3 rounded-lg text-xs text-blue-700 dark:text-blue-300">
-                        Isi kotak upload di bawah ini sesuai dengan kategori file Excel Anda. Anda bisa mengisi bebas dari 1 hingga 4 kotak sekaligus sebelum menekan tombol <strong>Mulai Sync Semua</strong>.
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 p-3 rounded-lg text-xs text-red-700 dark:text-red-300">
+                        <p className="font-bold mb-1">Catatan Penting:</p>
+                        <ul className="list-disc pl-4 space-y-0.5">
+                            <li>Upload file export Insera/Simarvel pada kolom yang sesuai (TSEL atau OLO).</li>
+                            <li>Hanya tiket berstatus <strong>CLOSED</strong> di database yang akan diperbarui nilainya.</li>
+                        </ul>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {['UMT', 'MTEL_FIBERISASI', 'MTEL_TIS', 'CENTRATAMA'].map((cat) => {
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {['TSEL', 'OLO'].map((cat) => {
                             const fObj = files[cat];
-                            const label = cat.replace('_', ' ');
                             
                             return (
                                 <div key={cat} className="flex flex-col gap-2">
                                     <label className="text-xs font-extrabold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${
-                                            cat === 'UMT' ? 'bg-green-500' : cat.includes('MTEL') ? 'bg-blue-500' : 'bg-yellow-500'
+                                            cat === 'TSEL' ? 'bg-red-500' : 'bg-orange-500'
                                         }`}></div>
-                                        File {label}
+                                        File SQUAT {cat}
                                     </label>
 
                                     {!fObj ? (
@@ -196,19 +192,20 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                                                 accept=".xlsx, .xls, .csv" 
                                                 onChange={(e) => handleFileChange(e, cat)}
                                                 className="hidden" 
-                                                id={`upload-${cat}`}
+                                                id={`upload-squat-${cat}`}
                                                 disabled={isUploading}
                                             />
                                             <label 
-                                                htmlFor={`upload-${cat}`} 
-                                                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50 bg-[var(--bg-surface)] cursor-pointer rounded-xl transition-colors"
+                                                htmlFor={`upload-squat-${cat}`} 
+                                                className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50 bg-[var(--bg-surface)] cursor-pointer rounded-xl transition-colors"
                                             >
-                                                <FaCloudUploadAlt className="w-8 h-8 text-slate-400 dark:text-slate-500 mb-2" />
-                                                <p className="text-xs font-semibold text-slate-500 text-center px-4">Pilih file {label}</p>
+                                                <FaCloudUploadAlt className="w-9 h-9 text-slate-400 dark:text-slate-500 mb-2" />
+                                                <p className="text-xs font-semibold text-slate-500 text-center px-4">Pilih file SQUAT {cat}</p>
+                                                <span className="text-[10px] text-slate-400 mt-1">Format: Insera Closed</span>
                                             </label>
                                         </div>
                                     ) : (
-                                        <div className={`flex flex-col justify-between w-full h-32 border-2 border-solid rounded-xl p-3 bg-[var(--bg-surface)] ${
+                                        <div className={`flex flex-col justify-between w-full h-36 border-2 border-solid rounded-xl p-3 bg-[var(--bg-surface)] ${
                                             fObj.status === 'success' ? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-900/10' :
                                             fObj.status.includes('error') ? 'border-red-500/50 bg-red-50/50 dark:bg-red-900/10' :
                                             'border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/10'
@@ -217,8 +214,8 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                                                 <p className="text-sm font-bold text-[var(--text-primary)] truncate" title={fObj.name}>{fObj.name}</p>
                                                 <div className="mt-1 flex items-center gap-1.5">
                                                     {fObj.status === 'reading' && <span className="text-xs text-yellow-500 flex items-center gap-1"><FaSpinner className="animate-spin"/> {fObj.message}</span>}
-                                                    {fObj.status === 'error' && <span className="text-xs text-red-500 flex items-center gap-1"><FaExclamationTriangle/> {fObj.message}</span>}
-                                                    {fObj.status === 'error_sync' && <span className="text-xs text-red-500 flex items-center gap-1"><FaExclamationTriangle/> {fObj.message}</span>}
+                                                    {fObj.status === 'error' && <span className="text-xs text-red-500 flex items-center gap-1" title={fObj.message}><FaExclamationTriangle/> {fObj.message}</span>}
+                                                    {fObj.status === 'error_sync' && <span className="text-xs text-red-500 flex items-center gap-1" title={fObj.message}><FaExclamationTriangle/> {fObj.message}</span>}
                                                     {fObj.status === 'ready' && <span className="text-xs text-emerald-500 flex items-center gap-1"><FaCheckCircle/> {fObj.message}</span>}
                                                     {fObj.status === 'uploading' && <span className="text-xs text-blue-500 flex items-center gap-1"><FaSpinner className="animate-spin"/> {fObj.message}</span>}
                                                     {fObj.status === 'success' && <span className="text-xs text-emerald-600 flex items-center gap-1"><FaCheckCircle/> Selesai</span>}
@@ -282,10 +279,10 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                         <button 
                             onClick={handleUpload} 
                             disabled={!canUpload}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 text-white text-sm font-bold rounded-lg shadow-sm transition flex items-center gap-2"
+                            className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 text-white text-sm font-bold rounded-lg shadow-sm transition flex items-center gap-2"
                         >
                             {isUploading ? <FaSpinner className="animate-spin" /> : <FaCloudUploadAlt />}
-                            {isUploading ? 'Menyinkronkan...' : 'Mulai Sync Semua'}
+                            {isUploading ? 'Menyinkronkan...' : 'Mulai Sync SQUAT'}
                         </button>
                     </div>
                 </div>

@@ -1,33 +1,36 @@
 'use client';
 
 export default function StatusBadge({ status }) {
-    // Pastikan status aman (handle null/undefined)
     const label = status ? status.toUpperCase() : 'UNKNOWN';
 
-    // Kamus Warna (Mapping) — dengan dark mode variants
+    // Kamus Warna (Mapping) — Translucent glass pill dengan dot halus
     const colorMap = {
-        // OPEN / GANGGUAN -> Merah (Darurat)
-        'OPEN': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
-        'DOWN': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+        // OPEN / GANGGUAN -> Crimson
+        'OPEN': 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+        'DOWN': 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
 
-        // PROGRESS / SC / PENDING -> Kuning/Oranye (Proses)
-        'SC': 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-        'PROGRESS': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-        'PENDING': 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+        // SC / PENDING -> Amber / Gold
+        'SC': 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+        'PROGRESS': 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+        'PENDING': 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
 
-        // CLOSED / DONE -> Hijau (Selesai)
-        'CLOSED': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-        'DONE': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-        'RESOLVED': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        // CLOSED / DONE -> Emerald Mint
+        'CLOSED': 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+        'DONE': 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+        'RESOLVED': 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
     };
 
-    // Default warna jika status tidak dikenali (Abu-abu)
-    const className = colorMap[label] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    const isOpen = ['OPEN', 'DOWN'].includes(label);
+    const style = colorMap[label] || 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20';
 
     return (
-        <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[10px] font-extrabold tracking-wide border uppercase shadow-sm ${className}`}>
-            {/* Indikator Titik Kecil (Dot) untuk estetika */}
-            <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current opacity-60"></span>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider border backdrop-blur-xs shadow-2xs uppercase ${style}`}>
+            <span className="relative flex h-1.5 w-1.5">
+                {isOpen && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                )}
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current" />
+            </span>
             {label}
         </span>
     );

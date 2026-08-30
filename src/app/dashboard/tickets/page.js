@@ -7,7 +7,7 @@ import {
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel,
     FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
     FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag,
-    FaSyncAlt, FaEye
+    FaSyncAlt, FaEye, FaServer, FaBolt
 } from 'react-icons/fa';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
@@ -20,6 +20,7 @@ import EmptyState from '@/components/EmptyState';
 import BulkTicketModal from '@/components/BulkTicketModal';
 import MultiTicketModal from '@/components/MultiTicketModal';
 import SyncTaccModal from '@/components/SyncTaccModal'; 
+import SyncSquatModal from '@/components/SyncSquatModal'; 
 import TRModal from '@/components/TRModal';
 // [PUSHER] 1. Import Client
 import { pusherClient } from '@/lib/pusher-client';
@@ -154,7 +155,8 @@ export default function TicketsPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [activeTab, setActiveTab] = useState('RUNNING');
-    const [activeCategory, setActiveCategory] = useState('ALL');
+    const [mainGroup, setMainGroup] = useState('ALL'); // 'ALL' | 'MS' | 'SQUAT'
+    const [activeSubCategory, setActiveSubCategory] = useState('ALL');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTicket, setEditingTicket] = useState(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -166,8 +168,9 @@ export default function TicketsPage() {
     const [isTRModalOpen, setIsTRModalOpen] = useState(false);
     const [selectedTicketForTR, setSelectedTicketForTR] = useState(null);
     
-    // State Modal Sync TACC
+    // State Modal Sync TACC (MS) & SQUAT
     const [isSyncTaccModalOpen, setIsSyncTaccModalOpen] = useState(false); 
+    const [isSyncSquatModalOpen, setIsSyncSquatModalOpen] = useState(false); 
 
     // [PUSHER] 2. State untuk trigger refresh otomatis
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -177,11 +180,14 @@ export default function TicketsPage() {
             setUserRole(data.role);
             setUserDivision(data.division);
             if (data.division === 'SQUAT') {
-                setActiveCategory('SQUAT');
+                setMainGroup('SQUAT');
+                setActiveSubCategory('ALL');
             } else if (data.division === 'MS') {
-                setActiveCategory('MTEL');
+                setMainGroup('MS');
+                setActiveSubCategory('ALL');
             } else {
-                setActiveCategory('ALL');
+                setMainGroup('ALL');
+                setActiveSubCategory('ALL');
             }
         }).catch(console.error);
     }, []);
@@ -189,21 +195,46 @@ export default function TicketsPage() {
     const fetchTickets = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({ page, limit: 10, search, status: activeTab, category: activeCategory, startDate, endDate });
+            let categoryParam = 'ALL';
+            let subcategoryParam = 'ALL';
+
+            if (mainGroup === 'MS') {
+                if (activeSubCategory === 'ALL') {
+                    categoryParam = 'MS';
+                } else {
+                    categoryParam = activeSubCategory; // 'MTEL' | 'UMT' | 'CENTRATAMA'
+                }
+            } else if (mainGroup === 'SQUAT') {
+                categoryParam = 'SQUAT';
+                if (activeSubCategory !== 'ALL') {
+                    subcategoryParam = activeSubCategory; // 'TSEL' | 'OLO'
+                }
+            }
+
+            const params = new URLSearchParams({ 
+                page, 
+                limit: 10, 
+                search, 
+                status: activeTab, 
+                category: categoryParam, 
+                subcategory: subcategoryParam, 
+                startDate, 
+                endDate 
+            });
             const res = await fetch(`/api/tickets?${params}`);
             const result = await res.json();
             if (res.ok) { setTickets(result.data); setPagination(result.pagination); }
         } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
     };
 
-    useEffect(() => { setPage(1); }, [activeTab, activeCategory, startDate, endDate]);
+    useEffect(() => { setPage(1); }, [activeTab, mainGroup, activeSubCategory, startDate, endDate]);
 
     // [PUSHER] 3. Tambahkan 'refreshTrigger' ke dependency array agar fetchTickets dipanggil saat ada update
     useEffect(() => { 
         if (!userRole) return; // Mencegah double-fetch sebelum data user/divisi terisi
         const t = setTimeout(fetchTickets, 500); 
         return () => clearTimeout(t); 
-    }, [page, search, activeTab, activeCategory, startDate, endDate, refreshTrigger, userRole]);
+    }, [page, search, activeTab, mainGroup, activeSubCategory, startDate, endDate, refreshTrigger, userRole]);
 
     // [PUSHER] 4. Setup Listener Realtime
     useEffect(() => {
@@ -245,6 +276,41 @@ export default function TicketsPage() {
         XLSX.writeFile(wb, `Report_Tiket_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
+    const getTtrThreshold = (ticket) => {
+        const cat = (ticket.category || '').toUpperCase();
+        const subcat = (ticket.subcategory || '').toUpperCase();
+        const prio = (ticket.priority || '').toUpperCase().replace(/[\s_]/g, '-');
+
+        if (cat === 'SQUAT') {
+            if (subcat === 'TSEL') {
+                if (prio === 'LOW') return 24;
+                if (prio === 'MINOR') return 16;
+                if (prio === 'MAJOR') return 8;
+                if (prio === 'CRITICAL') return 4;
+                if (prio === 'PREMIUM') return 2;
+                if (prio === 'CNQ') return 24;
+                return 24; // default jika belum diset
+            }
+            if (subcat === 'OLO') {
+                if (prio === 'NON-GAMAS' || prio === 'NONGAMAS') return 4;
+                if (prio === 'GAMAS') return 7;
+                if (prio === 'QUALITY') return 7;
+                return 4; // default jika belum diset
+            }
+        }
+
+        // Default kategori lainnya (MS: UMT, MTEL, CENTRA) = 4 Jam
+        return 4;
+    };
+
+    const isTtrNotComply = (ticket) => {
+        if (!ticket.ttr_tacc) return false;
+        const ttrNum = parseFloat(String(ticket.ttr_tacc).replace(',', '.'));
+        if (isNaN(ttrNum)) return false;
+        const threshold = getTtrThreshold(ticket);
+        return ttrNum > threshold;
+    };
+
     const MobileTicketCard = ({ ticket }) => (
         <div className={`p-4 rounded-xl border shadow-sm flex flex-col gap-3 relative transition-colors ${getRowSeverityStyle(ticket)}`}>
             <div className="flex justify-between items-start border-b border-black/5 pb-2 mb-1">
@@ -252,19 +318,35 @@ export default function TicketsPage() {
                     <Link href={`/dashboard/tickets/${ticket.id}`} className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline text-base">{ticket.id_tiket}</Link>
 
                     {/* [UPDATE MOBILE] Menampilkan TACC dan TTR jika ada */}
-                    {ticket.id_tiket_tacc && (
+                    {(ticket.id_tiket_tacc || ticket.ttr_tacc) && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                            <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800/50">
-                                <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
-                            </span>
-                            {ticket.ttr_tacc && (
-                                <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                                    parseFloat(ticket.ttr_tacc) > 4 
-                                    ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
-                                    : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
-                                }`}>
-                                    <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                            {ticket.id_tiket_tacc && (
+                                <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800/50">
+                                    <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
                                 </span>
+                            )}
+                            {ticket.ttr_tacc && (
+                                <>
+                                    <span 
+                                        className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                            isTtrNotComply(ticket) 
+                                            ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
+                                            : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
+                                        }`}
+                                        title={`Batas SLA: ${getTtrThreshold(ticket)} Jam (${isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'})`}
+                                    >
+                                        <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                                    </span>
+                                    {ticket.category === 'SQUAT' && (
+                                        <span className={`flex items-center text-[9px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                                            isTtrNotComply(ticket)
+                                            ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'
+                                            : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700'
+                                        }`}>
+                                            {isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'}
+                                        </span>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
@@ -334,51 +416,231 @@ export default function TicketsPage() {
             <TicketFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTickets} initialData={editingTicket} />
             <BulkTicketModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} onSuccess={fetchTickets} />
             <MultiTicketModal isOpen={isMultiRowModalOpen} onClose={() => setIsMultiRowModalOpen(false)} onSuccess={fetchTickets} />
-            <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} categoryFilter={activeCategory} />
+            <ReportModal 
+                isOpen={isReportModalOpen} 
+                onClose={() => setIsReportModalOpen(false)} 
+                categoryFilter={mainGroup === 'MS' ? (activeSubCategory === 'ALL' ? 'MS' : activeSubCategory) : (mainGroup === 'SQUAT' ? 'SQUAT' : 'ALL')} 
+            />
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} historyData={historyData} ticketId={selectedTicketId} />
             <TRModal isOpen={isTRModalOpen} onClose={() => setIsTRModalOpen(false)} ticket={selectedTicketForTR} />
             
-            {/* Modal Sync TACC */}
+            {/* Modal Sync MS (TACC) & SQUAT (Simarvel) */}
             <SyncTaccModal isOpen={isSyncTaccModalOpen} onClose={() => setIsSyncTaccModalOpen(false)} onSuccess={fetchTickets} />
+            <SyncSquatModal isOpen={isSyncSquatModalOpen} onClose={() => setIsSyncSquatModalOpen(false)} onSuccess={fetchTickets} />
 
+            {/* Header Title & Actions */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div><h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">Manajemen Tiket</h2><p className="text-[var(--text-secondary)] text-xs md:text-sm">Monitor dan kelola tiket lapangan</p></div>
+                <div>
+                    <h2 className="text-xl md:text-2xl font-black text-[var(--text-primary)] tracking-tight">Manajemen Tiket</h2>
+                    <p className="text-[var(--text-secondary)] text-xs md:text-sm">Monitor dan kelola tiket operasional lapangan</p>
+                </div>
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                    <button onClick={() => setIsReportModalOpen(true)} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-emerald-700 shadow-sm transition"><FaFileAlt /> Laporan</button>
+                    <button onClick={() => setIsReportModalOpen(true)} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs md:text-sm font-bold text-white hover:bg-emerald-700 shadow-sm transition">
+                        <FaFileAlt /> Laporan
+                    </button>
                     {userRole !== 'View' && (
-                        <div className="flex gap-2 bg-indigo-50 dark:bg-indigo-900/10 p-1 rounded-lg border border-indigo-100 dark:border-indigo-800/30 flex-wrap">
-                            <button onClick={() => setIsMultiRowModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-[var(--bg-surface)] hover:shadow-sm transition"><FaPlus /> Input Massal</button>
+                        <div className="flex gap-2 bg-indigo-50 dark:bg-indigo-900/10 p-1 rounded-xl border border-indigo-100 dark:border-indigo-800/30 flex-wrap">
+                            <button onClick={() => setIsMultiRowModalOpen(true)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-[var(--bg-surface)] hover:shadow-sm transition">
+                                <FaPlus /> Input Massal
+                            </button>
                             <div className="w-[1px] bg-indigo-200 dark:bg-indigo-800/50 my-1 hidden md:block"></div>
-                            <button onClick={() => setIsBulkModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-[var(--bg-surface)] hover:shadow-sm transition"><FaFileUpload /> Import Excel</button>
+                            <button onClick={() => setIsBulkModalOpen(true)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-[var(--bg-surface)] hover:shadow-sm transition">
+                                <FaFileUpload /> Import Excel
+                            </button>
                             
-                            {/* Tombol Sync TACC */}
+                            {/* Tombol Sync MS & Sync SQUAT yang Responsif Terhadap Tab */}
                             <div className="w-[1px] bg-indigo-200 dark:bg-indigo-800/50 my-1 hidden md:block"></div>
-                            <button onClick={() => setIsSyncTaccModalOpen(true)} className="flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-400 bg-teal-100/50 dark:bg-teal-900/30 hover:bg-[var(--bg-surface)] hover:shadow-sm transition">
-                                <FaSyncAlt /> Sync TACC
+                            <button 
+                                onClick={() => setIsSyncTaccModalOpen(true)} 
+                                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-xs ${
+                                    mainGroup === 'MS'
+                                    ? 'bg-blue-600 text-white shadow-md'
+                                    : 'text-blue-700 dark:text-blue-400 bg-blue-100/60 dark:bg-blue-900/30 hover:bg-[var(--bg-surface)]'
+                                }`}
+                                title="Sinkronisasi Tiket MS dari DB TACC"
+                            >
+                                <FaSyncAlt /> Sync MS
+                            </button>
+                            <button 
+                                onClick={() => setIsSyncSquatModalOpen(true)} 
+                                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-xs ${
+                                    mainGroup === 'SQUAT'
+                                    ? 'bg-rose-600 text-white shadow-md'
+                                    : 'text-red-700 dark:text-red-400 bg-red-100/60 dark:bg-red-900/30 hover:bg-[var(--bg-surface)]'
+                                }`}
+                                title="Sinkronisasi Tiket SQUAT dari Simarvel / Sheet"
+                            >
+                                <FaSyncAlt /> Sync SQUAT
                             </button>
                         </div>
                     )}
-                    {userRole !== 'View' && <button onClick={handleCreateClick} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs md:text-sm font-medium text-white hover:bg-blue-700 shadow-sm transition"><FaPlus /> Buat Tiket</button>}
+                    {userRole !== 'View' && (
+                        <button onClick={handleCreateClick} className="flex-1 md:flex-none justify-center flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs md:text-sm font-bold text-white hover:bg-blue-700 shadow-sm transition">
+                            <FaPlus /> Buat Tiket
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 rounded-xl bg-[var(--bg-base)] p-1 md:w-96 w-full">
-                <button onClick={() => setActiveTab('RUNNING')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'RUNNING' ? 'bg-[var(--bg-surface)] text-blue-500 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}><FaRunning /> RUNNING</button>
-                <button onClick={() => setActiveTab('CLOSED')} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs md:text-sm font-bold transition-all ${activeTab === 'CLOSED' ? 'bg-[var(--bg-surface)] text-emerald-500 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}><FaCheckCircle /> CLOSED</button>
+            {/* --- TAB UTAMA (LEVEL 1): SEMUA TIKET, MS-EKSTERNAL, SQUAT & STATUS --- */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                
+                {/* 1. Tab Grup Utama */}
+                <div className="flex p-1 bg-[var(--bg-base)] rounded-2xl border border-[var(--border-color)] w-full sm:w-fit shadow-xs">
+                    <button 
+                        onClick={() => { setMainGroup('ALL'); setActiveSubCategory('ALL'); }}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all ${
+                            mainGroup === 'ALL' 
+                            ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm border border-[var(--border-color)]' 
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <FaLayerGroup className="text-blue-500" /> SEMUA TIKET
+                    </button>
+
+                    <button 
+                        onClick={() => { setMainGroup('MS'); setActiveSubCategory('ALL'); }}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all ${
+                            mainGroup === 'MS' 
+                            ? 'bg-blue-600 text-white shadow-md' 
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <FaServer /> MS-EKSTERNAL
+                    </button>
+
+                    <button 
+                        onClick={() => { setMainGroup('SQUAT'); setActiveSubCategory('ALL'); }}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all ${
+                            mainGroup === 'SQUAT' 
+                            ? 'bg-rose-600 text-white shadow-md' 
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <FaBolt /> SQUAT
+                    </button>
+                </div>
+
+                {/* 2. Tab Status RUNNING / CLOSED */}
+                <div className="grid grid-cols-2 rounded-xl bg-[var(--bg-base)] p-1 sm:w-72 w-full border border-[var(--border-color)]">
+                    <button 
+                        onClick={() => setActiveTab('RUNNING')} 
+                        className={`flex items-center justify-center gap-2 rounded-lg py-2 text-xs md:text-sm font-bold transition-all ${
+                            activeTab === 'RUNNING' 
+                            ? 'bg-[var(--bg-surface)] text-blue-500 shadow-sm' 
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <FaRunning /> RUNNING
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('CLOSED')} 
+                        className={`flex items-center justify-center gap-2 rounded-lg py-2 text-xs md:text-sm font-bold transition-all ${
+                            activeTab === 'CLOSED' 
+                            ? 'bg-[var(--bg-surface)] text-emerald-500 shadow-sm' 
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <FaCheckCircle /> CLOSED
+                    </button>
+                </div>
             </div>
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl bg-[var(--bg-surface)] p-4 shadow-sm">
-                <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
-                    {CATEGORY_TABS.map((cat) => <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${activeCategory === cat ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow' : 'bg-[var(--bg-base)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}>{cat}</button>)}
+            {/* --- SUB-FILTER BAR (LEVEL 2), DATE RANGE & SEARCH --- */}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-2xl bg-[var(--bg-surface)] p-4 shadow-sm border border-[var(--border-color)]">
+                
+                {/* Subcategory Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
+                    {mainGroup === 'ALL' && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[var(--text-muted)] px-3 py-1.5 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)]">
+                                🌐 Menampilkan Semua Kategori
+                            </span>
+                        </div>
+                    )}
+
+                    {mainGroup === 'MS' && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider mr-1 shrink-0">
+                                Kategori MS:
+                            </span>
+                            {[
+                                { key: 'ALL', label: 'Semua MS-Eksternal' },
+                                { key: 'MTEL', label: 'MTEL' },
+                                { key: 'UMT', label: 'UMT' },
+                                { key: 'CENTRATAMA', label: 'CENTRATAMA' }
+                            ].map((sub) => (
+                                <button 
+                                    key={sub.key} 
+                                    onClick={() => setActiveSubCategory(sub.key)} 
+                                    className={`whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                                        activeSubCategory === sub.key 
+                                        ? 'bg-blue-600 text-white shadow-sm' 
+                                        : 'bg-[var(--bg-base)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-base)]/80'
+                                    }`}
+                                >
+                                    {sub.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {mainGroup === 'SQUAT' && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider mr-1 shrink-0">
+                                Kategori SQUAT:
+                            </span>
+                            {[
+                                { key: 'ALL', label: 'Semua SQUAT' },
+                                { key: 'TSEL', label: 'SQUAT TSEL' },
+                                { key: 'OLO', label: 'SQUAT OLO' }
+                            ].map((sub) => (
+                                <button 
+                                    key={sub.key} 
+                                    onClick={() => setActiveSubCategory(sub.key)} 
+                                    className={`whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                                        activeSubCategory === sub.key 
+                                        ? 'bg-rose-600 text-white shadow-md' 
+                                        : 'bg-[var(--bg-base)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-base)]/80'
+                                    }`}
+                                >
+                                    {sub.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
+
+                {/* Date Filter, Search & Excel */}
                 <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[var(--bg-base)] px-3 py-1.5 rounded-lg w-full md:w-auto">
-                        <div className="flex items-center gap-2"><FaCalendarAlt className="text-[var(--text-muted)] text-xs hidden sm:block" /><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-xs text-[var(--text-secondary)] focus:outline-none w-full sm:w-auto p-1" /></div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[var(--bg-base)] px-3 py-1.5 rounded-xl border border-[var(--border-color)] w-full md:w-auto">
+                        <div className="flex items-center gap-2">
+                            <FaCalendarAlt className="text-[var(--text-muted)] text-xs hidden sm:block" />
+                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-xs text-[var(--text-secondary)] focus:outline-none w-full sm:w-auto p-1" />
+                        </div>
                         <span className="text-[var(--text-muted)] hidden sm:block">-</span>
-                        <div className="flex items-center gap-2 border-t sm:border-t-0 border-[var(--border-color)] pt-1 sm:pt-0"><span className="text-[10px] text-[var(--text-muted)] sm:hidden">Sampai:</span><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs text-[var(--text-secondary)] focus:outline-none w-full sm:w-auto p-1" /></div>
+                        <div className="flex items-center gap-2 border-t sm:border-t-0 border-[var(--border-color)] pt-1 sm:pt-0">
+                            <span className="text-[10px] text-[var(--text-muted)] sm:hidden">Sampai:</span>
+                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs text-[var(--text-secondary)] focus:outline-none w-full sm:w-auto p-1" />
+                        </div>
                     </div>
-                    <div className="relative w-full md:w-auto"><FaSearch className="absolute left-3 top-2.5 text-[var(--text-muted)] text-xs" /><input type="text" placeholder="Cari ID / Deskripsi..." className="w-full md:w-48 rounded-lg bg-[var(--bg-base)] text-[var(--text-primary)] pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/50 focus:outline-none" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-                    {activeTab === 'CLOSED' && <button onClick={handleExportExcel} className="flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 shadow-sm transition whitespace-nowrap w-full md:w-auto"><FaFileExcel /> Excel</button>}
+                    
+                    <div className="relative w-full md:w-auto">
+                        <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs" />
+                        <input 
+                            type="text" 
+                            placeholder="Cari ID / Deskripsi..." 
+                            className="w-full md:w-52 rounded-xl bg-[var(--bg-base)] border border-[var(--border-color)] text-[var(--text-primary)] pl-9 pr-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/50 focus:outline-none transition" 
+                            value={search} 
+                            onChange={(e) => setSearch(e.target.value)} 
+                        />
+                    </div>
+
+                    {activeTab === 'CLOSED' && (
+                        <button onClick={handleExportExcel} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-sm transition whitespace-nowrap w-full md:w-auto">
+                            <FaFileExcel /> Excel
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -408,11 +670,11 @@ export default function TicketsPage() {
                 )}
             </div>
 
-            <div className="hidden md:block overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-sm">
+            <div className="hidden md:block overflow-hidden rounded-2xl bg-[var(--bg-surface)] shadow-xs border border-[var(--border-color)]">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-transparent text-[var(--text-muted)] uppercase tracking-wider font-semibold border-b border-[var(--border-subtle)] text-xs">
-                            <tr><th className="px-6 py-4">Info Tiket</th><th className="px-6 py-4">Deskripsi</th><th className="px-6 py-4">Teknisi</th><th className="px-6 py-4">Status & SLA</th><th className="px-6 py-4">Update</th><th className="px-6 py-4 text-center">Aksi</th></tr>
+                        <thead className="bg-[var(--bg-base)] text-[var(--text-secondary)] uppercase tracking-wider font-extrabold border-b border-[var(--border-color)] text-[11px]">
+                            <tr><th className="px-6 py-3.5">Info Tiket</th><th className="px-6 py-3.5">Deskripsi</th><th className="px-6 py-3.5">Teknisi</th><th className="px-6 py-3.5">Status & SLA</th><th className="px-6 py-3.5">Update</th><th className="px-6 py-3.5 text-center">Aksi</th></tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-subtle)]">
                             {loading ? (
@@ -439,19 +701,35 @@ export default function TicketsPage() {
                                         <div className="mb-1"><Link href={`/dashboard/tickets/${ticket.id}`} className="font-bold text-blue-600 dark:text-blue-400 hover:underline text-xs">{ticket.id_tiket}</Link></div>
 
                                         {/* [BARU] TAMPILAN TACC & TTR DI DESKTOP DENGAN LOGIKA WARNA MERAH */}
-                                        {ticket.id_tiket_tacc && (
+                                        {(ticket.id_tiket_tacc || ticket.ttr_tacc) && (
                                             <div className="mt-1 flex flex-wrap gap-1">
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
-                                                    <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
-                                                </span>
-                                                {ticket.ttr_tacc && (
-                                                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                                                        parseFloat(ticket.ttr_tacc) > 4 
-                                                        ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
-                                                        : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
-                                                    }`}>
-                                                        <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                                                {ticket.id_tiket_tacc && (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
+                                                        <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
                                                     </span>
+                                                )}
+                                                {ticket.ttr_tacc && (
+                                                    <>
+                                                        <span 
+                                                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                                                isTtrNotComply(ticket) 
+                                                                ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
+                                                                : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
+                                                            }`}
+                                                            title={`Batas SLA: ${getTtrThreshold(ticket)} Jam (${isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'})`}
+                                                        >
+                                                            <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                                                        </span>
+                                                        {ticket.category === 'SQUAT' && (
+                                                            <span className={`inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                                                                isTtrNotComply(ticket)
+                                                                ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'
+                                                                : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700'
+                                                            }`}>
+                                                                {isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'}
+                                                            </span>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                         )}
@@ -489,8 +767,17 @@ export default function TicketsPage() {
                                         ) : <span className="text-xs text-[var(--text-muted)] italic">Belum assign</span>}
                                     </td>
                                     <td className="px-6 py-4 align-top">
-                                        <div className="flex flex-col gap-2 items-start">
+                                        <div className="flex flex-col gap-1.5 items-start">
                                             <StatusBadge status={ticket.status} />
+                                            {ticket.category === 'SQUAT' && ticket.ttr_tacc && (
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-wider ${
+                                                    isTtrNotComply(ticket)
+                                                    ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50'
+                                                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
+                                                }`}>
+                                                    {isTtrNotComply(ticket) ? '🔴 NOT COMPLY' : '🟢 COMPLY'}
+                                                </span>
+                                            )}
                                             {(() => { const aging = getTicketAging(ticket); return aging ? <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap bg-[var(--bg-base)] ${aging.className}`}>{aging.icon}{aging.text}</span> : null; })()}
                                         </div>
                                     </td>

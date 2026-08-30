@@ -174,11 +174,27 @@ export default function ProductivityPage() {
                 // Logika TTR & SLA
                 let ttrValue = '-';
                 let slaStatus = '-';
-                if (isTaccCategory && row.ttr_tacc != null && String(row.ttr_tacc).trim() !== '') {
+                if (row.ttr_tacc != null && String(row.ttr_tacc).trim() !== '') {
                     const ttrNum = parseFloat(String(row.ttr_tacc).replace(',', '.'));
                     if (!isNaN(ttrNum)) {
                         ttrValue = ttrNum;
-                        slaStatus = ttrNum <= SLA_THRESHOLD_HOURS ? 'IN SLA' : 'OVER SLA';
+                        let threshold = 4;
+                        const prio = (row.priority || '').toUpperCase().replace(/[\s_]/g, '-');
+                        
+                        if (isTsel) {
+                            if (prio === 'LOW') threshold = 24;
+                            else if (prio === 'MINOR') threshold = 16;
+                            else if (prio === 'MAJOR') threshold = 8;
+                            else if (prio === 'CRITICAL') threshold = 4;
+                            else if (prio === 'PREMIUM') threshold = 2;
+                            else if (prio === 'CNQ') threshold = 24;
+                        } else if (isSquat && row.subcategory === 'OLO') {
+                            if (prio === 'NON-GAMAS' || prio === 'NONGAMAS') threshold = 4;
+                            else if (prio === 'GAMAS') threshold = 7;
+                            else if (prio === 'QUALITY') threshold = 7;
+                        }
+
+                        slaStatus = ttrNum <= threshold ? 'COMPLY' : 'NOT COMPLY';
                     }
                 }
 

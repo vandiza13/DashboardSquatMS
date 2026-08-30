@@ -61,8 +61,14 @@ export async function POST(request) {
                 }
             }
 
+            let dbCategory = category;
+
+            if (category.startsWith('MTEL_')) {
+                dbCategory = 'MTEL';
+            }
+
             updateQuery += ` WHERE (id_tiket_tacc = ? OR id_tiket = ?) AND category = ?`;
-            updateParams.push(row.tacc_id.toString(), tiketIdFallback, category);
+            updateParams.push(row.tacc_id.toString(), tiketIdFallback, dbCategory);
 
             const [result] = await db.query(updateQuery, updateParams);
 

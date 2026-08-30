@@ -10,7 +10,7 @@ import { HiSun, HiMoon } from 'react-icons/hi2';
 import Skeleton from '@/components/Skeleton';
 import { useTheme } from '@/context/ThemeContext';
 
-export default function Header({ onMenuClick }) {
+export default function Header({ onMenuClick, isDesktopSidebarOpen = true }) {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const [user, setUser] = useState({ username: 'Loading...', role: '' });
@@ -68,15 +68,15 @@ export default function Header({ onMenuClick }) {
     };
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between bg-[var(--bg-surface)] px-6 shadow-sm border-b border-[var(--border-color)]">
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between bg-[var(--bg-surface)] px-4 md:px-6 shadow-sm border-b border-[var(--border-color)]">
 
-            {/* KIRI: Tombol Menu (Mobile) & Running Text */}
-            <div className="flex items-center gap-4 flex-1 overflow-hidden mr-4">
+            {/* KIRI: Tombol Menu (Mobile Only) & Running Text */}
+            <div className="flex items-center gap-3.5 flex-1 overflow-hidden mr-4">
                 <button
                     onClick={onMenuClick}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-base)] md:hidden focus:outline-none transition-colors"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--text-secondary)] hover:text-blue-500 bg-[var(--bg-base)] hover:bg-[var(--bg-surface)] border border-[var(--border-color)] hover:border-blue-500 focus:outline-none transition-all duration-200 shadow-xs md:hidden cursor-pointer"
                 >
-                    <FaBars size={20} />
+                    <FaBars size={17} />
                 </button>
 
                 {/* RUNNING TEXT */}

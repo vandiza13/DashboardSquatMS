@@ -58,19 +58,6 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [trendFilter, setTrendFilter] = useState('ALL');
 
-    // --- [BARU] STATE FILTER BULAN/TAHUN (Ala ProductivityPage) ---
-    const currentDate = new Date();
-    const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
-    const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
-
-    const monthsList = [
-        { value: 1, label: 'Januari' }, { value: 2, label: 'Februari' }, { value: 3, label: 'Maret' },
-        { value: 4, label: 'April' }, { value: 5, label: 'Mei' }, { value: 6, label: 'Juni' },
-        { value: 7, label: 'Juli' }, { value: 8, label: 'Agustus' }, { value: 9, label: 'September' },
-        { value: 10, label: 'Oktober' }, { value: 11, label: 'November' }, { value: 12, label: 'Desember' }
-    ];
-    const yearsList = [currentDate.getFullYear(), currentDate.getFullYear() - 1, currentDate.getFullYear() - 2];
-
     // Chart color tokens based on theme
     const isDark = theme === 'dark';
     const chartColors = {
@@ -83,12 +70,7 @@ export default function DashboardPage() {
 
     const fetchData = useCallback(async () => {
         try {
-            // [UPDATE] Format Bulan untuk API (YYYY-MM)
-            const formattedMonth = String(selectedMonth).padStart(2, '0');
-            const apiMonthQuery = `${selectedYear}-${formattedMonth}`;
-
-            // Memanggil API dengan query bulan spesifik
-            const res = await fetch(`/api/stats?month=${apiMonthQuery}`);
+            const res = await fetch('/api/stats');
             const result = await res.json();
 
             if (result.error) {
@@ -101,7 +83,7 @@ export default function DashboardPage() {
                     dailyTrend: [],
                     recent: [],
                     aging: [],
-                    ttr: {} // Fallback untuk TTR SLA
+                    ttr: {}
                 });
             } else {
                 setData(result);
@@ -122,7 +104,7 @@ export default function DashboardPage() {
         } finally {
             setLoading(false);
         }
-    }, [selectedMonth, selectedYear]);
+    }, []);
 
     useEffect(() => {
         fetchData();
@@ -306,58 +288,6 @@ export default function DashboardPage() {
         interaction: { mode: 'nearest', axis: 'x', intersect: false }
     };
 
-    // --- HELPER UNTUK RENDER KARTU TTR SLA ---
-    const renderTtrCard = (title, ttrData) => {
-        const numValue = parseFloat(ttrData?.avg || 0);
-        const total = ttrData?.total || 0;
-        const met = ttrData?.met || 0;
-        const missed = ttrData?.missed || 0;
-
-        const isDanger = numValue > 4;
-        const noData = total === 0;
-
-        return (
-            <div key={title} className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-4 shadow-sm border border-[var(--border-color)] flex flex-col gap-1 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
-                <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-extrabold text-[var(--text-secondary)] uppercase tracking-wider truncate">{title}</span>
-                    <div className={`p-1.5 rounded-lg ${noData ? 'bg-slate-100 text-slate-400 dark:bg-slate-800/50' : isDanger ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
-                        <FaStopwatch size={12} />
-                    </div>
-                </div>
-                
-                {/* Nilai Utama Rata-Rata */}
-                <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-black ${noData ? 'text-[var(--text-muted)]' : isDanger ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        {noData ? '-' : numValue.toFixed(2)}
-                    </span>
-                    {!noData && <span className="text-[10px] font-bold text-[var(--text-muted)]">Jam</span>}
-                </div>
-                
-                {/* Status Bawah */}
-                {noData ? (
-                    <div className="mt-auto pt-3 border-t border-[var(--border-subtle)]">
-                         <span className="text-[10px] font-bold text-[var(--text-muted)] flex items-center gap-1"><FaTools /> Belum ada data</span>
-                    </div>
-                ) : (
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-[var(--border-subtle)] pt-2.5 text-[9px] text-center">
-                        <div className="flex flex-col bg-[var(--bg-base)] rounded p-1 border border-[var(--border-color)]">
-                            <span className="text-[var(--text-muted)] font-bold mb-0.5">Total</span>
-                            <span className="text-[var(--text-primary)] font-black text-xs">{total}</span>
-                        </div>
-                        <div className="flex flex-col bg-emerald-50 dark:bg-emerald-900/20 rounded p-1 border border-emerald-100 dark:border-emerald-800/30">
-                            <span className="text-emerald-600 dark:text-emerald-400 font-bold mb-0.5">In SLA</span>
-                            <span className="text-emerald-700 dark:text-emerald-300 font-black text-xs">{met}</span>
-                        </div>
-                        <div className="flex flex-col bg-red-50 dark:bg-red-900/20 rounded p-1 border border-red-100 dark:border-red-800/30">
-                            <span className="text-red-600 dark:text-red-400 font-bold mb-0.5">Over</span>
-                            <span className="text-red-700 dark:text-red-300 font-black text-xs">{missed}</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     if (loading || !processedData) {
         return (
             <div className="flex h-[80vh] w-full items-center justify-center flex-col gap-4">
@@ -372,142 +302,102 @@ export default function DashboardPage() {
     const { stats, totalRunning, donutStatusData, stackedBarData, lineData, uniqueCatsLine, agingBarData, ttr } = processedData;
 
     return (
-        <div className="space-y-8 animate-fade-in pb-12 w-full max-w-[100vw] overflow-x-hidden">
+        <div className="space-y-6 animate-fade-in pb-12 w-full max-w-[100vw] overflow-x-hidden">
 
             {/* --- HEADER --- */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
-                    <h2 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Dashboard Overview</h2>
-                    <p className="text-[var(--text-secondary)] mt-1">Monitor performa & status tiket secara real-time</p>
+                    <h2 className="text-xl md:text-2xl font-black text-[var(--text-primary)] tracking-tight">Dashboard Overview</h2>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5 font-medium">Monitor performa & status tiket operasional secara real-time</p>
                 </div>
                 <div className="text-right hidden md:block">
-                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Update Terakhir</p>
-                    <p className="text-sm font-medium text-[var(--text-primary)] font-mono">{new Date().toLocaleString('id-ID')}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Update Terakhir</p>
+                    <p className="text-xs font-bold text-[var(--text-primary)] font-mono">{new Date().toLocaleString('id-ID')}</p>
                 </div>
             </div>
 
-            {/* --- 4 KARTU UTAMA --- */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* --- 4 KARTU UTAMA (COMPACT) --- */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* CARD 1: RUNNING */}
-                <Link href="/dashboard/tickets?status=RUNNING" className="group relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FaBolt className="text-6xl text-blue-600 transform rotate-12" /></div>
+                <Link href="/dashboard/tickets?status=RUNNING" className="group relative overflow-hidden rounded-xl bg-[var(--bg-surface)] p-4 sm:p-5 shadow-xs border border-[var(--border-color)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><FaBolt className="text-5xl text-blue-600 transform rotate-12" /></div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500"><FaExclamationCircle /></div>
-                            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Tiket Running</span>
+                        <div className="flex items-center gap-2.5 mb-2">
+                            <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500 text-xs"><FaExclamationCircle /></div>
+                            <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Tiket Running</span>
                         </div>
-                        <h3 className="text-4xl font-extrabold text-[var(--text-primary)]">{totalRunning}</h3>
-                        <div className="mt-4 flex gap-2">
-                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-red-500/10 text-red-500 border border-red-500/20">OPEN: {stats.open}</span>
-                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">SC: {stats.sc}</span>
+                        <h3 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight">{totalRunning}</h3>
+                        <div className="mt-3 flex gap-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20">OPEN: {stats.open}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">SC: {stats.sc}</span>
                         </div>
                     </div>
                 </Link>
 
                 {/* CARD 2: CLOSED TODAY */}
-                <Link href="/dashboard/tickets?status=CLOSED" className="group relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FaCheckCircle className="text-6xl text-emerald-600 transform rotate-12" /></div>
+                <Link href="/dashboard/tickets?status=CLOSED" className="group relative overflow-hidden rounded-xl bg-[var(--bg-surface)] p-4 sm:p-5 shadow-xs border border-[var(--border-color)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><FaCheckCircle className="text-5xl text-emerald-600 transform rotate-12" /></div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500"><FaCheckCircle /></div>
-                            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Closed Hari Ini</span>
+                        <div className="flex items-center gap-2.5 mb-2">
+                            <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 text-xs"><FaCheckCircle /></div>
+                            <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Closed Hari Ini</span>
                         </div>
-                        <h3 className="text-4xl font-extrabold text-[var(--text-primary)]">{stats.closed_today}</h3>
-                        <p className="mt-4 text-xs font-medium text-emerald-500 flex items-center gap-1"><FaArrowRight size={10} /> Target Harian</p>
+                        <h3 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight">{stats.closed_today}</h3>
+                        <p className="mt-3 text-[11px] font-bold text-emerald-500 flex items-center gap-1"><FaArrowRight size={9} /> Target Harian</p>
                     </div>
                 </Link>
 
                 {/* CARD 3: CLOSED MONTH */}
-                <Link href="/dashboard/tickets?status=CLOSED" className="group relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FaCalendarAlt className="text-6xl text-violet-600 transform rotate-12" /></div>
+                <Link href="/dashboard/tickets?status=CLOSED" className="group relative overflow-hidden rounded-xl bg-[var(--bg-surface)] p-4 sm:p-5 shadow-xs border border-[var(--border-color)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><FaCalendarAlt className="text-5xl text-violet-600 transform rotate-12" /></div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-violet-500/10 rounded-lg text-violet-500"><FaCalendarAlt /></div>
-                            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Closed Bulan Ini</span>
+                        <div className="flex items-center gap-2.5 mb-2">
+                            <div className="p-1.5 bg-violet-500/10 rounded-lg text-violet-500 text-xs"><FaCalendarAlt /></div>
+                            <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Closed Bulan Ini</span>
                         </div>
-                        <h3 className="text-4xl font-extrabold text-[var(--text-primary)]">{stats.closed_month}</h3>
-                        <p className="mt-4 text-xs font-medium text-violet-500 flex items-center gap-1"><FaArrowRight size={10} /> Akumulasi</p>
+                        <h3 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight">{stats.closed_month}</h3>
+                        <p className="mt-3 text-[11px] font-bold text-violet-500 flex items-center gap-1"><FaArrowRight size={9} /> Akumulasi</p>
                     </div>
                 </Link>
 
                 {/* CARD 4: TOTAL */}
-                <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 p-6 text-white shadow-lg shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><FaChartBar className="text-6xl text-white transform rotate-12" /></div>
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-700 dark:to-indigo-800 p-4 sm:p-5 text-white shadow-md shadow-blue-500/15 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="absolute top-0 right-0 p-3 opacity-10"><FaChartBar className="text-5xl text-white transform rotate-12" /></div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-white/10 dark:bg-white/5 rounded-lg backdrop-blur-sm"><FaChartBar /></div>
-                            <span className="text-xs font-bold text-blue-100 uppercase tracking-wider">Total Tiket</span>
+                        <div className="flex items-center gap-2.5 mb-2">
+                            <div className="p-1.5 bg-white/15 rounded-lg backdrop-blur-xs text-xs"><FaChartBar /></div>
+                            <span className="text-[11px] font-bold text-blue-100 uppercase tracking-wider">Total Tiket</span>
                         </div>
-                        <h3 className="text-4xl font-extrabold text-white">{stats.total}</h3>
-                        <p className="mt-4 text-xs font-medium text-blue-200">Semua Kategori</p>
+                        <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{stats.total}</h3>
+                        <p className="mt-3 text-[11px] font-bold text-blue-200">Semua Kategori</p>
                     </div>
-                </div>
-            </div>
-
-            {/* --- PERFORMA SLA TTR (DENGAN FILTER BULAN DROPDOWN) --- */}
-            <div className="space-y-4 pt-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-                            <FaStopwatch className="text-indigo-500" /> Performa SLA & TTR MS-Eksternal
-                        </h3>
-                        <p className="text-xs text-[var(--text-muted)] mt-1">Rata-rata waktu penyelesaian tiket (TTR) berdasarkan sinkronisasi dari DB TACC</p>
-                    </div>
-                    
-                    {/* [FIX TERBAIK] Filter Bulan/Tahun dengan 2 Dropdown yang pasti bisa diklik */}
-                    <div className="flex items-center gap-2 bg-[var(--bg-surface)] p-1.5 rounded-xl border border-[var(--border-color)] shadow-sm flex-1 sm:flex-none">
-                        <div className="px-3 text-[var(--text-muted)] hidden sm:block"><FaFilter /></div>
-                        <select
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                            className="bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none cursor-pointer hover:bg-[var(--bg-base)] py-2 px-2 rounded-lg flex-1 sm:flex-none"
-                        >
-                            {monthsList.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
-                        </select>
-                        <span className="text-[var(--text-muted)]">|</span>
-                        <select
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(Number(e.target.value))}
-                            className="bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none cursor-pointer hover:bg-[var(--bg-base)] py-2 px-2 rounded-lg flex-1 sm:flex-none"
-                        >
-                            {yearsList.map((y) => (<option key={y} value={y}>{y}</option>))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                    {renderTtrCard("UMT", ttr.UMT)}
-                    {renderTtrCard("CENTRATAMA", ttr.CENTRATAMA)}
-                    {renderTtrCard("MTEL - TIS", ttr.MTEL_TIS)}
-                    {renderTtrCard("MTEL - FIBERISASI", ttr.MTEL_FIBERISASI)}
-                    {renderTtrCard("MTEL - MMP", ttr.MTEL_MMP)}
                 </div>
             </div>
 
             {/* --- AREA 1: RUNNING & AGING --- */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
                 {/* 1. LIST TIKET RUNNING */}
-                <div className="rounded-2xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] flex flex-col h-96">
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border-subtle)]">
-                        <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--text-secondary)] flex items-center gap-2">
+                <div className="rounded-xl bg-[var(--bg-surface)] p-5 shadow-xs border border-[var(--border-color)] flex flex-col h-80">
+                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-[var(--border-subtle)]">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
                             <FaBolt className="text-blue-500" /> Detail Tiket Running
                         </h3>
                     </div>
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2">
                         {data?.runningBySub?.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-4 rounded-full mb-4 shadow-sm border border-emerald-200 dark:border-emerald-800/30">
-                                    <FaCheckCircle className="text-4xl" />
+                                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-3 rounded-full mb-2 shadow-xs border border-emerald-200 dark:border-emerald-800/30">
+                                    <FaCheckCircle className="text-3xl" />
                                 </div>
-                                <p className="text-base font-extrabold">Clear & Aman! 🎉</p>
-                                <p className="text-xs mt-1 text-center text-emerald-600/70 dark:text-emerald-400/80 px-4">Mantap! Tidak ada antrean tiket saat ini.</p>
+                                <p className="text-sm font-extrabold">Clear & Aman! 🎉</p>
+                                <p className="text-xs mt-0.5 text-center text-emerald-600/70 dark:text-emerald-400/80 px-4">Mantap! Tidak ada antrean tiket saat ini.</p>
                             </div>
                         ) : (
                             data?.runningBySub?.map((item) => (
-                                <div key={item.subcategory} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-color)] hover:border-blue-500/40 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors group">
-                                    <span className="text-sm font-semibold text-[var(--text-secondary)] truncate mr-2">{item.subcategory}</span>
-                                    <span className="flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full bg-blue-600 text-[10px] font-bold text-white shadow-sm group-hover:scale-110 transition-transform">{item.count}</span>
+                                <div key={item.subcategory} className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-color)] hover:border-blue-500/40 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors group">
+                                    <span className="text-xs font-semibold text-[var(--text-secondary)] truncate mr-2">{item.subcategory}</span>
+                                    <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-blue-600 text-[10px] font-bold text-white shadow-xs group-hover:scale-110 transition-transform">{item.count}</span>
                                 </div>
                             ))
                         )}
@@ -515,14 +405,14 @@ export default function DashboardPage() {
                 </div>
 
                 {/* 2. AGING CHART */}
-                <div className="rounded-2xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] flex flex-col h-96">
-                    <div className="mb-4 flex items-center gap-2 pb-2">
-                        <div className="p-1.5 bg-orange-500/10 rounded-lg text-orange-500">
-                            <FaClock size={16} />
+                <div className="rounded-xl bg-[var(--bg-surface)] p-5 shadow-xs border border-[var(--border-color)] flex flex-col h-80">
+                    <div className="mb-3 flex items-center gap-2 pb-1">
+                        <div className="p-1 bg-orange-500/10 rounded-md text-orange-500">
+                            <FaClock size={14} />
                         </div>
                         <div>
-                            <h3 className="text-base font-bold text-[var(--text-primary)]">Umur Tiket (Aging)</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Per Kategori</p>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">Umur Tiket (Aging)</h3>
+                            <p className="text-[10px] text-[var(--text-muted)]">Per Kategori</p>
                         </div>
                     </div>
                     <div className="flex-1 min-h-0">
@@ -533,12 +423,12 @@ export default function DashboardPage() {
             </div>
 
             {/* --- AREA 2: CLOSED TODAY & STATUS DONUT --- */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
                 {/* 1. LIST CLOSED TODAY */}
-                <div className="rounded-2xl bg-[var(--bg-surface)] p-6 shadow-sm border border-[var(--border-color)] flex flex-col h-96">
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border-subtle)]">
-                        <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--text-secondary)] flex items-center gap-2">
+                <div className="rounded-xl bg-[var(--bg-surface)] p-5 shadow-xs border border-[var(--border-color)] flex flex-col h-80">
+                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-[var(--border-subtle)]">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
                             <FaCheckCircle className="text-emerald-500" /> Detail Closed Hari Ini
                         </h3>
                     </div>
