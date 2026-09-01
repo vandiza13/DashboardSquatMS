@@ -21,19 +21,19 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     try {
-        let query = `
-            SELECT 
-                t.*, 
-                COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
-                GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks,
-                MAX(tech.name) as technician_name,
-                MAX(tech.phone_number) as technician_phone
-            FROM tickets t
-            LEFT JOIN users u ON t.updated_by_user_id = u.id
-            LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
-            LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
-            WHERE 1=1
-        `;
+            let query = `
+                SELECT 
+                    t.*, 
+                    COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
+                    MAX(tt.technician_nik) as technician_nik,
+                    MAX(tech.name) as technician_name,
+                    MAX(tech.phone_number) as technician_phone
+                FROM tickets t
+                LEFT JOIN users u ON t.updated_by_user_id = u.id
+                LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id AND tt.role = 'LEAD'
+                LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
+                WHERE 1=1
+            `;
 
         const queryParams = [];
 
@@ -138,7 +138,7 @@ export async function POST(request) {
 
         const {
             category, subcategory, id_tiket, tiket_time, deskripsi,
-            technician_niks, partner_technicians, sto, branch,
+            technician_niks, partner_technicians, partner_niks, sto, branch,
             priority,
             id_tiket_tacc
         } = body;
@@ -200,7 +200,15 @@ export async function POST(request) {
         if (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) {
             const nik = technician_niks[0];
             if (nik) {
-                await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [ticketId, nik]);
+                await connection.query("INSERT INTO ticket_technicians (ticket_id, technician_nik, role) VALUES (?, ?, 'LEAD')", [ticketId, nik]);
+            }
+        }
+        
+        if (partner_niks && Array.isArray(partner_niks) && partner_niks.length > 0) {
+            for (const pNik of partner_niks) {
+                if (pNik) {
+                    await connection.query("INSERT INTO ticket_technicians (ticket_id, technician_nik, role) VALUES (?, ?, 'PARTNER')", [ticketId, pNik]);
+                }
             }
         }
 
@@ -237,16 +245,16 @@ export async function POST(request) {
                 if (!res.ok) {
                     console.error(">>> Lensa API Error (Create) HTTP Status:", res.status);
                     lensaMessage = ' (TAPI Assign Lensa GAGAL)';
-                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', ticketId]).catch(() => {});
+                    await db.query("UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ? AND role = 'LEAD'", ['FAILED', ticketId]).catch(() => {});
                 } else {
                     console.log(`>>> Lensa Assign Berhasil (Create) untuk tiket ${id_tiket} ke teknisi ${telegramNik}`);
                     lensaMessage = ' & Assign Lensa SUKSES';
-                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['SUCCESS', ticketId]).catch(() => {});
+                    await db.query("UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ? AND role = 'LEAD'", ['SUCCESS', ticketId]).catch(() => {});
                 }
             } catch (lensaErr) {
                 console.error(">>> Failed to hit Lensa API (Create):", lensaErr.message);
                 lensaMessage = ' (TAPI API Lensa Down/Timeout)';
-                await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', ticketId]).catch(() => {});
+                await db.query("UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ? AND role = 'LEAD'", ['FAILED', ticketId]).catch(() => {});
             }
         }
 

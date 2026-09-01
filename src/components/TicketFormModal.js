@@ -220,7 +220,8 @@ export default function TicketFormModal({ isOpen, onClose, onSuccess, initialDat
                 ...formData,
                 tiket_time: formData.tiket_time ? formData.tiket_time : null,
                 technician_niks: formData.technician_nik ? [formData.technician_nik] : [],
-                partner_technicians: partnerNames
+                partner_technicians: partnerNames,
+                partner_niks: partnerNiks
             };
 
             const res = await fetch(url, {

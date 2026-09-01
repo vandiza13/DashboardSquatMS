@@ -13,19 +13,19 @@ export async function GET(request, props) {
     const { id } = params;
 
     try {
-        const [rows] = await db.query(`
-            SELECT t.*, 
-                   COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
-                   GROUP_CONCAT(tt.technician_nik) as assigned_technician_niks,
-                   MAX(tech.name) as technician_name,
-                   MAX(tech.phone_number) as technician_phone
-            FROM tickets t
-            LEFT JOIN users u ON t.updated_by_user_id = u.id
-            LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
-            LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
-            WHERE t.id = ?
-            GROUP BY t.id
-        `, [id]);
+            const [rows] = await db.query(`
+                SELECT t.*, 
+                       COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
+                       MAX(tt.technician_nik) as technician_nik,
+                       MAX(tech.name) as technician_name,
+                       MAX(tech.phone_number) as technician_phone
+                FROM tickets t
+                LEFT JOIN users u ON t.updated_by_user_id = u.id
+                LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id AND tt.role = 'LEAD'
+                LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
+                WHERE t.id = ?
+                GROUP BY t.id
+            `, [id]);
 
         if (rows.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
         return NextResponse.json(rows[0]);
@@ -52,13 +52,22 @@ export async function PUT(request, props) {
 
         const body = await request.json();
 
-        const [oldData] = await connection.query('SELECT status, update_progres, category, material FROM tickets WHERE id = ?', [id]);
+        const [oldData] = await connection.query('SELECT status, update_progres, category, material, closed_at FROM tickets WHERE id = ?', [id]);
         if (oldData.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
 
         const oldStatus = oldData[0].status;
         const oldProgress = oldData[0].update_progres || '-';
         const oldCategory = oldData[0].category;
         const oldMaterial = oldData[0].material || '';
+        let newClosedAt = oldData[0].closed_at;
+
+        if (body.status === 'CLOSED') {
+            if (oldStatus !== 'CLOSED' || !newClosedAt) {
+                newClosedAt = new Date();
+            }
+        } else {
+            newClosedAt = null;
+        }
 
         // Validasi Edit Tiket CLOSED
         if (oldStatus === 'CLOSED' && user.role !== 'SuperAdmin') {
@@ -98,7 +107,8 @@ export async function PUT(request, props) {
                 updated_by_user_id = ?, 
                 last_update_time = NOW(), 
                 partner_technicians = ?,
-                material = ?
+                material = ?,
+                closed_at = ?
             WHERE id = ?`,
             [
                 body.category,
@@ -115,6 +125,7 @@ export async function PUT(request, props) {
                 user.userId,
                 body.partner_technicians || null,
                 body.material || null,
+                newClosedAt,
                 id
             ]
         );
@@ -129,9 +140,9 @@ export async function PUT(request, props) {
 
             // Cek teknisi lama sebelum dihapus untuk mendeteksi perubahan assign atau retry yang gagal
             if (newNik) {
-                const [oldTechs] = await connection.query('SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(() => {
+                const [oldTechs] = await connection.query("SELECT technician_nik, lensa_status FROM ticket_technicians WHERE ticket_id = ? AND role = 'LEAD'", [id]).catch(() => {
                     // Fallback if lensa_status column doesn't exist yet to avoid deadlock
-                    return connection.query('SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ?', [id]).catch(() => [[]]);
+                    return connection.query("SELECT technician_nik FROM ticket_technicians WHERE ticket_id = ? AND role = 'LEAD'", [id]).catch(() => [[]]);
                 });
                 const oldTech = oldTechs && oldTechs[0];
                 
@@ -147,12 +158,20 @@ export async function PUT(request, props) {
             await connection.query('DELETE FROM ticket_technicians WHERE ticket_id = ?', [id]);
 
             if (newNik) {
-                await connection.query('INSERT INTO ticket_technicians (ticket_id, technician_nik) VALUES (?, ?)', [id, newNik]);
+                await connection.query("INSERT INTO ticket_technicians (ticket_id, technician_nik, role) VALUES (?, ?, 'LEAD')", [id, newNik]);
 
                 const [techRows] = await connection.query('SELECT name, phone_number FROM technicians WHERE nik = ?', [newNik]);
                 if (techRows.length > 0) {
                     picName = techRows[0].name;
                     picPhone = techRows[0].phone_number;
+                }
+            }
+
+            if (body.partner_niks && Array.isArray(body.partner_niks) && body.partner_niks.length > 0) {
+                for (const pNik of body.partner_niks) {
+                    if (pNik) {
+                        await connection.query("INSERT INTO ticket_technicians (ticket_id, technician_nik, role) VALUES (?, ?, 'PARTNER')", [id, pNik]);
+                    }
                 }
             }
         }
@@ -214,16 +233,16 @@ export async function PUT(request, props) {
                 if (!res.ok) {
                     console.error(">>> Lensa API Error HTTP Status:", res.status);
                     lensaMessage = ' (TAPI Assign Lensa GAGAL)';
-                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', id]).catch(() => {});
+                    await db.query("UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ? AND role = 'LEAD'", ['FAILED', id]).catch(() => {});
                 } else {
                     console.log(`>>> Lensa Assign Berhasil untuk tiket ${body.id_tiket} ke teknisi ${telegramNik}`);
                     lensaMessage = ' & Assign Lensa SUKSES';
-                    await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['SUCCESS', id]).catch(() => {});
+                    await db.query("UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ? AND role = 'LEAD'", ['SUCCESS', id]).catch(() => {});
                 }
             } catch (lensaErr) {
                 console.error(">>> Failed to hit Lensa API:", lensaErr.message);
                 lensaMessage = ' (TAPI API Lensa Down/Timeout)';
-                await db.query('UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ?', ['FAILED', id]).catch(() => {});
+                await db.query("UPDATE ticket_technicians SET lensa_status = ? WHERE ticket_id = ? AND role = 'LEAD'", ['FAILED', id]).catch(() => {});
             }
         }
 

@@ -23,77 +23,124 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Data Excel kosong atau format tidak sesuai.' }, { status: 400 });
         }
 
-        // [FIX ERROR] Menggunakan perintah SQL murni untuk transaksi
-        // Jauh lebih aman untuk TiDB Serverless dibandingkan getConnection()
-        await db.query('START TRANSACTION');
+        let dbCategory = category;
+        if (category.startsWith('MTEL_')) {
+            dbCategory = 'MTEL';
+        }
 
-        let updatedCount = 0;
+        // 1. Ambil seluruh tiket kategori terkait dari database dalam 1 query cepat
+        const [dbTickets] = await db.query(
+            `SELECT id, id_tiket, id_tiket_tacc, status FROM tickets WHERE category = ?`,
+            [dbCategory]
+        );
 
-        for (const row of data) {
-            if (!row.tacc_id || row.ttr === undefined) continue;
-            
-            const tiketIdFallback = row.tiket_id ? row.tiket_id.toString() : 'INVALID_FALLBACK';
+        if (!dbTickets || dbTickets.length === 0) {
+            return NextResponse.json({
+                message: `Retro-Sync selesai. Tidak ada tiket kategori ${dbCategory} di database.`,
+                updated: 0
+            });
+        }
 
-            let updateQuery = `UPDATE tickets SET ttr_tacc = ?, id_tiket_tacc = ?`;
-            let updateParams = [row.ttr.toString(), row.tacc_id.toString()];
-
-            // Jika ada nilai req_close yang valid (bukan null/kosong)
-            if (row.req_close && row.req_close.trim() !== '') {
-                // Validasi apakah ini format tanggal yang dikenali
-                const dateParsed = new Date(row.req_close);
-                if (!isNaN(dateParsed.getTime())) {
-                    const isYMD = /^\d{4}-\d{2}-\d{2}/.test(row.req_close);
-                    let finalDateStr = row.req_close;
-                    
-                    if (!isYMD) {
-                        // Ambil waktu lokal tanpa terpengaruh pergeseran UTC
-                        const y = dateParsed.getFullYear();
-                        const m = String(dateParsed.getMonth() + 1).padStart(2, '0');
-                        const d = String(dateParsed.getDate()).padStart(2, '0');
-                        const h = String(dateParsed.getHours()).padStart(2, '0');
-                        const min = String(dateParsed.getMinutes()).padStart(2, '0');
-                        const s = String(dateParsed.getSeconds()).padStart(2, '0');
-                        finalDateStr = `${y}-${m}-${d} ${h}:${min}:${s}`;
-                    }
-
-                    updateQuery += `, last_update_time = IF(status = 'CLOSED', ?, last_update_time)`;
-                    updateParams.push(finalDateStr);
-                }
+        // 2. Buat Lookup Map di Memory (O(1))
+        const ticketMap = new Map();
+        for (const t of dbTickets) {
+            if (t.id_tiket) {
+                ticketMap.set(String(t.id_tiket).trim().toUpperCase(), t);
             }
-
-            let dbCategory = category;
-
-            if (category.startsWith('MTEL_')) {
-                dbCategory = 'MTEL';
-            }
-
-            updateQuery += ` WHERE (id_tiket_tacc = ? OR id_tiket = ?) AND category = ?`;
-            updateParams.push(row.tacc_id.toString(), tiketIdFallback, dbCategory);
-
-            const [result] = await db.query(updateQuery, updateParams);
-
-            // Cek apakah ada baris yang berhasil diupdate
-            if (result && result.affectedRows > 0) {
-                updatedCount++;
+            if (t.id_tiket_tacc) {
+                ticketMap.set(String(t.id_tiket_tacc).trim().toUpperCase(), t);
             }
         }
 
-        // Jika semua loop sukses, simpan permanen ke database
+        // 3. Cocokkan data Excel dengan tiket yang benar-benar ada di DB
+        const toUpdate = [];
+        const seenDbIds = new Set();
+
+        for (const row of data) {
+            if (!row.tacc_id || row.ttr === undefined) continue;
+
+            const taccKey = String(row.tacc_id).trim().toUpperCase();
+            const tiketKey = row.tiket_id ? String(row.tiket_id).trim().toUpperCase() : null;
+
+            const matchedTicket = ticketMap.get(taccKey) || (tiketKey ? ticketMap.get(tiketKey) : null);
+
+            if (matchedTicket && !seenDbIds.has(matchedTicket.id)) {
+                seenDbIds.add(matchedTicket.id);
+                toUpdate.push({
+                    id: matchedTicket.id,
+                    status: matchedTicket.status,
+                    tacc_id: String(row.tacc_id),
+                    ttr: String(row.ttr),
+                    req_close: row.req_close
+                });
+            }
+        }
+
+        if (toUpdate.length === 0) {
+            return NextResponse.json({
+                message: `Retro-Sync selesai. Dari ${data.length} baris Excel, tidak ada tiket yang cocok dengan database.`,
+                updated: 0
+            });
+        }
+
+        // 4. Mulai Transaksi Database
+        await db.query('START TRANSACTION');
+
+        let updatedCount = 0;
+        const chunkSize = 30;
+
+        for (let i = 0; i < toUpdate.length; i += chunkSize) {
+            const chunk = toUpdate.slice(i, i + chunkSize);
+
+            await Promise.all(chunk.map(async (item) => {
+                let updateQuery = `UPDATE tickets SET ttr_tacc = ?, id_tiket_tacc = ?`;
+                let updateParams = [item.ttr, item.tacc_id];
+
+                if (item.req_close && String(item.req_close).trim() !== '') {
+                    const dateParsed = new Date(item.req_close);
+                    if (!isNaN(dateParsed.getTime())) {
+                        const isYMD = /^\d{4}-\d{2}-\d{2}/.test(String(item.req_close));
+                        let finalDateStr = String(item.req_close);
+
+                        if (!isYMD) {
+                            const y = dateParsed.getFullYear();
+                            const m = String(dateParsed.getMonth() + 1).padStart(2, '0');
+                            const d = String(dateParsed.getDate()).padStart(2, '0');
+                            const h = String(dateParsed.getHours()).padStart(2, '0');
+                            const min = String(dateParsed.getMinutes()).padStart(2, '0');
+                            const s = String(dateParsed.getSeconds()).padStart(2, '0');
+                            finalDateStr = `${y}-${m}-${d} ${h}:${min}:${s}`;
+                        }
+
+                        updateQuery += `, last_update_time = IF(status = 'CLOSED', ?, last_update_time), closed_at = IF(status = 'CLOSED', ?, closed_at)`;
+                        updateParams.push(finalDateStr, finalDateStr);
+                    }
+                }
+
+                updateQuery += ` WHERE id = ?`;
+                updateParams.push(item.id);
+
+                const [result] = await db.query(updateQuery, updateParams);
+                if (result && result.affectedRows > 0) {
+                    updatedCount += result.affectedRows;
+                }
+            }));
+        }
+
         await db.query('COMMIT');
 
-        return NextResponse.json({ 
-            message: `Retro-Sync berhasil! ${updatedCount} tiket ${category} telah disinkronisasi (ID TACC & TTR-nya).`, 
-            updated: updatedCount 
+        return NextResponse.json({
+            message: `Retro-Sync berhasil! ${updatedCount} tiket ${category} telah disinkronisasi (ID TACC & TTR-nya).`,
+            updated: updatedCount
         });
 
     } catch (error) {
-        // [FIX ERROR] Batalkan update menggunakan SQL murni jika terjadi masalah
         try {
             await db.query('ROLLBACK');
         } catch (rollbackError) {
             console.error("Gagal melakukan rollback:", rollbackError);
         }
-        
+
         console.error("Sync TACC Error:", error);
         return NextResponse.json({ error: 'Gagal sinkronisasi: ' + error.message }, { status: 500 });
     }

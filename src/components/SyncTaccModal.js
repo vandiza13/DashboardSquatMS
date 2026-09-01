@@ -4,12 +4,23 @@ import { useState } from 'react';
 import { FaTimes, FaCloudUploadAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaTrash, FaTerminal } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
-// Konfigurasi kolom
-const HEADER_CONFIG = {
-    UMT: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' },
-    MTEL_FIBERISASI: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close Time' },
-    MTEL_TIS: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close Time' },
-    CENTRATAMA: { id_col: 'Nomor TT', ttr_col: 'TTR NET (Jam)', tiket_col: 'Tiket', close_time_col: 'Req Close' }
+// Helper untuk pencarian kolom secara fleksibel (case-insensitive & trim)
+const findMatchingColumn = (row, candidates) => {
+    if (!row) return null;
+    const rowKeys = Object.keys(row);
+    for (const cand of candidates) {
+        const found = rowKeys.find(k => k.trim().toLowerCase() === cand.toLowerCase());
+        if (found) return found;
+    }
+    return null;
+};
+
+// Konfigurasi kandidat nama kolom TACC
+const TACC_COLUMN_CANDIDATES = {
+    id: ['Nomor TT', 'Nomor_TT', 'No TT', 'TT No', 'ID TACC', 'TACC ID', 'id_tiket_tacc'],
+    ttr: ['TTR NET (Jam)', 'TTR NET', 'TTR Net', 'TTR (Jam)', 'TTR', 'TTR_Finale', 'TTR Finale'],
+    tiket: ['Tiket', 'No Tiket', 'ID Tiket', 'Incident', 'Ticket ID', 'id_tiket'],
+    close_time: ['Req Close', 'Req Close Time', 'Req_Close', 'Req_Close_Time', 'c_resolve_date', 'Closed Date', 'Resolve Date', 'closed_at']
 };
 
 export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
@@ -57,35 +68,32 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
                     return;
                 }
 
-                const config = HEADER_CONFIG[category];
                 const firstRow = data[0];
+                const idCol = findMatchingColumn(firstRow, TACC_COLUMN_CANDIDATES.id);
+                const ttrCol = findMatchingColumn(firstRow, TACC_COLUMN_CANDIDATES.ttr);
+                const tiketCol = findMatchingColumn(firstRow, TACC_COLUMN_CANDIDATES.tiket);
+                const closeTimeCol = findMatchingColumn(firstRow, TACC_COLUMN_CANDIDATES.close_time);
 
-                const requiredCols = [
-                    { key: config.id_col, label: 'ID' },
-                    { key: config.ttr_col, label: 'TTR' },
-                    { key: config.tiket_col, label: 'Tiket' },
-                    { key: config.close_time_col, label: 'Req Close' }
-                ];
-
-                const missingCols = requiredCols.filter(col => !(col.key in firstRow)).map(col => col.key);
-
-                if (missingCols.length > 0) {
-                    updateFile(category, { status: 'error', message: `Tidak ada kolom: ${missingCols.join(', ')}` });
+                if (!idCol || !ttrCol) {
+                    const missing = [];
+                    if (!idCol) missing.push("Nomor TT");
+                    if (!ttrCol) missing.push("TTR NET (Jam)");
+                    updateFile(category, { status: 'error', message: `Tidak ada kolom: ${missing.join(', ')}` });
                     return;
                 }
 
                 const mappedData = data
-                    .filter(row => row[config.id_col]) 
+                    .filter(row => row[idCol]) 
                     .map(row => ({
-                        tacc_id: row[config.id_col],
-                        ttr: row[config.ttr_col] || '0',
-                        tiket_id: row[config.tiket_col] || '', 
-                        req_close: row[config.close_time_col] ? String(row[config.close_time_col]) : null 
+                        tacc_id: String(row[idCol]).trim(),
+                        ttr: row[ttrCol] !== undefined ? String(row[ttrCol]).trim() : '0',
+                        tiket_id: tiketCol && row[tiketCol] ? String(row[tiketCol]).trim() : '', 
+                        req_close: closeTimeCol && row[closeTimeCol] ? String(row[closeTimeCol]).trim() : null 
                     }));
 
                 updateFile(category, { status: 'ready', previewData: mappedData, message: `${mappedData.length} Tiket siap` });
             } catch (err) {
-                updateFile(category, { status: 'error', message: "Bukan file excel." });
+                updateFile(category, { status: 'error', message: "Bukan file excel valid." });
             }
         };
         reader.readAsBinaryString(selectedFile);
@@ -114,26 +122,48 @@ export default function SyncTaccModal({ isOpen, onClose, onSuccess }) {
             const catLabel = cat.replace('_', ' ');
             
             updateFile(cat, { status: 'uploading', message: 'Sinkronisasi...' });
-            addLog('info', `Mengirim file ${catLabel} (${fObj.name})...`);
+            addLog('info', `Mengirim file ${catLabel} (${fObj.name}) - Total ${fObj.previewData.length} baris...`);
 
             try {
-                const res = await fetch('/api/tickets/sync-tacc', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        category: cat, 
-                        data: fObj.previewData 
-                    })
-                });
+                const BATCH_SIZE = 2500;
+                const totalRows = fObj.previewData.length;
+                let totalUpdated = 0;
 
-                const result = await res.json();
+                for (let b = 0; b < totalRows; b += BATCH_SIZE) {
+                    const batch = fObj.previewData.slice(b, b + BATCH_SIZE);
+                    const batchNum = Math.floor(b / BATCH_SIZE) + 1;
+                    const totalBatches = Math.ceil(totalRows / BATCH_SIZE);
 
-                if (res.ok) {
-                    updateFile(cat, { status: 'success', message: 'Selesai!' });
-                    addLog('success', `[Sukses ${catLabel}] ${result.message}`);
-                } else {
-                    throw new Error(result.error || "Gagal dari server.");
+                    if (totalBatches > 1) {
+                        addLog('info', `[${catLabel}] Memproses batch ${batchNum}/${totalBatches} (${batch.length} baris)...`);
+                    }
+
+                    const res = await fetch('/api/tickets/sync-tacc', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            category: cat, 
+                            data: batch 
+                        })
+                    });
+
+                    const text = await res.text();
+                    let result;
+                    try {
+                        result = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error(`Gagal respon server (${res.status}): Server timeout atau format respons bukan JSON.`);
+                    }
+
+                    if (res.ok) {
+                        totalUpdated += (result.updated || 0);
+                    } else {
+                        throw new Error(result.error || "Gagal dari server.");
+                    }
                 }
+
+                updateFile(cat, { status: 'success', message: 'Selesai!' });
+                addLog('success', `[Sukses ${catLabel}] Sinkronisasi selesai! ${totalUpdated} tiket telah disinkronisasi.`);
             } catch (error) {
                 allSuccess = false;
                 updateFile(cat, { status: 'error_sync', message: 'Gagal upload' });

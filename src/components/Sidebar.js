@@ -24,27 +24,37 @@ export default function Sidebar({ isOpen, isDesktopOpen = true, onClose, onToggl
             .catch(() => setUser({ username: 'Guest', role: '' }));
     }, []);
 
-    const menuItems = [
-        { name: 'Dashboard', href: '/dashboard', icon: FaHome, color: 'blue' },
-        { name: 'Monitoring SLA & MTTR', href: '/dashboard/sla-performance', icon: FaStopwatch, color: 'amber' },
-        { name: 'Manajemen Tiket', href: '/dashboard/tickets', icon: FaTicketAlt, color: 'violet' },
-        { name: 'Data Teknisi', href: '/dashboard/technicians', icon: FaUsers, color: 'emerald' },
-        { name: 'Produktifitas', href: '/dashboard/productivity', icon: FaChartLine, color: 'indigo' },
-    ];
+    let menuItems = [];
 
-    if (user.role === 'SuperAdmin') {
-        menuItems.splice(3, 0, {
-            name: 'Manajemen User',
-            href: '/dashboard/users',
-            icon: FaUserCog,
-            color: 'rose'
-        });
-        menuItems.splice(4, 0, {
-            name: 'Mapping STO',
-            href: '/dashboard/sto-mappings',
-            icon: FaNetworkWired,
-            color: 'blue'
-        });
+    if (user.role === 'Teknisi') {
+        menuItems = [
+            { name: 'Dashboard', href: '/dashboard', icon: FaHome, color: 'blue' },
+            { name: 'Monitoring SLA & MTTR', href: '/dashboard/sla-performance', icon: FaStopwatch, color: 'amber' },
+            { name: 'Produktifitas', href: '/dashboard/productivity', icon: FaChartLine, color: 'indigo' },
+        ];
+    } else {
+        menuItems = [
+            { name: 'Dashboard', href: '/dashboard', icon: FaHome, color: 'blue' },
+            { name: 'Monitoring SLA & MTTR', href: '/dashboard/sla-performance', icon: FaStopwatch, color: 'amber' },
+            { name: 'Manajemen Tiket', href: '/dashboard/tickets', icon: FaTicketAlt, color: 'violet' },
+            { name: 'Data Teknisi', href: '/dashboard/technicians', icon: FaUsers, color: 'emerald' },
+            { name: 'Produktifitas', href: '/dashboard/productivity', icon: FaChartLine, color: 'indigo' },
+        ];
+
+        if (user.role === 'SuperAdmin') {
+            menuItems.splice(3, 0, {
+                name: 'Manajemen User',
+                href: '/dashboard/users',
+                icon: FaUserCog,
+                color: 'rose'
+            });
+            menuItems.splice(4, 0, {
+                name: 'Mapping STO',
+                href: '/dashboard/sto-mappings',
+                icon: FaNetworkWired,
+                color: 'blue'
+            });
+        }
     }
 
     useEffect(() => {
@@ -332,101 +342,105 @@ export default function Sidebar({ isOpen, isDesktopOpen = true, onClose, onToggl
                         )}
                     </div>
 
-                    {isDesktopOpen ? (
-                        <div className="my-5 mx-3">
-                            <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-color)] to-transparent" />
-                        </div>
-                    ) : (
-                        <div className="my-2 mx-auto w-6 border-t border-[var(--border-subtle)]" />
-                    )}
+                    {user.role !== 'Teknisi' && (
+                        <>
+                            {isDesktopOpen ? (
+                                <div className="my-5 mx-3">
+                                    <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-color)] to-transparent" />
+                                </div>
+                            ) : (
+                                <div className="my-2 mx-auto w-6 border-t border-[var(--border-subtle)]" />
+                            )}
 
-                    {isDesktopOpen ? (
-                        <p className="px-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2.5">
-                            Eksternal
-                        </p>
-                    ) : null}
+                            {isDesktopOpen ? (
+                                <p className="px-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2.5">
+                                    Eksternal
+                                </p>
+                            ) : null}
 
-                    <a
-                        href="https://flow.telkomakses.co.id"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={onClose}
-                        title={!isDesktopOpen ? "Lensa Flow (WFM)" : undefined}
-                        className={`group relative flex items-center rounded-xl transition-all duration-200 ${
-                            isDesktopOpen 
-                            ? 'gap-3 px-3 py-2.5 text-[13px] font-semibold text-[var(--text-sidebar)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]' 
-                            : 'justify-center p-2.5 text-[var(--text-sidebar)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]'
-                        }`}
-                    >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-base)] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-surface)] transition-all duration-200">
-                            <FaGlobe size={15} />
-                        </div>
-                        {isDesktopOpen && (
-                            <>
-                                <span className="truncate">Lensa Flow (WFM)</span>
-                                <FaExternalLinkAlt className="ml-auto opacity-0 group-hover:opacity-60 text-[9px] transition-opacity" />
-                            </>
-                        )}
-                    </a>
-
-                    <button
-                        onClick={() => {
-                            if (!isDesktopOpen && onToggleDesktop) {
-                                onToggleDesktop();
-                                setIsTaccOpen(true);
-                            } else {
-                                setIsTaccOpen(!isTaccOpen);
-                            }
-                        }}
-                        title={!isDesktopOpen ? "Dashboard TACC" : undefined}
-                        className={`w-full group relative flex items-center rounded-xl transition-all duration-200 ${
-                            isDesktopOpen 
-                            ? 'justify-between px-3 py-2.5 text-[13px] font-semibold' 
-                            : 'justify-center p-2.5'
-                        } ${
-                            isTaccOpen && isDesktopOpen
-                                ? 'bg-[var(--bg-base)] text-[var(--text-primary)]'
-                                : 'text-[var(--text-sidebar)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]'
-                        }`}
-                    >
-                        <div className={`flex items-center ${isDesktopOpen ? 'gap-3' : 'justify-center'}`}>
-                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200
-                                ${isTaccOpen && isDesktopOpen
-                                    ? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
-                                    : 'bg-[var(--bg-base)] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-surface)]'
+                            <a
+                                href="https://flow.telkomakses.co.id"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={onClose}
+                                title={!isDesktopOpen ? "Lensa Flow (WFM)" : undefined}
+                                className={`group relative flex items-center rounded-xl transition-all duration-200 ${
+                                    isDesktopOpen 
+                                    ? 'gap-3 px-3 py-2.5 text-[13px] font-semibold text-[var(--text-sidebar)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]' 
+                                    : 'justify-center p-2.5 text-[var(--text-sidebar)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]'
                                 }`}
                             >
-                                <FaDesktop size={15} />
-                            </div>
-                            {isDesktopOpen && <span>Dashboard TACC</span>}
-                        </div>
-                        {isDesktopOpen && (
-                            <FaChevronDown
-                                size={10}
-                                className={`text-[var(--text-muted)] transition-transform duration-300 ${isTaccOpen ? 'rotate-180' : 'rotate-0'}`}
-                            />
-                        )}
-                    </button>
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-base)] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-surface)] transition-all duration-200">
+                                    <FaGlobe size={15} />
+                                </div>
+                                {isDesktopOpen && (
+                                    <>
+                                        <span className="truncate">Lensa Flow (WFM)</span>
+                                        <FaExternalLinkAlt className="ml-auto opacity-0 group-hover:opacity-60 text-[9px] transition-opacity" />
+                                    </>
+                                )}
+                            </a>
 
-                    {isDesktopOpen && (
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isTaccOpen ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                            <div className="ml-[22px] pl-4 py-1 space-y-0.5 border-l-2 border-[var(--border-subtle)]">
-                                {taccItems.map((item) => (
-                                    <a
-                                        key={item.name}
-                                        href={item.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() => onClose()}
-                                        className="relative flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-base)] transition-all duration-200 group"
+                            <button
+                                onClick={() => {
+                                    if (!isDesktopOpen && onToggleDesktop) {
+                                        onToggleDesktop();
+                                        setIsTaccOpen(true);
+                                    } else {
+                                        setIsTaccOpen(!isTaccOpen);
+                                    }
+                                }}
+                                title={!isDesktopOpen ? "Dashboard TACC" : undefined}
+                                className={`w-full group relative flex items-center rounded-xl transition-all duration-200 ${
+                                    isDesktopOpen 
+                                    ? 'justify-between px-3 py-2.5 text-[13px] font-semibold' 
+                                    : 'justify-center p-2.5'
+                                } ${
+                                    isTaccOpen && isDesktopOpen
+                                        ? 'bg-[var(--bg-base)] text-[var(--text-primary)]'
+                                        : 'text-[var(--text-sidebar)] hover:bg-[var(--bg-base)] hover:text-[var(--text-primary)]'
+                                }`}
+                            >
+                                <div className={`flex items-center ${isDesktopOpen ? 'gap-3' : 'justify-center'}`}>
+                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200
+                                        ${isTaccOpen && isDesktopOpen
+                                            ? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
+                                            : 'bg-[var(--bg-base)] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] group-hover:bg-[var(--bg-surface)]'
+                                        }`}
                                     >
-                                        <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border-2 border-[var(--border-subtle)] bg-[var(--bg-sidebar)] group-hover:border-blue-500 group-hover:bg-blue-500 transition-colors duration-200" />
-                                        <span>{item.name}</span>
-                                        <FaExternalLinkAlt className="ml-auto opacity-0 group-hover:opacity-60 text-[8px] transition-opacity" />
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
+                                        <FaDesktop size={15} />
+                                    </div>
+                                    {isDesktopOpen && <span>Dashboard TACC</span>}
+                                </div>
+                                {isDesktopOpen && (
+                                    <FaChevronDown
+                                        size={10}
+                                        className={`text-[var(--text-muted)] transition-transform duration-300 ${isTaccOpen ? 'rotate-180' : 'rotate-0'}`}
+                                    />
+                                )}
+                            </button>
+
+                            {isDesktopOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isTaccOpen ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="ml-[22px] pl-4 py-1 space-y-0.5 border-l-2 border-[var(--border-subtle)]">
+                                        {taccItems.map((item) => (
+                                            <a
+                                                key={item.name}
+                                                href={item.href}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={() => onClose()}
+                                                className="relative flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-base)] transition-all duration-200 group"
+                                            >
+                                                <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border-2 border-[var(--border-subtle)] bg-[var(--bg-sidebar)] group-hover:border-blue-500 group-hover:bg-blue-500 transition-colors duration-200" />
+                                                <span>{item.name}</span>
+                                                <FaExternalLinkAlt className="ml-auto opacity-0 group-hover:opacity-60 text-[8px] transition-opacity" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
 
                 </nav>

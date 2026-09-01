@@ -4,10 +4,22 @@ import { useState } from 'react';
 import { FaTimes, FaCloudUploadAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaTrash, FaTerminal } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
-// Konfigurasi kolom Simarvel Insera
-const HEADER_CONFIG = {
-    TSEL: { id_col: 'Incident', ttr_col: 'TTR_Finale', close_time_col: 'c_resolve_date' },
-    OLO: { id_col: 'Incident', ttr_col: 'TTR_Finale', close_time_col: 'c_resolve_date' }
+// Helper untuk pencarian kolom secara fleksibel (case-insensitive & trim)
+const findMatchingColumn = (row, candidates) => {
+    if (!row) return null;
+    const rowKeys = Object.keys(row);
+    for (const cand of candidates) {
+        const found = rowKeys.find(k => k.trim().toLowerCase() === cand.toLowerCase());
+        if (found) return found;
+    }
+    return null;
+};
+
+// Konfigurasi kandidat nama kolom Simarvel / Insera
+const SQUAT_COLUMN_CANDIDATES = {
+    id: ['Incident', 'Incident ID', 'Incident_ID', 'ID Tiket', 'Ticket ID', 'No Tiket', 'id_tiket', 'Nomor TT'],
+    ttr: ['TTR_Finale', 'TTR Finale', 'TTR', 'TTR_Customer', 'TTR Customer', 'ttr_finale', 'TTR NET (Jam)', 'TTR NET'],
+    close_time: ['c_resolve_date', 'Resolve Date', 'c_resolve_time', 'c_close_date', 'Closed Date', 'Req Close', 'Req Close Time', 'Close Time', 'closed_at']
 };
 
 export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
@@ -53,31 +65,32 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
                     return;
                 }
 
-                const config = HEADER_CONFIG[category];
                 const firstRow = data[0];
+                const idCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.id);
+                const ttrCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.ttr);
+                const closeTimeCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.close_time);
 
-                const requiredCols = [
-                    { key: config.id_col, label: config.id_col },
-                    { key: config.ttr_col, label: config.ttr_col },
-                    { key: config.close_time_col, label: config.close_time_col }
-                ];
-
-                const missingCols = requiredCols.filter(col => !(col.key in firstRow)).map(col => col.key);
-
-                if (missingCols.length > 0) {
-                    updateFile(category, { status: 'error', message: `Tidak ada kolom: ${missingCols.join(', ')}` });
+                if (!idCol || !ttrCol) {
+                    const missing = [];
+                    if (!idCol) missing.push("Incident / ID Tiket");
+                    if (!ttrCol) missing.push("TTR_Finale / TTR");
+                    updateFile(category, { status: 'error', message: `Kolom tidak ditemukan: ${missing.join(', ')}` });
                     return;
                 }
 
                 const mappedData = data
-                    .filter(row => row[config.id_col])
+                    .filter(row => row[idCol])
                     .map(row => ({
-                        id_tiket: String(row[config.id_col]).trim(),
-                        ttr: row[config.ttr_col] !== undefined ? String(row[config.ttr_col]) : '0',
-                        close_time: row[config.close_time_col] ? String(row[config.close_time_col]) : null
+                        id_tiket: String(row[idCol]).trim(),
+                        ttr: row[ttrCol] !== undefined ? String(row[ttrCol]).trim() : '0',
+                        close_time: closeTimeCol && row[closeTimeCol] ? String(row[closeTimeCol]).trim() : null
                     }));
 
-                updateFile(category, { status: 'ready', previewData: mappedData, message: `${mappedData.length} Tiket siap di-sync` });
+                updateFile(category, { 
+                    status: 'ready', 
+                    previewData: mappedData, 
+                    message: `${mappedData.length} Tiket siap di-sync` 
+                });
             } catch (err) {
                 updateFile(category, { status: 'error', message: "Bukan file excel valid." });
             }
@@ -107,26 +120,48 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
             const fObj = files[cat];
 
             updateFile(cat, { status: 'uploading', message: 'Sinkronisasi...' });
-            addLog('info', `Mengirim file SQUAT ${cat} (${fObj.name})...`);
+            addLog('info', `Mengirim file SQUAT ${cat} (${fObj.name}) - Total ${fObj.previewData.length} baris...`);
 
             try {
-                const res = await fetch('/api/tickets/sync-squat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        category: cat,
-                        data: fObj.previewData
-                    })
-                });
+                const BATCH_SIZE = 2500;
+                const totalRows = fObj.previewData.length;
+                let totalUpdated = 0;
 
-                const result = await res.json();
+                for (let b = 0; b < totalRows; b += BATCH_SIZE) {
+                    const batch = fObj.previewData.slice(b, b + BATCH_SIZE);
+                    const batchNum = Math.floor(b / BATCH_SIZE) + 1;
+                    const totalBatches = Math.ceil(totalRows / BATCH_SIZE);
 
-                if (res.ok) {
-                    updateFile(cat, { status: 'success', message: 'Selesai!' });
-                    addLog('success', `[Sukses ${cat}] ${result.message}`);
-                } else {
-                    throw new Error(result.error || "Gagal dari server.");
+                    if (totalBatches > 1) {
+                        addLog('info', `[${cat}] Memproses batch ${batchNum}/${totalBatches} (${batch.length} baris)...`);
+                    }
+
+                    const res = await fetch('/api/tickets/sync-squat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            category: cat,
+                            data: batch
+                        })
+                    });
+
+                    const text = await res.text();
+                    let result;
+                    try {
+                        result = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error(`Gagal respon server (${res.status}): Server timeout atau format respons bukan JSON.`);
+                    }
+
+                    if (res.ok) {
+                        totalUpdated += (result.updated || 0);
+                    } else {
+                        throw new Error(result.error || "Gagal dari server.");
+                    }
                 }
+
+                updateFile(cat, { status: 'success', message: 'Selesai!' });
+                addLog('success', `[Sukses ${cat}] Sinkronisasi selesai! ${totalUpdated} tiket SQUAT CLOSED telah diperbarui nilainya.`);
             } catch (error) {
                 allSuccess = false;
                 updateFile(cat, { status: 'error_sync', message: 'Gagal upload' });

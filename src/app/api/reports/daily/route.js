@@ -38,7 +38,7 @@ export async function GET(request) {
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
             LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
             WHERE t.status = 'CLOSED' 
-            AND DATE(t.last_update_time) = DATE(NOW())
+            AND DATE(COALESCE(t.closed_at, t.last_update_time)) = DATE(NOW())
         `;
 
         const params = [];
@@ -51,7 +51,7 @@ export async function GET(request) {
         }
 
         queryRunning += ` GROUP BY t.id ORDER BY t.tiket_time ASC`;
-        queryClosed += ` GROUP BY t.id ORDER BY t.last_update_time DESC`;
+        queryClosed += ` GROUP BY t.id ORDER BY COALESCE(t.closed_at, t.last_update_time) DESC`;
 
         // Jalankan Query Paralel
         const [running] = await db.query(queryRunning, params);

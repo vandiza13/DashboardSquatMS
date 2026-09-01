@@ -80,7 +80,7 @@ export default function TicketDetailPage({ params }) {
         let closeTimeStr = null;
         if (ticket.status === 'CLOSED') {
             const closeLog = history.find(h => h.change_details.includes('➝ CLOSED'));
-            const closeTime = closeLog ? closeLog.change_timestamp : ticket.last_update_time;
+            const closeTime = ticket.closed_at || (closeLog ? closeLog.change_timestamp : ticket.last_update_time);
             closeTimeStr = closeTime;
             
             const hasClose = timeline.some(item => 

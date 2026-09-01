@@ -43,8 +43,8 @@ export async function GET(request) {
                     SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open,
                     SUM(CASE WHEN status = 'SC' THEN 1 ELSE 0 END) as sc,
                     SUM(CASE WHEN status = 'CLOSED' THEN 1 ELSE 0 END) as closed_total,
-                    SUM(CASE WHEN status = 'CLOSED' AND last_update_time >= CURDATE() AND last_update_time < CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) as closed_today,
-                    SUM(CASE WHEN status = 'CLOSED' AND last_update_time >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 ELSE 0 END) as closed_month
+                    SUM(CASE WHEN status = 'CLOSED' AND COALESCE(closed_at, last_update_time) >= CURDATE() AND COALESCE(closed_at, last_update_time) < CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) as closed_today,
+                    SUM(CASE WHEN status = 'CLOSED' AND COALESCE(closed_at, last_update_time) >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 ELSE 0 END) as closed_month
                 FROM tickets
             `),
             db.query(`
@@ -58,14 +58,14 @@ export async function GET(request) {
                 SELECT subcategory, COUNT(*) as count 
                 FROM tickets 
                 WHERE status = 'CLOSED' 
-                AND last_update_time >= CURDATE() 
-                AND last_update_time < CURDATE() + INTERVAL 1 DAY
+                AND COALESCE(closed_at, last_update_time) >= CURDATE() 
+                AND COALESCE(closed_at, last_update_time) < CURDATE() + INTERVAL 1 DAY
                 GROUP BY subcategory
                 ORDER BY count DESC
             `),
             db.query(`
                 SELECT 
-                    DATE_FORMAT(tiket_time, '%b %Y') as month,
+                DATE_FORMAT(tiket_time, '%b %Y') as month,
                     subcategory,
                     COUNT(*) as count
                 FROM tickets
@@ -75,12 +75,12 @@ export async function GET(request) {
             `),
             db.query(`
                 SELECT 
-                    DATE_FORMAT(last_update_time, '%Y-%m-%d') as date,
+                    DATE_FORMAT(COALESCE(closed_at, last_update_time), '%Y-%m-%d') as date,
                     category,
                     COUNT(*) as count
                 FROM tickets
                 WHERE status = 'CLOSED' 
-                AND last_update_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                AND COALESCE(closed_at, last_update_time) >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                 GROUP BY date, category
                 ORDER BY date ASC
             `),

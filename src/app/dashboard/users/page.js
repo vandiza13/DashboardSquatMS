@@ -10,7 +10,8 @@ import {
     FaSpinner,
     FaUserCircle,
     FaEye,
-    FaTelegramPlane // Tambahan icon telegram
+    FaTelegramPlane, // Tambahan icon telegram
+    FaHardHat
 } from 'react-icons/fa';
 
 export default function UsersPage() {
@@ -191,6 +192,7 @@ export default function UsersPage() {
         switch (role) {
             case 'SuperAdmin': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200"><FaShieldAlt /> Super Admin</span>;
             case 'Admin': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100"><FaShieldAlt /> Administrator</span>;
+            case 'Teknisi': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-700/50"><FaHardHat /> Teknisi</span>;
             case 'View': return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><FaEye /> View Only</span>;
             default: return <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100"><FaUserCircle /> User Staff</span>;
         }
@@ -215,7 +217,7 @@ export default function UsersPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Manajemen Pengguna</h2>
-                    <p className="text-[var(--text-muted)] mt-1">Kontrol akses (Admin, User, View)</p>
+                    <p className="text-[var(--text-muted)] mt-1">Kontrol akses (SuperAdmin, Admin, User Staff, Teknisi, View Only)</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button onClick={handleRegisterWebhook} className="flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/30 transition-all hover:bg-sky-600 hover:scale-105 active:scale-95">
@@ -372,6 +374,7 @@ export default function UsersPage() {
                                         >
                                             <option value="Admin" className="bg-[var(--bg-base)] text-[var(--text-primary)]">Administrator</option>
                                             <option value="User" className="bg-[var(--bg-base)] text-[var(--text-primary)]">User (Staff)</option>
+                                            <option value="Teknisi" className="bg-[var(--bg-base)] text-[var(--text-primary)]">Teknisi</option>
                                             <option value="View" className="bg-[var(--bg-base)] text-[var(--text-primary)]">View Only</option>
                                         </select>
                                     </div>

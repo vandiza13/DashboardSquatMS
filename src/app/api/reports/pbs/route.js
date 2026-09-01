@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyJWT } from '@/lib/auth';
 import ExcelJS from 'exceljs';
+
 export async function GET(request) {
     try {
+        const token = request.cookies.get('token')?.value;
+        const user = await verifyJWT(token);
+        if (user && user.role === 'Teknisi') {
+            return NextResponse.json({ error: 'Akses ditolak: Role Teknisi tidak diizinkan mendownload laporan PBS' }, { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const monthParam = searchParams.get('month'); // Format: YYYY-MM
 

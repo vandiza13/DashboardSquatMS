@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     FaChartLine, FaTrophy, FaMedal, FaTicketAlt, FaFilter, FaTimes, FaExternalLinkAlt,
     FaCalendarAlt, FaUserCircle, FaClock, FaSearch,
-    FaFileExcel, FaSpinner
+    FaFileExcel, FaSpinner, FaUserCheck, FaUserFriends, FaCopy, FaCheck
 } from 'react-icons/fa';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement
@@ -33,12 +34,14 @@ export default function ProductivityPage() {
     const [data, setData] = useState([]);
     const [subcategoryCounts, setSubcategoryCounts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
 
     // --- STATE FILTER & SEARCH ---
     const currentDate = new Date();
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeDivision, setActiveDivision] = useState('ALL');
 
     // --- STATE MODAL DETAIL ---
     const [showModal, setShowModal] = useState(false);
@@ -47,6 +50,31 @@ export default function ProductivityPage() {
     const [selectedTechName, setSelectedTechName] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedNik, setSelectedNik] = useState('');
+    const [copiedAll, setCopiedAll] = useState(false);
+    const [copiedTicketId, setCopiedTicketId] = useState(null);
+    const [userRole, setUserRole] = useState('');
+
+    // --- EFFECT MOUNT & BODY SCROLL LOCK ---
+    useEffect(() => {
+        setMounted(true);
+        fetch('/api/me')
+            .then(res => res.json())
+            .then(userData => {
+                if (userData?.role) setUserRole(userData.role);
+            })
+            .catch(() => setUserRole(''));
+    }, []);
+
+    useEffect(() => {
+        if (showModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [showModal]);
 
     // --- STATE DOWNLOAD ---
     const [downloadLoading, setDownloadLoading] = useState(false);
@@ -64,7 +92,7 @@ export default function ProductivityPage() {
     // --- FETCH DATA UTAMA ---
     useEffect(() => {
         setLoading(true);
-        fetch(`/api/productivity?month=${selectedMonth}&year=${selectedYear}`)
+        fetch(`/api/productivity?month=${selectedMonth}&year=${selectedYear}&division=${activeDivision}`)
             .then(res => res.json())
             .then(result => {
                 if (result && result.technicians) {
@@ -83,7 +111,7 @@ export default function ProductivityPage() {
                 console.error(err);
                 setLoading(false);
             });
-    }, [selectedMonth, selectedYear]);
+    }, [selectedMonth, selectedYear, activeDivision]);
 
     // --- FILTER DATA SEARCH ---
     const filteredData = useMemo(() => {
@@ -95,7 +123,7 @@ export default function ProductivityPage() {
     }, [data, searchTerm]);
 
     // --- FUNGSI KLIK ANGKA (FETCH DETAIL) ---
-    const handleNumberClick = async (nik, name, category, count) => {
+    const handleNumberClick = async (nik, name, category, role, count) => {
         if (count === 0) return;
 
         setSelectedTechName(name);
@@ -107,7 +135,7 @@ export default function ProductivityPage() {
         setShowModal(true);
 
         try {
-            const res = await fetch(`/api/productivity/details?nik=${nik}&month=${selectedMonth}&year=${selectedYear}&category=${category}`);
+            const res = await fetch(`/api/productivity/details?nik=${nik}&month=${selectedMonth}&year=${selectedYear}&category=${category}&role=${role || 'ALL'}`);
             const result = await res.json();
             if (Array.isArray(result)) {
                 setTicketDetails(result);
@@ -158,11 +186,16 @@ export default function ProductivityPage() {
                 'No': index + 1,
                 'Nama Teknisi': item.name,
                 'NIK': item.nik,
-                'Total Tiket': item.total,
-                'MTEL': item.mtel,
-                'UMT': item.umt,
-                'CENTRATAMA': item.centratama,
-                'SQUAT': item.squat,
+                'Divisi': item.division || '-',
+                'SQUAT': item.squat || 0,
+                'TSEL': item.squat_tsel || 0,
+                'OLO': item.squat_olo || 0,
+                'MTEL': item.mtel || 0,
+                'UMT': item.umt || 0,
+                'CENTRATAMA': item.centratama || 0,
+                'Sbg LENSA (Utama)': item.lead_total || 0,
+                'Sbg PARTNER': item.partner_total || 0,
+                'Total Kontribusi': item.total || 0,
             }));
 
             // 4. [UPDATE] Buat Sheet 2: DETAIL TIKET LENGKAP
@@ -202,6 +235,8 @@ export default function ProductivityPage() {
                     'Nama Teknisi': row.technician_name,
                     'NIK': row.technician_nik,
                     'No. HP': row.phone_number || '-',
+                    'Divisi': row.division || '-',
+                    'Peran Teknisi': row.user_role === 'LEAD' ? 'LENSA (Utama)' : (row.user_role === 'PARTNER' ? 'PARTNER' : row.user_role),
                     'ID Tiket': row.id_tiket,
                     'ID TACC': isTaccCategory ? (row.id_tiket_tacc || '-') : '-',
                     'Kategori': row.category,
@@ -214,9 +249,10 @@ export default function ProductivityPage() {
                     'Status SLA': slaStatus,
                     'Deskripsi': row.deskripsi || '-',
                     'RCA / Progress': row.update_progres || '-',
-                    'Partner Teknisi': row.partner_technicians || '-',
+                    'Membantu Teknisi LENSA': row.lead_technician_name || '-',
+                    'Dibantu Oleh Partner': row.partner_technicians || '-',
                     'Waktu Tiket': row.tiket_time ? new Date(row.tiket_time).toLocaleString('id-ID') : '-',
-                    'Update Terakhir': row.last_update_time ? new Date(row.last_update_time).toLocaleString('id-ID') : '-',
+                    'Waktu Closed': row.closed_at ? new Date(row.closed_at).toLocaleString('id-ID') : (row.last_update_time ? new Date(row.last_update_time).toLocaleString('id-ID') : '-'),
                 };
             });
 
@@ -257,7 +293,7 @@ export default function ProductivityPage() {
                     'NIK': item.nik,
                     'Kategori': item.category,
                     'Total Tiket (TTR)': item.total,
-                    'IN SLA (≤4 Jam)': item.inSla,
+                    'IN SLA (â‰¤4 Jam)': item.inSla,
                     'OVER SLA (>4 Jam)': item.overSla,
                     '% IN SLA': item.total > 0 ? `${((item.inSla / item.total) * 100).toFixed(1)}%` : '0%',
                     'Rata-rata TTR (Jam)': item.total > 0 ? (item.sumTtr / item.total).toFixed(2) : '0',
@@ -376,10 +412,10 @@ export default function ProductivityPage() {
             { label: 'SQUAT', data: topTechs.map(t => t.squat), backgroundColor: CATEGORY_COLORS.SQUAT },
         ];
 
-        const totalMtel = data.reduce((acc, curr) => acc + parseInt(curr.mtel), 0);
-        const totalUmt = data.reduce((acc, curr) => acc + parseInt(curr.umt), 0);
-        const totalCentratama = data.reduce((acc, curr) => acc + parseInt(curr.centratama), 0);
-        const totalSquat = data.reduce((acc, curr) => acc + parseInt(curr.squat), 0);
+        const totalMtel = subcategoryCounts.filter(s => s.category === 'MTEL').reduce((sum, curr) => sum + curr.count, 0);
+        const totalUmt = subcategoryCounts.filter(s => s.category === 'UMT').reduce((sum, curr) => sum + curr.count, 0);
+        const totalCentratama = subcategoryCounts.filter(s => s.category === 'CENTRATAMA').reduce((sum, curr) => sum + curr.count, 0);
+        const totalSquat = subcategoryCounts.filter(s => s.category === 'SQUAT').reduce((sum, curr) => sum + curr.count, 0);
 
         return {
             bar: { labels: barLabels, datasets: stackedBarDatasets },
@@ -395,7 +431,7 @@ export default function ProductivityPage() {
             grandTotal: totalMtel + totalUmt + totalCentratama + totalSquat,
             topTechnician: data[0]
         };
-    }, [data]);
+    }, [data, subcategoryCounts]);
 
     const stackedBarOptions = {
         responsive: true,
@@ -405,25 +441,151 @@ export default function ProductivityPage() {
     };
 
     const formatDateTime = (dateString) => {
-        if (!dateString) return '-';
-        const date = new Date(dateString);
-        return new Intl.DateTimeFormat('id-ID', {
-            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-        }).format(date).replace('.', ':');
+        if (!dateString) return { date: '-', time: '-' };
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return { date: '-', time: '-' };
+        const date = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        const time = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+        return { date, time };
     };
 
-    const ClickableCount = ({ count, nik, name, category, color }) => {
-        if (count <= 0) return <span className="text-[var(--text-muted)] font-normal opacity-40">-</span>;
+    // --- FUNGSI SALIN SEMUA DATA DETAIL (COPY TO CLIPBOARD) ---
+    const handleCopyAll = () => {
+        if (!ticketDetails.length) return;
+        const monthName = months[selectedMonth - 1]?.label || '';
+        const leadCount = ticketDetails.filter(t => t.user_role === 'LEAD').length;
+        const partnerCount = ticketDetails.filter(t => t.user_role === 'PARTNER').length;
+
+        let text = `*REKAP PEKERJAAN TEKNISI*\n`;
+        text += `👤 *Nama*: ${selectedTechName} (${selectedNik})\n`;
+        text += `📅 *Periode*: ${monthName} ${selectedYear}\n`;
+        text += `🏷️ *Kategori*: ${selectedCategory} (Total: ${ticketDetails.length} Tiket | 🔵 ${leadCount} LENSA, 🟣 ${partnerCount} PARTNER)\n`;
+        text += `─────────────────────────\n\n`;
+
+        ticketDetails.forEach((ticket, idx) => {
+            const dt = formatDateTime(ticket.last_update_time);
+            const roleStr = ticket.user_role === 'LEAD' ? '🔵 LENSA (Utama)' : '🟣 PARTNER (Support)';
+            text += `${idx + 1}. [#${ticket.ticket_number}] ${ticket.category}${ticket.subcategory ? ` - ${ticket.subcategory}` : ''}\n`;
+            text += `   Peran: ${roleStr}\n`;
+            text += `   ${ticket.subject || '-'}\n`;
+            if (ticket.user_role === 'LEAD' && ticket.partner_technicians) {
+                text += `   Dibantu Partner: ${ticket.partner_technicians}\n`;
+            } else if (ticket.user_role !== 'LEAD' && ticket.lead_technician_name) {
+                text += `   Membantu LENSA: ${ticket.lead_technician_name}\n`;
+            }
+            text += `   Waktu Closed: ${dt.date} ${dt.time}\n\n`;
+        });
+
+        text += `─────────────────────────\n`;
+        text += `_Generated by Dashboard SquatMS_`;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                setCopiedAll(true);
+                setTimeout(() => setCopiedAll(false), 2000);
+            }).catch(() => {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    };
+
+    const fallbackCopy = (text) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            setCopiedAll(true);
+            setTimeout(() => setCopiedAll(false), 2000);
+        } catch (err) {
+            console.error('Fallback copy failed', err);
+        }
+        document.body.removeChild(textarea);
+    };
+
+    // --- FUNGSI SALIN SINGLE TIKET ---
+    const handleCopyTicket = (ticket) => {
+        const dt = formatDateTime(ticket.last_update_time);
+        const roleStr = ticket.user_role === 'LEAD' ? 'LENSA' : 'PARTNER';
+        let text = `[#${ticket.ticket_number}] [${roleStr}] ${ticket.category}${ticket.subcategory ? ` - ${ticket.subcategory}` : ''}\n`;
+        text += `${ticket.subject || '-'}\n`;
+        if (ticket.user_role === 'LEAD' && ticket.partner_technicians) {
+            text += `Dibantu Partner: ${ticket.partner_technicians}\n`;
+        } else if (ticket.user_role !== 'LEAD' && ticket.lead_technician_name) {
+            text += `Membantu LENSA: ${ticket.lead_technician_name}\n`;
+        }
+        text += `Waktu Closed: ${dt.date} ${dt.time}`;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                setCopiedTicketId(ticket.id);
+                setTimeout(() => setCopiedTicketId(null), 2000);
+            }).catch(() => {
+                fallbackCopySingle(text, ticket.id);
+            });
+        } else {
+            fallbackCopySingle(text, ticket.id);
+        }
+    };
+
+    const fallbackCopySingle = (text, id) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            setCopiedTicketId(id);
+            setTimeout(() => setCopiedTicketId(null), 2000);
+        } catch (err) {
+            console.error('Fallback copy failed', err);
+        }
+        document.body.removeChild(textarea);
+    };
+
+    // --- KOMPONEN SPLIT COUNT BADGE ELEGAN (LENSA vs PARTNER) ---
+    const SplitCountBadge = ({ leadCount = 0, partnerCount = 0, nik, name, category }) => {
+        const lead = parseInt(leadCount) || 0;
+        const partner = parseInt(partnerCount) || 0;
+
+        if (lead === 0 && partner === 0) {
+            return <span className="text-[var(--text-muted)] font-normal opacity-30 text-xs">-</span>;
+        }
 
         return (
-            <button
-                onClick={() => handleNumberClick(nik, name, category, count)}
-                className="font-bold hover:underline hover:scale-110 transition-transform cursor-pointer focus:outline-none"
-                style={{ color: color || 'inherit' }}
-                title="Klik untuk lihat detail"
-            >
-                {count}
-            </button>
+            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                {lead > 0 && (
+                    <button
+                        onClick={() => handleNumberClick(nik, name, category, 'LEAD', lead)}
+                        title={`${lead} Tiket sebagai LENSA (Utama)`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none"
+                    >
+                        <FaUserCheck className="text-[10px]" />
+                        <span>{lead}</span>
+                    </button>
+                )}
+                {partner > 0 && (
+                    <button
+                        onClick={() => handleNumberClick(nik, name, category, 'PARTNER', partner)}
+                        title={`${partner} Tiket sebagai PARTNER (Support)`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/25 hover:bg-purple-600 hover:text-white dark:hover:bg-purple-500 hover:scale-105 active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none"
+                    >
+                        <FaUserFriends className="text-[10px]" />
+                        <span>{partner}</span>
+                    </button>
+                )}
+            </div>
         );
     };
 
@@ -471,15 +633,17 @@ export default function ProductivityPage() {
                         <span className="hidden md:inline">Download</span> Excel
                     </button>
 
-                    {/* 3. TOMBOL DOWNLOAD Laporan PBS */}
-                    <button
-                        onClick={handleDownloadPBS}
-                        disabled={downloadPbsLoading || loading || data.length === 0}
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-sm shadow-blue-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                        {downloadPbsLoading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
-                        <span className="hidden md:inline">Download</span> Laporan PBS (SQUAT)
-                    </button>
+                    {/* 3. TOMBOL DOWNLOAD Laporan PBS (Hanya tampil jika BUKAN Teknisi) */}
+                    {userRole !== 'Teknisi' && (
+                        <button
+                            onClick={handleDownloadPBS}
+                            disabled={downloadPbsLoading || loading || data.length === 0}
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-sm shadow-blue-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {downloadPbsLoading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
+                            <span className="hidden md:inline">Download</span> Laporan PBS (SQUAT)
+                        </button>
+                    )}
 
                 </div>
             </div>
@@ -601,18 +765,41 @@ export default function ProductivityPage() {
 
                     {/* --- TABEL + SEARCH BAR DI ATASNYA --- */}
                     <div className="overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-surface)] shadow-sm mt-8">
-                        {/* HEADER TABEL: Judul di Kiri, Search di Kanan */}
+                        {/* HEADER TABEL: Judul, Tabs Divisi, Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-color)] bg-[var(--bg-surface)] px-6 py-4">
                             <div className="flex items-center gap-3">
                                 <div className="bg-blue-500/10 dark:bg-blue-900/30 p-2 rounded-lg text-blue-500 dark:text-blue-400"><FaTrophy /></div>
                                 <div>
-                                    <h3 className="font-bold text-[var(--text-primary)] text-sm md:text-base">Leaderboard Teknisi</h3>
-                                    <p className="text-xs text-[var(--text-secondary)] hidden md:block">Rincian detail pencapaian per kategori</p>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <h3 className="font-bold text-[var(--text-primary)] text-sm md:text-base">Leaderboard Teknisi</h3>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                                <FaUserCheck className="text-[9px]" /> LENSA
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                                <FaUserFriends className="text-[9px]" /> PARTNER
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-[var(--text-secondary)] hidden md:block">Rincian pencapaian per kategori (Prioritas LENSA)</p>
                                 </div>
                             </div>
 
-                            {/* SEARCH BAR */}
-                            <div className="relative w-full md:w-64">
+                            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                                {/* TAB SWITCHER */}
+                                <div className="flex bg-[var(--bg-base)] p-1 rounded-lg w-full md:w-auto overflow-x-auto border border-[var(--border-subtle)]">
+                                    {['ALL', 'SQUAT', 'MS'].map(div => (
+                                        <button
+                                            key={div}
+                                            onClick={() => setActiveDivision(div)}
+                                            className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${activeDivision === div ? 'bg-blue-600 text-white shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'}`}
+                                        >
+                                            {div === 'ALL' ? 'SEMUA DIVISI' : div}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* SEARCH BAR */}
+                                <div className="relative w-full md:w-64 shrink-0">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <FaSearch className="text-slate-400" />
                                 </div>
@@ -625,23 +812,45 @@ export default function ProductivityPage() {
                                 />
                             </div>
                         </div>
+                    </div>
 
                         <div className="overflow-x-auto custom-scrollbar">
+                            
                             <table className="w-full text-left min-w-[600px]">
                                 <thead>
                                     <tr>
                                         <th className="px-6 py-4 text-center w-16 bg-blue-600 text-white text-xs uppercase font-bold tracking-wider">#</th>
                                         <th className="px-6 py-4 bg-blue-600 text-white text-xs uppercase font-bold tracking-wider sticky left-0 z-10 md:static">Teknisi</th>
-                                        <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.MTEL }}>MTEL</th>
-                                        <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.UMT }}>UMT</th>
-                                        <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.CENTRATAMA }}>CENTRATAMA</th>
-                                        <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.SQUAT }}>SQUAT</th>
-                                        <th className="px-6 py-4 text-center bg-blue-800 text-white text-xs uppercase font-bold tracking-wider">TOTAL</th>
+                                        
+                                        {activeDivision === 'ALL' && <th className="px-6 py-4 text-center bg-blue-600 text-white text-xs uppercase font-bold tracking-wider">Divisi</th>}
+                                        
+                                        {(activeDivision === 'ALL' || activeDivision === 'MS') && (
+                                            <>
+                                                <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.MTEL }}>MTEL</th>
+                                                <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.UMT }}>UMT</th>
+                                                <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.CENTRATAMA }}>CENTRATAMA</th>
+                                            </>
+                                        )}
+                                        
+                                        {activeDivision === 'ALL' && (
+                                            <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.SQUAT }}>SQUAT</th>
+                                        )}
+
+                                        {activeDivision === 'SQUAT' && (
+                                            <>
+                                                <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.SQUAT }}>TSEL</th>
+                                                <th className="px-6 py-4 text-center text-white text-xs uppercase font-bold tracking-wider" style={{ backgroundColor: CATEGORY_COLORS.SQUAT, filter: 'brightness(0.9)' }}>OLO</th>
+                                            </>
+                                        )}
+                                        
+                                        <th className="px-6 py-4 text-center bg-blue-700 text-white text-xs uppercase font-bold tracking-wider" title="Sebagai LENSA (Lead)">LENSA</th>
+                                        <th className="px-6 py-4 text-center bg-purple-600 text-white text-xs uppercase font-bold tracking-wider" title="Sebagai Partner/Support">PARTNER</th>
+                                        <th className="px-6 py-4 text-center bg-blue-800 text-white text-xs uppercase font-bold tracking-wider" title="Total Kontribusi">TOTAL</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
                                     {filteredData.length === 0 ? (
-                                        <tr><td colSpan="7" className="p-8 text-center text-[var(--text-muted)] italic">
+                                        <tr><td colSpan="10" className="p-8 text-center text-[var(--text-muted)] italic">
                                             {searchTerm ? `Tidak ditemukan teknisi dengan nama "${searchTerm}"` : 'Tidak ada data tiket closed pada periode ini.'}
                                         </td></tr>
                                     ) : (
@@ -661,22 +870,58 @@ export default function ProductivityPage() {
                                                         </div>
                                                     </div>
                                                 </td>
+
+                                                {activeDivision === 'ALL' && (
+                                                    <td className="px-6 py-4 text-center text-xs font-bold text-[var(--text-secondary)]">{item.division || '-'}</td>
+                                                )}
+
+                                                {(activeDivision === 'ALL' || activeDivision === 'MS') && (
+                                                    <>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <SplitCountBadge leadCount={item.mtel_lead} partnerCount={item.mtel_partner} nik={item.nik} name={item.name} category="MTEL" />
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <SplitCountBadge leadCount={item.umt_lead} partnerCount={item.umt_partner} nik={item.nik} name={item.name} category="UMT" />
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <SplitCountBadge leadCount={item.centratama_lead} partnerCount={item.centratama_partner} nik={item.nik} name={item.name} category="CENTRATAMA" />
+                                                        </td>
+                                                    </>
+                                                )}
+
+                                                {activeDivision === 'ALL' && (
+                                                    <td className="px-6 py-4 text-center">
+                                                        <SplitCountBadge leadCount={item.squat_lead} partnerCount={item.squat_partner} nik={item.nik} name={item.name} category="SQUAT" />
+                                                    </td>
+                                                )}
+
+                                                {activeDivision === 'SQUAT' && (
+                                                    <>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <SplitCountBadge leadCount={item.squat_tsel_lead} partnerCount={item.squat_tsel_partner} nik={item.nik} name={item.name} category="TSEL" />
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <SplitCountBadge leadCount={item.squat_olo_lead} partnerCount={item.squat_olo_partner} nik={item.nik} name={item.name} category="OLO" />
+                                                        </td>
+                                                    </>
+                                                )}
+
                                                 <td className="px-6 py-4 text-center">
-                                                    <ClickableCount count={item.mtel} nik={item.nik} name={item.name} category="MTEL" color={CATEGORY_COLORS.MTEL} />
+                                                    <div className="mx-auto flex h-6 w-10 items-center justify-center rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-bold shadow-sm cursor-pointer hover:bg-blue-200 hover:scale-105 transition-transform"
+                                                        onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', 'LEAD', item.lead_total)}>
+                                                        {item.lead_total || 0}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <ClickableCount count={item.umt} nik={item.nik} name={item.name} category="UMT" color={CATEGORY_COLORS.UMT} />
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <ClickableCount count={item.centratama} nik={item.nik} name={item.name} category="CENTRATAMA" color={CATEGORY_COLORS.CENTRATAMA} />
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <ClickableCount count={item.squat} nik={item.nik} name={item.name} category="SQUAT" color={CATEGORY_COLORS.SQUAT} />
+                                                    <div className="mx-auto flex h-6 w-10 items-center justify-center rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-xs font-bold shadow-sm cursor-pointer hover:bg-purple-200 hover:scale-105 transition-transform"
+                                                        onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', 'PARTNER', item.partner_total)}>
+                                                        {item.partner_total || 0}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <div className="mx-auto flex h-6 w-10 items-center justify-center rounded bg-slate-800 text-xs font-bold text-white shadow-sm cursor-pointer hover:bg-slate-700 hover:scale-105 transition-transform"
-                                                        onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', item.total)}>
-                                                        {item.total}
+                                                        onClick={() => handleNumberClick(item.nik, item.name, 'TOTAL', 'ALL', item.total)}>
+                                                        {item.total || 0}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -684,22 +929,24 @@ export default function ProductivityPage() {
                                     )}
                                 </tbody>
                             </table>
+
                         </div>
                     </div>
                 </>
-            )}
-
-            {/* --- MODAL DETAIL TIKET (POPUP) --- */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+            )}            {/* --- MODAL DETAIL TIKET (POPUP VIA PORTAL) --- */}
+            {showModal && mounted && createPortal(
+                <div 
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in"
+                    onClick={() => setShowModal(false)}
+                >
                     <div
-                        className="bg-[var(--bg-surface)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-scale-up overflow-hidden"
+                        className="bg-[var(--bg-surface)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-[var(--border-color)] relative z-10"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* HEADER MODAL */}
-                        <div className="px-6 py-5 border-b border-[var(--border-color)] bg-[var(--bg-surface)] flex justify-between items-start sticky top-0 z-10">
+                        <div className="px-6 py-5 border-b border-[var(--border-color)] bg-[var(--bg-surface)] flex justify-between items-start sticky top-0 z-10 gap-3">
                             <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center border-2 border-[var(--border-color)] shadow-sm">
+                                <div className="h-12 w-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center border-2 border-[var(--border-color)] shadow-sm shrink-0">
                                     <FaUserCircle size={28} />
                                 </div>
                                 <div>
@@ -707,20 +954,38 @@ export default function ProductivityPage() {
                                     <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1">
                                         <span className="text-sm font-semibold text-[var(--text-secondary)]">{selectedTechName}</span>
                                         <span className="text-[var(--text-muted)] text-xs">•</span>
-                                        <span className="text-xs text-[var(--text-muted)] font-mono bg-[var(--bg-base)] px-1.5 py-0.5 rounded">{selectedNik}</span>
-                                        <span className="text-slate-300 text-xs">•</span>
+                                        <span className="text-xs text-[var(--text-muted)] font-mono bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)]">{selectedNik}</span>
+                                        <span className="text-[var(--text-muted)] text-xs">•</span>
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${selectedCategory === 'TOTAL' ? 'bg-slate-800 text-white border-transparent' : CATEGORY_BG_COLORS[selectedCategory] || 'bg-slate-100'}`}>
                                             {selectedCategory}
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setShowModal(false)}
-                                className="text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-all duration-200"
-                            >
-                                <FaTimes size={18} />
-                            </button>
+
+                            {/* ACTION BUTTONS (SALIN & CLOSE) */}
+                            <div className="flex items-center gap-2">
+                                {ticketDetails.length > 0 && !modalLoading && (
+                                    <button
+                                        onClick={handleCopyAll}
+                                        title="Salin rekap data semua tiket ke clipboard"
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer border ${
+                                            copiedAll
+                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-200'
+                                                : 'bg-[var(--bg-base)] text-[var(--text-primary)] border-[var(--border-color)] hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:hover:bg-blue-600'
+                                        }`}
+                                    >
+                                        {copiedAll ? <FaCheck className="text-white text-xs" /> : <FaCopy className="text-xs" />}
+                                        <span>{copiedAll ? 'Tersalin!' : 'Salin Rekap'}</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setShowModal(false)}
+                                    className="text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-all duration-200 cursor-pointer"
+                                >
+                                    <FaTimes size={18} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* CONTENT LIST MODAL */}
@@ -737,67 +1002,125 @@ export default function ProductivityPage() {
                                     <p className="text-xs text-[var(--text-muted)] max-w-xs mx-auto">Pastikan filter periode sudah benar atau cek status tiket teknisi ini.</p>
                                 </div>
                             ) : (
-                                <div className="bg-[var(--bg-surface)] min-h-full">
-                                    {ticketDetails.map((ticket, i) => (
-                                        <div
-                                            key={ticket.id}
-                                            className="group relative flex items-start gap-4 p-5 border-b border-[var(--border-subtle)] hover:bg-blue-500/5 transition-all duration-200"
-                                        >
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${ticket.category === 'MTEL' ? 'bg-blue-500' :
-                                                ticket.category === 'UMT' ? 'bg-yellow-500' :
-                                                    ticket.category === 'CENTRATAMA' ? 'bg-green-500' : 'bg-red-500'
-                                                } opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                                <div className="bg-[var(--bg-surface)] min-h-full divide-y divide-[var(--border-subtle)]">
+                                    {ticketDetails.map((ticket, i) => {
+                                        const dt = formatDateTime(ticket.last_update_time);
+                                        const isLead = ticket.user_role === 'LEAD';
 
-                                            <div className="flex flex-col items-center gap-1 min-w-[24px] pt-1">
-                                                <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500 font-medium transition-colors">
-                                                    {(i + 1).toString().padStart(2, '0')}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${CATEGORY_BG_COLORS[ticket.category] || 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-secondary)]'}`}>
-                                                        {ticket.category}
-                                                    </span>
-                                                    <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide">
-                                                        #{ticket.ticket_number}
-                                                    </span>
-                                                </div>
-
-                                                <h4 className="text-sm font-semibold text-[var(--text-primary)] leading-snug mb-2 line-clamp-2 group-hover:text-blue-500 transition-colors">
-                                                    {ticket.subject}
-                                                </h4>
-
-                                                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] bg-[var(--bg-base)] border border-[var(--border-subtle)] w-fit px-2 py-1 rounded">
-                                                    <FaCalendarAlt size={10} className="opacity-70" />
-                                                    <span className="font-medium text-[var(--text-secondary)]">{formatDateTime(ticket.last_update_time).split('•')[0]}</span>
-                                                    <span className="opacity-50">|</span>
-                                                    <FaClock size={10} className="opacity-70" />
-                                                    <span className="text-[var(--text-secondary)]">{formatDateTime(ticket.last_update_time).split('•')[1] || formatDateTime(ticket.last_update_time).split(' ')[3] || ''}</span>
-                                                </div>
-                                            </div>
-
-                                            <Link
-                                                href={`/dashboard/tickets/${ticket.id}`}
-                                                target="_blank"
-                                                className="mt-1 p-2 text-[var(--text-muted)] hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                                                title="Buka detail tiket di tab baru"
+                                        return (
+                                            <div
+                                                key={ticket.id}
+                                                className="group relative flex items-start gap-4 p-5 hover:bg-blue-500/5 transition-all duration-200"
                                             >
-                                                <FaExternalLinkAlt size={14} />
-                                            </Link>
-                                        </div>
-                                    ))}
+                                                {/* Left Indicator Color */}
+                                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${isLead ? 'bg-blue-500' : 'bg-purple-500'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+
+                                                <div className="flex flex-col items-center gap-1 min-w-[24px] pt-1">
+                                                    <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500 font-medium transition-colors">
+                                                        {(i + 1).toString().padStart(2, '0')}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    {/* Badges: ROLE (LENSA/PARTNER) + Category + Ticket ID */}
+                                                    <div className="flex items-center flex-wrap gap-2 mb-2">
+                                                        {isLead ? (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30 shadow-2xs">
+                                                                <FaUserCheck className="text-[9px]" /> LENSA (Utama)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 shadow-2xs">
+                                                                <FaUserFriends className="text-[9px]" /> PARTNER (Support)
+                                                            </span>
+                                                        )}
+
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${CATEGORY_BG_COLORS[ticket.category] || 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-secondary)]'}`}>
+                                                            {ticket.category}
+                                                        </span>
+
+                                                        {ticket.subcategory && (
+                                                            <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--bg-base)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                                                                {ticket.subcategory}
+                                                            </span>
+                                                        )}
+
+                                                        <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide ml-auto">
+                                                            #{ticket.ticket_number}
+                                                        </span>
+                                                    </div>
+
+                                                    <h4 className="text-sm font-semibold text-[var(--text-primary)] leading-snug mb-2 group-hover:text-blue-500 transition-colors">
+                                                        {ticket.subject}
+                                                    </h4>
+
+                                                    {/* Collaboration Detail (Who helped whom) */}
+                                                    {!isLead && ticket.lead_technician_name && (
+                                                        <div className="flex items-center gap-1.5 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/50 px-2.5 py-1 rounded-md mb-2.5 w-fit">
+                                                            <FaUserCheck className="text-[10px] text-purple-500" />
+                                                            <span>Membantu LENSA: <strong className="font-semibold">{ticket.lead_technician_name}</strong></span>
+                                                        </div>
+                                                    )}
+                                                    {isLead && ticket.partner_technicians && (
+                                                        <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 px-2.5 py-1 rounded-md mb-2.5 w-fit">
+                                                            <FaUserFriends className="text-[10px] text-blue-500" />
+                                                            <span>Dibantu Partner: <strong className="font-semibold">{ticket.partner_technicians}</strong></span>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] bg-[var(--bg-base)] border border-[var(--border-subtle)] w-fit px-2.5 py-1 rounded">
+                                                        <FaCalendarAlt size={10} className="opacity-70" />
+                                                        <span className="font-medium text-[var(--text-secondary)]">{dt.date}</span>
+                                                        <span className="opacity-50">|</span>
+                                                        <FaClock size={10} className="opacity-70" />
+                                                        <span className="text-[var(--text-secondary)]">{dt.time}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* ACTION ICONS PER TICKET (SALIN & OPEN LINK) */}
+                                                <div className="flex flex-col gap-1 shrink-0 mt-1">
+                                                    <button
+                                                        onClick={() => handleCopyTicket(ticket)}
+                                                        title="Salin info tiket ini"
+                                                        className={`p-2 rounded-lg transition-all cursor-pointer ${
+                                                            copiedTicketId === ticket.id
+                                                                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                                                                : 'text-[var(--text-muted)] hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+                                                        }`}
+                                                    >
+                                                        {copiedTicketId === ticket.id ? <FaCheck size={13} /> : <FaCopy size={13} />}
+                                                    </button>
+                                                    <Link
+                                                        href={`/dashboard/tickets/${ticket.id}`}
+                                                        target="_blank"
+                                                        className="p-2 text-[var(--text-muted)] hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                                                        title="Buka detail tiket di tab baru"
+                                                    >
+                                                        <FaExternalLinkAlt size={13} />
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
 
                         {/* FOOTER MODAL */}
-                        <div className="px-6 py-3 border-t border-[var(--border-color)] bg-[var(--bg-base)] flex justify-between items-center text-xs text-[var(--text-muted)]">
-                            <span>Periode: <b>{months[selectedMonth - 1].label} {selectedYear}</b></span>
-                            <span>Total: <b>{ticketDetails.length}</b> tiket</span>
+                        <div className="px-6 py-3.5 border-t border-[var(--border-color)] bg-[var(--bg-surface)] flex flex-wrap justify-between items-center gap-3 text-xs text-[var(--text-muted)]">
+                            <span>Periode: <b>{months[selectedMonth - 1]?.label} {selectedYear}</b></span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold text-[11px] border border-blue-200 dark:border-blue-800">
+                                    <FaUserCheck size={9} /> {ticketDetails.filter(t => t.user_role === 'LEAD').length} LENSA
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-semibold text-[11px] border border-purple-200 dark:border-purple-800">
+                                    <FaUserFriends size={9} /> {ticketDetails.filter(t => t.user_role === 'PARTNER').length} PARTNER
+                                </span>
+                                <span className="font-bold text-[var(--text-primary)] ml-1">Total: {ticketDetails.length} tiket</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
