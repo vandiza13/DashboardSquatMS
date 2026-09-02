@@ -71,7 +71,7 @@ export async function PUT(request, props) {
 
         // Validasi Edit Tiket CLOSED
         if (oldStatus === 'CLOSED' && user.role !== 'SuperAdmin') {
-            return NextResponse.json({ error: 'Akses ditolak: Hanya Super Admin (Role Dewa) yang diperbolehkan mengubah tiket yang sudah CLOSED.' }, { status: 403 });
+            return NextResponse.json({ error: 'Akses ditolak: Hanya Super Admin yang diperbolehkan mengubah tiket yang sudah CLOSED.' }, { status: 403 });
         }
 
         // Validasi Edit Lintas Divisi
