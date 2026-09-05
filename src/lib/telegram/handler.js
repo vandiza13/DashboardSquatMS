@@ -100,8 +100,18 @@ async function processCallbackQuery(callbackQuery) {
       try {
         const [rows] = await db.query(`
           SELECT t.*, 
-                 MAX(tech.name) as technician_name,
-                 MAX(tech.phone_number) as technician_phone
+                 MAX(CASE WHEN tt.role = 'LEAD' THEN tech.name WHEN tt.role IS NULL THEN tech.name END) as technician_name,
+                 MAX(CASE WHEN tt.role = 'LEAD' THEN tech.phone_number WHEN tt.role IS NULL THEN tech.phone_number END) as technician_phone,
+                 COALESCE(
+                   NULLIF(TRIM(t.partner_technicians), ''),
+                   GROUP_CONCAT(
+                     DISTINCT CASE 
+                       WHEN tt.role = 'PARTNER' 
+                       THEN CONCAT(tech.name, IF(tech.phone_number IS NOT NULL AND tech.phone_number != '', CONCAT(' (', tech.phone_number, ')'), ''))
+                     END 
+                     SEPARATOR ', '
+                   )
+                 ) as partner_technicians
           FROM tickets t
           LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
           LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
@@ -208,8 +218,18 @@ async function processCallbackQuery(callbackQuery) {
         try {
           const [rows] = await db.query(`
             SELECT t.*, 
-                   MAX(tech.name) as technician_name,
-                   MAX(tech.phone_number) as technician_phone
+                   MAX(CASE WHEN tt.role = 'LEAD' THEN tech.name WHEN tt.role IS NULL THEN tech.name END) as technician_name,
+                   MAX(CASE WHEN tt.role = 'LEAD' THEN tech.phone_number WHEN tt.role IS NULL THEN tech.phone_number END) as technician_phone,
+                   COALESCE(
+                     NULLIF(TRIM(t.partner_technicians), ''),
+                     GROUP_CONCAT(
+                       DISTINCT CASE 
+                         WHEN tt.role = 'PARTNER' 
+                         THEN CONCAT(tech.name, IF(tech.phone_number IS NOT NULL AND tech.phone_number != '', CONCAT(' (', tech.phone_number, ')'), ''))
+                       END 
+                       SEPARATOR ', '
+                     )
+                   ) as partner_technicians
             FROM tickets t
             LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id
             LEFT JOIN technicians tech ON tt.technician_nik = tech.nik

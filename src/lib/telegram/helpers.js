@@ -16,6 +16,10 @@ export function formatTicketDetail(ticket) {
     ? `${ticket.technician_name} (${ticket.technician_phone || '-'})` 
     : 'Belum Assign';
 
+  const partnerInfo = ticket.partner_technicians && ticket.partner_technicians.trim() !== ''
+    ? ticket.partner_technicians
+    : '-';
+
   const isTaccCategory = ['UMT', 'MTEL', 'CENTRATAMA'].includes(ticket.category);
   const priorityOrTacc = isTaccCategory
     ? `🎯 *TACC ID*: ${escapeMarkdown(ticket.id_tiket_tacc || '-')}`
@@ -32,6 +36,7 @@ ${priorityOrTacc}
 📝 *Deskripsi*: ${escapeMarkdown(ticket.deskripsi)}
 📍 *STO*: ${escapeMarkdown(ticket.sto || '-')} | *Branch*: ${escapeMarkdown(ticket.branch || '-')}
 👤 *PIC*: ${escapeMarkdown(picInfo)}
+👥 *Partner*: ${escapeMarkdown(partnerInfo)}
 ⏰ *TIKET OPEN*: ${new Date(ticket.tiket_time).toLocaleString('id-ID', {timeZone: 'Asia/Jakarta'})} WIB
 ⏳ *Info Waktu*: ${agingStr}
 📊 *${progressLabel}*: ${escapeMarkdown(ticket.update_progres || '-')}
