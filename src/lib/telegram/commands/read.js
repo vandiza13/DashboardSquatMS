@@ -31,11 +31,15 @@ export async function handleTiket(chatId, text, user) {
     const message = formatTicketDetail(ticket);
 
     const buttons = [];
-    if (ticket.status !== 'CLOSED' && user.role !== 'View') {
+    if (ticket.status !== 'CLOSED' && user.role !== 'View' && user.role !== 'Teknisi') {
       buttons.push({ text: "✏️ Update Progres", callback_data: `UPDATE_PROG_${ticket.id}` });
       buttons.push({ text: "🔒 Tutup Tiket", callback_data: `CLOSE_TIKET_${ticket.id}` });
     }
     buttons.push({ text: "📋 Time Report", callback_data: `TR_TIKET_${ticket.id}` });
+
+    if (user.role !== 'View') {
+      buttons.push({ text: "👷‍♂️ Luruskan Tim", callback_data: `TEAM_START_${ticket.id}` });
+    }
 
     if (user.role === 'SuperAdmin') {
       buttons.push({ text: "🗑️ Hapus Tiket", callback_data: `DELETE_TIKET_${ticket.id}` });

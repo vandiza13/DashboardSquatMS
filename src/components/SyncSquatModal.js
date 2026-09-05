@@ -203,7 +203,7 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
                         <p className="font-bold mb-1">Catatan Penting:</p>
                         <ul className="list-disc pl-4 space-y-0.5">
                             <li>Upload file export Insera/Simarvel pada kolom yang sesuai (TSEL atau OLO).</li>
-                            <li>Hanya tiket berstatus <strong>CLOSED</strong> di database yang akan diperbarui nilainya.</li>
+                            <li>Tiket yang cocok akan otomatis disinkronkan nilainya (TTR & Waktu Close) dan dipastikan berstatus <strong>CLOSED</strong>.</li>
                         </ul>
                     </div>
 

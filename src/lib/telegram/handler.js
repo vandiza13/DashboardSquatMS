@@ -6,10 +6,11 @@ import { generateTRText, escapeMarkdown, formatTicketDetail, buildInlineKeyboard
 import { pusherServer } from '@/lib/pusher';
 
 // Import command handlers
-import { handleStart, handleRegister, handleHelp, handleProfil } from './commands/start';
+import { handleStart, handleRegister, handleHelp, handleProfil, handleSwitchCommand } from './commands/start';
 import { handleStats, handleRunning, handleTiket, handleTR, handleHapusCommand, sendRunningList } from './commands/read';
 import { handleCreateWizard, handleCreateCallback } from './commands/create';
 import { handleUpdateWizard, handleUpdateCallback } from './commands/update';
+import { handleTeamCommand, handleTeamCallback } from './commands/team';
 
 export async function handleTelegramMessage(body) {
   if (body.message) {
@@ -28,25 +29,35 @@ async function processMessage(message) {
     return handleStart(chatId);
   }
   if (text.startsWith('/register')) {
-    return handleRegister(chatId, text);
+    return handleRegister(chatId, text, message.from || {});
   }
 
   // 2. Authenticate User
   const user = await authenticateTelegramUser(chatId);
   if (!user) {
-    return sendMessage(chatId, "⚠️ Anda belum terdaftar. Silakan gunakan perintah:\n`/register <username> <password>`\nuntuk menghubungkan akun dashboard Anda.");
+    return sendMessage(chatId, "⚠️ Anda belum terdaftar. Silakan gunakan perintah:\n• Untuk Teknisi: `/register <NIK>`\n• Untuk Staf Dashboard: `/register <username> <password>`");
   }
   if (user.role === 'View' && !text.startsWith('/tiket') && !text.startsWith('/tr') && !text.startsWith('/running') && !text.startsWith('/stats') && !text.startsWith('/help') && !text.startsWith('/profil')) {
     return sendMessage(chatId, "🚫 Akses ditolak. Akun Anda hanya memiliki hak akses 'View'.");
   }
 
+  // 2b. Restrict commands for Teknisi role (only /tiket, /tr, /running, /tim, /help, /profil, /switch)
+  if (user.role === 'Teknisi') {
+    const isAllowed = text.startsWith('/tiket') || text.startsWith('/tr') || text.startsWith('/running') || text.startsWith('/tim') || text.startsWith('/help') || text.startsWith('/profil') || text.startsWith('/start') || text.startsWith('/switch');
+    if (!isAllowed && text.startsWith('/')) {
+      return sendMessage(chatId, "🚫 Akses ditolak: Role Teknisi hanya dapat mengakses perintah /tiket, /tr, /running, dan /tim.");
+    }
+  }
+
   // 3. Routing Authenticated Commands
+  if (text.startsWith('/switch')) return handleSwitchCommand(chatId, text, user);
   if (text.startsWith('/help')) return handleHelp(chatId, user);
   if (text.startsWith('/profil')) return handleProfil(chatId, user);
   if (text.startsWith('/stats')) return handleStats(chatId, user);
   if (text.startsWith('/running')) return handleRunning(chatId, text, user);
   if (text.startsWith('/tiket')) return handleTiket(chatId, text, user);
   if (text.startsWith('/tr')) return handleTR(chatId, text, user);
+  if (text.startsWith('/tim')) return handleTeamCommand(chatId, text, user);
   if (text.startsWith('/hapus')) {
     if (user.role !== 'SuperAdmin') {
       return sendMessage(chatId, "🚫 Akses ditolak. Hanya Super Admin yang diperbolehkan menghapus tiket.");
@@ -235,9 +246,30 @@ async function processCallbackQuery(callbackQuery) {
       return;
     }
 
+    // Route callback query for Team Management (/tim)
+    if (data.startsWith('TEAM_')) {
+      if (user.role === 'View') {
+        return answerCallbackQuery(callbackQueryId, "Akses ditolak untuk role View.", true);
+      }
+      if (data.startsWith('TEAM_START_')) {
+        const ticketId = data.replace('TEAM_START_', '');
+        const [tRows] = await db.query('SELECT id_tiket FROM tickets WHERE id = ?', [ticketId]);
+        if (tRows.length > 0) {
+          return handleTeamCommand(chatId, `/tim ${tRows[0].id_tiket}`, user);
+        }
+        return answerCallbackQuery(callbackQueryId, "Tiket tidak ditemukan", true);
+      }
+      return handleTeamCallback(chatId, messageId, data, user, callbackQueryId);
+    }
+
     // Restrict modifying operations to non-View users
     if (user.role === 'View') {
       return answerCallbackQuery(callbackQueryId, "Akses ditolak untuk role View.", true);
+    }
+
+    // Restrict ticket creation and status close/update for Teknisi role
+    if (user.role === 'Teknisi' && (data.startsWith('CREATE_') || data.startsWith('UPDATE_') || data.startsWith('CLOSE_'))) {
+      return answerCallbackQuery(callbackQueryId, "Akses ditolak untuk role Teknisi.", true);
     }
 
     // Route callback query for CRUD

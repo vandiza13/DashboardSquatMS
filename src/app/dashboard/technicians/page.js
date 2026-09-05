@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FaPlus, FaSearch, FaUserCog, FaTrash, FaEdit, FaPhone, FaIdCard, FaTools, FaNetworkWired } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaUserCog, FaTrash, FaEdit, FaPhone, FaIdCard, FaTools, FaNetworkWired, FaTelegramPlane, FaUnlink, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import TechnicianFormModal from '@/components/TechnicianFormModal';
 
 export default function TechniciansPage() {
@@ -176,6 +176,74 @@ export default function TechniciansPage() {
         }
     };
 
+    const handleResetTelegram = async (nik, name) => {
+        if (!confirm(`Apakah Anda yakin ingin mereset tautan akun Telegram untuk teknisi ${name} (${nik})?`)) return;
+        try {
+            const res = await fetch(`/api/technicians/${nik}/telegram`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reset' })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message);
+                fetchTechnicians(activeTab);
+            } else {
+                alert(data.error || 'Gagal mereset Telegram');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Terjadi kesalahan saat mereset Telegram');
+        }
+    };
+
+    const handleToggleTelegramStatus = async (nik, name, currentStatus) => {
+        const actionText = currentStatus === 1 ? 'menonaktifkan' : 'mengaktifkan';
+        if (!confirm(`Apakah Anda yakin ingin ${actionText} akses Telegram teknisi ${name} (${nik})?`)) return;
+        try {
+            const res = await fetch(`/api/technicians/${nik}/telegram`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'toggle-status' })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message);
+                fetchTechnicians(activeTab);
+            } else {
+                alert(data.error || 'Gagal mengubah status Telegram');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Terjadi kesalahan saat mengubah status Telegram');
+        }
+    };
+
+    const renderTelegramBadge = (tech) => {
+        if (!tech.telegram_chat_id) {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                    <FaTelegramPlane className="text-slate-400" />
+                    <span>Belum Terhubung</span>
+                </span>
+            );
+        }
+        if (tech.telegram_is_active === 0) {
+            return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50" title="Akses dinonaktifkan oleh Admin">
+                    <FaTelegramPlane className="text-rose-500" />
+                    <span>Dinonaktifkan</span>
+                </span>
+            );
+        }
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-600 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800/50" title={`Chat ID: ${tech.telegram_chat_id}`}>
+                <FaTelegramPlane className="text-sky-500" />
+                <span>{tech.telegram_username ? `@${tech.telegram_username}` : 'Terhubung'}</span>
+            </span>
+        );
+    };
+
     const filteredTechnicians = technicians.filter(t =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
         t.nik.includes(search) ||
@@ -215,7 +283,7 @@ export default function TechniciansPage() {
             </div>
 
             {/* Detail Info */}
-            <div className="flex flex-wrap gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
                 {tech.position_name ? (
                     <span className="bg-purple-50 text-purple-600 px-2 py-1 rounded text-[10px] font-bold border border-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800/50">
                         {tech.position_name}
@@ -229,11 +297,36 @@ export default function TechniciansPage() {
                         <FaPhone size={10} /> {tech.phone_number}
                     </a>
                 )}
+
+                {renderTelegramBadge(tech)}
             </div>
 
             {/* Actions (Admin Only) */}
             {(userRole === 'Admin' || userRole === 'SuperAdmin') && (
-                <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border-subtle)] mt-1">
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)] mt-1">
+                    {userRole === 'SuperAdmin' && tech.telegram_chat_id && (
+                        <>
+                            <button
+                                onClick={() => handleToggleTelegramStatus(tech.nik, tech.name, tech.telegram_is_active)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 ${
+                                    tech.telegram_is_active === 1
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50'
+                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50'
+                                }`}
+                                title={tech.telegram_is_active === 1 ? "Nonaktifkan Akses Telegram" : "Aktifkan Akses Telegram"}
+                            >
+                                {tech.telegram_is_active === 1 ? <FaToggleOn /> : <FaToggleOff />}
+                                <span>{tech.telegram_is_active === 1 ? 'Matikan Tele' : 'Aktifkan Tele'}</span>
+                            </button>
+                            <button
+                                onClick={() => handleResetTelegram(tech.nik, tech.name)}
+                                className="px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 transition-colors flex items-center gap-1"
+                                title="Reset Akun Telegram"
+                            >
+                                <FaUnlink /> Reset Tele
+                            </button>
+                        </>
+                    )}
                     <button onClick={() => openEditModal(tech)} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold border border-blue-100 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50 dark:hover:bg-blue-800/50 transition-colors flex items-center gap-1">
                         <FaEdit /> Edit
                     </button>
@@ -396,6 +489,7 @@ export default function TechniciansPage() {
                                 <th className="px-6 py-4 font-bold">NIK</th>
                                 <th className="px-6 py-4 font-bold">No HP</th>
                                 <th className="px-6 py-4 font-bold">Status</th>
+                                <th className="px-6 py-4 font-bold">Telegram</th>
  
                                 {/* LOGIC HEADER AKSI: HANYA MUNCUL JIKA ADMIN / SUPERADMIN */}
                                 {(userRole === 'Admin' || userRole === 'SuperAdmin') && (
@@ -406,11 +500,11 @@ export default function TechniciansPage() {
                         <tbody className="divide-y divide-[var(--border-subtle)]">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={userRole === 'SuperAdmin' ? 7 : (userRole === 'Admin' ? 6 : 5)} className="px-6 py-8 text-center text-[var(--text-muted)]">Memuat data teknisi...</td>
+                                    <td colSpan={userRole === 'SuperAdmin' ? 8 : (userRole === 'Admin' ? 7 : 6)} className="px-6 py-8 text-center text-[var(--text-muted)]">Memuat data teknisi...</td>
                                 </tr>
                             ) : filteredTechnicians.length === 0 ? (
                                 <tr>
-                                    <td colSpan={userRole === 'SuperAdmin' ? 7 : (userRole === 'Admin' ? 6 : 5)} className="px-6 py-8 text-center text-[var(--text-muted)]">Tidak ada data teknisi divisi ini.</td>
+                                    <td colSpan={userRole === 'SuperAdmin' ? 8 : (userRole === 'Admin' ? 7 : 6)} className="px-6 py-8 text-center text-[var(--text-muted)]">Tidak ada data teknisi divisi ini.</td>
                                 </tr>
                             ) : (
                                 filteredTechnicians.map((tech) => (
@@ -451,11 +545,36 @@ export default function TechniciansPage() {
                                                 {tech.is_active ? 'Aktif' : 'Non-Aktif'}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4">
+                                            {renderTelegramBadge(tech)}
+                                        </td>
 
                                         {/* LOGIC KOLOM TOMBOL: HANYA MUNCUL JIKA ADMIN / SUPERADMIN */}
                                         {(userRole === 'Admin' || userRole === 'SuperAdmin') && (
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                    {userRole === 'SuperAdmin' && tech.telegram_chat_id && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleToggleTelegramStatus(tech.nik, tech.name, tech.telegram_is_active)}
+                                                                className={`p-2 rounded-lg transition-colors ${
+                                                                    tech.telegram_is_active === 1
+                                                                        ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
+                                                                        : 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30'
+                                                                }`}
+                                                                title={tech.telegram_is_active === 1 ? "Nonaktifkan Akses Telegram" : "Aktifkan Akses Telegram"}
+                                                            >
+                                                                {tech.telegram_is_active === 1 ? <FaToggleOn size={16} /> : <FaToggleOff size={16} />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleResetTelegram(tech.nik, tech.name)}
+                                                                className="p-2 rounded-lg text-amber-500 hover:bg-amber-500/10 transition-colors"
+                                                                title="Reset Tautan Akun Telegram"
+                                                            >
+                                                                <FaUnlink />
+                                                            </button>
+                                                        </>
+                                                    )}
                                                     <button onClick={() => openEditModal(tech)} className="p-2 rounded-lg text-blue-500 hover:bg-blue-500/10 transition-colors" title="Edit">
                                                         <FaEdit />
                                                     </button>
