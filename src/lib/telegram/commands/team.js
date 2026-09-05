@@ -41,7 +41,6 @@ export async function handleTeamCommand(chatId, text, user) {
     }
 
     // Tentukan LENSA (Utama)
-    // Jika pengirim adalah Teknisi, otomatis dia adalah LENSA
     let leadNik = user.nik || null;
     let leadName = user.full_name || user.display_name || user.username;
     let leadPhone = user.phone_number || '';
@@ -131,20 +130,74 @@ export function formatTeamCard(data) {
 🟣 *PARTNER (Support)*:
 ${escapeMarkdown(partnerListText)}
 ─────────────────────────
-_Tambahkan rekan partner jika Anda bekerja bersama tim._`;
+_Klik tombol di bawah untuk memilih partner sekaligus:_`;
 
-  const buttons = [];
-  if (data.partners.length < 4) {
-    buttons.push({ text: "➕ Tambah Partner", callback_data: `TEAM_ADD_PARTNER_${data.ticket_id}` });
-  }
-  if (data.partners.length > 0) {
-    buttons.push({ text: "🗑️ Hapus Partner", callback_data: `TEAM_DEL_PARTNER_${data.ticket_id}` });
-  }
-  buttons.push({ text: "💾 Simpan & Selesai", callback_data: `TEAM_SAVE_${data.ticket_id}` });
-  buttons.push({ text: "❌ Batal", callback_data: `TEAM_CANCEL_${data.ticket_id}` });
+  const buttons = [
+    { text: `👥 Pilih Partner (${data.partners.length}/4)`, callback_data: `TEAM_ADD_PARTNER_${data.ticket_id}` },
+    { text: "💾 Simpan & Selesai", callback_data: `TEAM_SAVE_${data.ticket_id}` },
+    { text: "❌ Batal", callback_data: `TEAM_CANCEL_${data.ticket_id}` }
+  ];
 
-  const keyboard = buildInlineKeyboard(buttons, 2);
+  const keyboard = buildInlineKeyboard(buttons, 1);
   return { message, keyboard };
+}
+
+export async function renderPartnerChecklist(sessionData) {
+  const division = sessionData.division || (sessionData.category === 'SQUAT' ? 'SQUAT' : 'MS');
+  const [techRows] = await db.query(
+    `SELECT nik, name, phone_number 
+     FROM technicians 
+     WHERE is_active = 1 AND division = ? 
+     ORDER BY name ASC`,
+    [division]
+  );
+
+  // Filter: Jangan sertakan Teknisi Utama (LEAD)
+  const candidateTechs = techRows.filter(t => String(t.nik) !== String(sessionData.lead_nik));
+
+  const partnerNiks = sessionData.partners.map(p => String(p.nik));
+
+  // Buat tombol toggle untuk setiap teknisi kandidat
+  const buttons = candidateTechs.map(t => {
+    const isSelected = partnerNiks.includes(String(t.nik));
+    const prefix = isSelected ? '✅ ' : '⬜ ';
+    return {
+      text: `${prefix}${t.name}`,
+      callback_data: `TEAM_TOGGLE_${t.nik}`
+    };
+  });
+
+  const controlButtons = [];
+  controlButtons.push({
+    text: `✅ Selesai Memilih (${sessionData.partners.length}/4)`,
+    callback_data: `TEAM_BACK_${sessionData.ticket_id}`
+  });
+
+  if (sessionData.partners.length > 0) {
+    controlButtons.push({
+      text: "🗑️ Kosongkan Pilihan",
+      callback_data: `TEAM_CLEAR_${sessionData.ticket_id}`
+    });
+  }
+
+  // Keyboard: candidate buttons in 2 columns, control buttons in 1 column
+  const candidateGrid = buildInlineKeyboard(buttons, 2).inline_keyboard;
+  const controlGrid = buildInlineKeyboard(controlButtons, 1).inline_keyboard;
+  const combinedKeyboard = { inline_keyboard: [...candidateGrid, ...controlGrid] };
+
+  let selectedNamesText = '_(Belum ada yang dipilih)_';
+  if (sessionData.partners.length > 0) {
+    selectedNamesText = sessionData.partners.map((p, i) => `\n   ${i + 1}. *${escapeMarkdown(p.name)}*`).join('');
+  }
+
+  const message = `👥 *PILIH PARTNER TEKNISI (${division})*
+🎫 Tiket: *${escapeMarkdown(sessionData.id_tiket)}*
+─────────────────────────
+🟣 *Partner Terpilih (${sessionData.partners.length}/4)*:${selectedNamesText}
+─────────────────────────
+_Klik nama teknisi di bawah untuk mencentang (✅) / membatalkan (⬜):_`;
+
+  return { message, keyboard: combinedKeyboard };
 }
 
 export async function handleTeamCallback(chatId, messageId, callbackData, user, callbackQueryId) {
@@ -155,125 +208,85 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
 
   const sessionData = session.data;
 
-  // 1. TAMBAH PARTNER (Tampilkan daftar teknisi)
+  // 1. BUKA MENU CHECKLIST PARTNER
   if (callbackData.startsWith('TEAM_ADD_PARTNER_')) {
     try {
-      const division = sessionData.division || (sessionData.category === 'SQUAT' ? 'SQUAT' : 'MS');
-      const [techRows] = await db.query(
-        `SELECT nik, name, phone_number 
-         FROM technicians 
-         WHERE is_active = 1 AND division = ? 
-         ORDER BY name ASC`,
-        [division]
-      );
-
-      // Filter: bukan LEAD dan belum ada di list partner
-      const existingNiks = [sessionData.lead_nik, ...sessionData.partners.map(p => p.nik)];
-      const availableTechs = techRows.filter(t => !existingNiks.includes(t.nik));
-
-      if (availableTechs.length === 0) {
-        return answerCallbackQuery(callbackQueryId, "Tidak ada teknisi lain yang tersedia.", true);
-      }
-
-      const buttons = availableTechs.map(t => ({
-        text: `👤 ${t.name}`,
-        callback_data: `TEAM_PICK_${t.nik}`
-      }));
-
-      buttons.push({ text: "🔙 Kembali", callback_data: `TEAM_BACK_${sessionData.ticket_id}` });
-
-      const keyboard = buildInlineKeyboard(buttons, 2);
-      await editMessageText(
-        chatId, 
-        messageId, 
-        `👥 *Pilih Partner Teknisi (${division})*:\nTiket: *${escapeMarkdown(sessionData.id_tiket)}*\n\n_Klik nama rekan yang membantu pengerjaan:_`, 
-        { reply_markup: keyboard }
-      );
+      const { message, keyboard } = await renderPartnerChecklist(sessionData);
+      await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
       return answerCallbackQuery(callbackQueryId);
     } catch (err) {
-      console.error("Add Partner Error:", err);
-      return answerCallbackQuery(callbackQueryId, "Gagal memuat daftar teknisi.", true);
+      console.error("Open Partner Checklist Error:", err);
+      return answerCallbackQuery(callbackQueryId, "Gagal memuat daftar partner.", true);
     }
   }
 
-  // 2. PILIH PARTNER DARI DAFTAR
-  if (callbackData.startsWith('TEAM_PICK_')) {
-    const pickedNik = callbackData.replace('TEAM_PICK_', '');
-    if (sessionData.partners.length >= 4) {
-      return answerCallbackQuery(callbackQueryId, "Maksimal 4 partner.", true);
-    }
+  // 2. TOGGLE CHECKLIST PARTNER (CENTANG / BATAL SEKALIGUS)
+  if (callbackData.startsWith('TEAM_TOGGLE_')) {
+    const toggledNik = callbackData.replace('TEAM_TOGGLE_', '');
+    const isAlreadySelected = sessionData.partners.some(p => String(p.nik) === String(toggledNik));
 
-    try {
-      const [rows] = await db.query('SELECT nik, name, phone_number FROM technicians WHERE nik = ?', [pickedNik]);
-      if (rows.length > 0) {
-        const picked = rows[0];
-        sessionData.partners.push({
-          nik: picked.nik,
-          name: picked.name,
-          phone: picked.phone_number || ''
-        });
+    if (isAlreadySelected) {
+      // Hapus dari partner
+      sessionData.partners = sessionData.partners.filter(p => String(p.nik) !== String(toggledNik));
+      await setSession(chatId, 'TEAM_MANAGE', sessionData);
 
-        await setSession(chatId, 'TEAM_MANAGE', sessionData);
-
-        const { message, keyboard } = formatTeamCard(sessionData);
-        await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
-        return answerCallbackQuery(callbackQueryId, `${picked.name} ditambahkan sebagai partner!`);
+      const { message, keyboard } = await renderPartnerChecklist(sessionData);
+      await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
+      return answerCallbackQuery(callbackQueryId, "Partner dibatalkan.");
+    } else {
+      // Cek batas maksimal 4
+      if (sessionData.partners.length >= 4) {
+        return answerCallbackQuery(callbackQueryId, "⚠️ Maksimal 4 partner!", true);
       }
-    } catch (err) {
-      console.error("Pick Partner Error:", err);
-      return answerCallbackQuery(callbackQueryId, "Gagal memilih partner.", true);
+
+      try {
+        const [rows] = await db.query('SELECT nik, name, phone_number FROM technicians WHERE nik = ?', [toggledNik]);
+        if (rows.length > 0) {
+          const picked = rows[0];
+          sessionData.partners.push({
+            nik: picked.nik,
+            name: picked.name,
+            phone: picked.phone_number || ''
+          });
+
+          await setSession(chatId, 'TEAM_MANAGE', sessionData);
+
+          const { message, keyboard } = await renderPartnerChecklist(sessionData);
+          await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
+          return answerCallbackQuery(callbackQueryId, `${picked.name} ditambahkan! (${sessionData.partners.length}/4)`);
+        }
+      } catch (err) {
+        console.error("Toggle Partner Error:", err);
+        return answerCallbackQuery(callbackQueryId, "Gagal menambahkan partner.", true);
+      }
     }
   }
 
-  // 3. MENU HAPUS PARTNER
-  if (callbackData.startsWith('TEAM_DEL_PARTNER_')) {
-    if (sessionData.partners.length === 0) {
-      return answerCallbackQuery(callbackQueryId, "Tidak ada partner untuk dihapus.", true);
-    }
-
-    const buttons = sessionData.partners.map(p => ({
-      text: `🗑️ ${p.name}`,
-      callback_data: `TEAM_REMOVE_${p.nik}`
-    }));
-
-    buttons.push({ text: "🔙 Kembali", callback_data: `TEAM_BACK_${sessionData.ticket_id}` });
-
-    const keyboard = buildInlineKeyboard(buttons, 2);
-    await editMessageText(
-      chatId, 
-      messageId, 
-      `🗑️ *Hapus Partner*:\nTiket: *${escapeMarkdown(sessionData.id_tiket)}*\n\n_Klik partner yang ingin dihapus:_`, 
-      { reply_markup: keyboard }
-    );
-    return answerCallbackQuery(callbackQueryId);
-  }
-
-  // 4. EKSEKUSI HAPUS PARTNER
-  if (callbackData.startsWith('TEAM_REMOVE_')) {
-    const removeNik = callbackData.replace('TEAM_REMOVE_', '');
-    sessionData.partners = sessionData.partners.filter(p => String(p.nik) !== String(removeNik));
+  // 3. KOSONGKAN PILIHAN PARTNER
+  if (callbackData.startsWith('TEAM_CLEAR_')) {
+    sessionData.partners = [];
     await setSession(chatId, 'TEAM_MANAGE', sessionData);
 
-    const { message, keyboard } = formatTeamCard(sessionData);
+    const { message, keyboard } = await renderPartnerChecklist(sessionData);
     await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
-    return answerCallbackQuery(callbackQueryId, "Partner berhasil dihapus.");
+    return answerCallbackQuery(callbackQueryId, "Semua partner dikosongkan.");
   }
 
-  // 5. KEMBALI KE KARTU TIM
+  // 4. SELESAI MEMILIH / KEMBALI KE KARTU TIM
   if (callbackData.startsWith('TEAM_BACK_')) {
     const { message, keyboard } = formatTeamCard(sessionData);
     await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
-    return answerCallbackQuery(callbackQueryId);
+    return answerCallbackQuery(callbackQueryId, "Pilihan partner disimpan.");
   }
 
-  // 6. BATAL
+  // 5. BATAL
   if (callbackData.startsWith('TEAM_CANCEL_')) {
     await clearSession(chatId);
     await editMessageText(chatId, messageId, `❌ Pengaturan tim untuk tiket *${escapeMarkdown(sessionData.id_tiket)}* dibatalkan.`);
     return answerCallbackQuery(callbackQueryId, "Dibatalkan");
   }
 
-  // 7. SIMPAN KE DATABASE
+  // 6. SIMPAN KE DATABASE
   if (callbackData.startsWith('TEAM_SAVE_')) {
     const connection = await db.getConnection();
     try {
