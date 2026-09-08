@@ -171,6 +171,7 @@ export default function TicketsPage() {
     // State Modal Sync TACC (MS) & SQUAT
     const [isSyncTaccModalOpen, setIsSyncTaccModalOpen] = useState(false); 
     const [isSyncSquatModalOpen, setIsSyncSquatModalOpen] = useState(false); 
+    const [exportLoading, setExportLoading] = useState(false); 
 
     // [PUSHER] 2. State untuk trigger refresh otomatis
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -265,15 +266,126 @@ export default function TicketsPage() {
         setIsTRModalOpen(true);
     };
     const handleExportExcel = async () => {
-        if (!confirm("Download data?")) return;
-        const params = new URLSearchParams({ page: 1, limit: 10000, search, status: 'CLOSED', category: activeCategory, startDate, endDate });
-        const res = await fetch(`/api/tickets?${params}`);
-        const { data } = await res.json();
-        if (!data?.length) return alert("Data kosong.");
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Tiket");
-        XLSX.writeFile(wb, `Report_Tiket_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        try {
+            setExportLoading(true);
+            let categoryParam = 'ALL';
+            let subcategoryParam = 'ALL';
+
+            if (mainGroup === 'MS') {
+                if (activeSubCategory === 'ALL') {
+                    categoryParam = 'MS';
+                } else {
+                    categoryParam = activeSubCategory;
+                }
+            } else if (mainGroup === 'SQUAT') {
+                categoryParam = 'SQUAT';
+                if (activeSubCategory !== 'ALL') {
+                    subcategoryParam = activeSubCategory;
+                }
+            }
+
+            const params = new URLSearchParams({ 
+                page: 1, 
+                limit: 10000, 
+                search, 
+                status: activeTab, 
+                category: categoryParam, 
+                subcategory: subcategoryParam, 
+                startDate, 
+                endDate 
+            });
+
+            const res = await fetch(`/api/tickets?${params}`);
+            const result = await res.json();
+            const data = result?.data || [];
+
+            if (!data.length) {
+                alert(`Data tiket (${activeTab}) tidak ditemukan atau kosong.`);
+                return;
+            }
+
+            const formatDateSafe = (d) => {
+                if (!d) return '-';
+                const parsed = new Date(d);
+                return isNaN(parsed.getTime()) ? String(d) : parsed.toLocaleString('id-ID');
+            };
+
+            const exportData = data.map((t, idx) => {
+                const aging = getTicketAging(t);
+                const slaTarget = getTtrThreshold(t);
+                let slaStatus = '-';
+                if (t.ttr_tacc) {
+                    slaStatus = isTtrNotComply(t) ? 'OVER SLA (NOT COMPLY)' : 'IN SLA (COMPLY)';
+                } else if (aging) {
+                    slaStatus = aging.label;
+                }
+
+                return {
+                    'No': idx + 1,
+                    'ID Tiket': t.id_tiket || '-',
+                    'ID Tiket TACC': t.id_tiket_tacc || '-',
+                    'Kategori': t.category || '-',
+                    'Sub Kategori': t.subcategory || '-',
+                    'Prioritas / Tier': t.priority || '-',
+                    'Status': t.status || '-',
+                    'Branch': t.branch || '-',
+                    'STO': t.sto || '-',
+                    'Waktu Tiket (Open)': formatDateSafe(t.tiket_time),
+                    'Waktu Selesai (Closed)': t.status === 'CLOSED' ? formatDateSafe(t.closed_at || t.close_time || t.last_update_time) : '-',
+                    'Update Terakhir': formatDateSafe(t.last_update_time),
+                    'TTR TACC (Jam)': t.ttr_tacc || '-',
+                    'Target SLA (Jam)': `${slaTarget} Jam`,
+                    'Status SLA': slaStatus,
+                    'Durasi / Aging': aging ? aging.text : (t.ttr_tacc ? `${t.ttr_tacc} Jam` : '-'),
+                    'Teknisi (Lead)': t.technician_name || 'Belum assign',
+                    'No HP Teknisi': t.technician_phone || '-',
+                    'Teknisi Support': t.partner_technicians || '-',
+                    'Material Digunakan': t.material || '-',
+                    'Deskripsi Kendala': t.deskripsi || '-',
+                    'RCA / Solusi / Progres': t.update_progres || '-',
+                    'Updated By': t.updater_name || '-'
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            ws['!cols'] = [
+                { wch: 5 },  // No
+                { wch: 24 }, // ID Tiket
+                { wch: 18 }, // ID Tiket TACC
+                { wch: 14 }, // Kategori
+                { wch: 14 }, // Sub Kategori
+                { wch: 16 }, // Prioritas / Tier
+                { wch: 12 }, // Status
+                { wch: 16 }, // Branch
+                { wch: 10 }, // STO
+                { wch: 22 }, // Waktu Tiket (Open)
+                { wch: 22 }, // Waktu Selesai (Closed)
+                { wch: 22 }, // Update Terakhir
+                { wch: 16 }, // TTR TACC (Jam)
+                { wch: 16 }, // Target SLA (Jam)
+                { wch: 24 }, // Status SLA
+                { wch: 16 }, // Durasi / Aging
+                { wch: 24 }, // Teknisi (Lead)
+                { wch: 16 }, // No HP Teknisi
+                { wch: 28 }, // Teknisi Support
+                { wch: 30 }, // Material Digunakan
+                { wch: 50 }, // Deskripsi Kendala
+                { wch: 50 }, // RCA / Solusi / Progres
+                { wch: 20 }  // Updated By
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, `Tiket ${activeTab}`);
+            const catLabel = mainGroup !== 'ALL' ? `_${mainGroup}` : '';
+            const subLabel = activeSubCategory !== 'ALL' ? `_${activeSubCategory}` : '';
+            const dateStr = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `Report_Tiket_${activeTab}${catLabel}${subLabel}_${dateStr}.xlsx`);
+        } catch (error) {
+            console.error("Gagal export excel:", error);
+            alert("Terjadi kesalahan saat mengekspor data ke Excel.");
+        } finally {
+            setExportLoading(false);
+        }
     };
 
     const getTtrThreshold = (ticket) => {
@@ -636,11 +748,15 @@ export default function TicketsPage() {
                         />
                     </div>
 
-                    {activeTab === 'CLOSED' && (
-                        <button onClick={handleExportExcel} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-sm transition whitespace-nowrap w-full md:w-auto">
-                            <FaFileExcel /> Excel
-                        </button>
-                    )}
+                    <button 
+                        onClick={handleExportExcel} 
+                        disabled={exportLoading}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-sm transition whitespace-nowrap w-full md:w-auto disabled:opacity-50"
+                        title={`Download data tiket (${activeTab}) ke Excel`}
+                    >
+                        {exportLoading ? <FaSpinner className="animate-spin" /> : <FaFileExcel />}
+                        <span>Excel ({activeTab})</span>
+                    </button>
                 </div>
             </div>
 

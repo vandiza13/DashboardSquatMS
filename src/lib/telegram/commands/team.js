@@ -41,11 +41,13 @@ export async function handleTeamCommand(chatId, text, user) {
     }
 
     // Tentukan LENSA (Utama)
+    const isAdminOrSuper = user.role === 'SuperAdmin' || user.role === 'Admin';
     let leadNik = user.nik || null;
     let leadName = user.full_name || user.display_name || user.username;
     let leadPhone = user.phone_number || '';
+    let isUserLead = Boolean(user.nik);
 
-    // Jika bukan teknisi (misal SuperAdmin/Admin tanpa NIK teknisi), cari lead saat ini di DB
+    // Jika bukan akun teknisi (misal SuperAdmin/Admin), cari lead saat ini di DB
     if (!leadNik) {
       const [currentLead] = await db.query(
         `SELECT tech.nik, tech.name, tech.phone_number 
@@ -58,10 +60,15 @@ export async function handleTeamCommand(chatId, text, user) {
         leadNik = currentLead[0].nik;
         leadName = currentLead[0].name;
         leadPhone = currentLead[0].phone_number || '';
+      } else {
+        leadNik = null;
+        leadName = 'Belum Ditentukan';
+        leadPhone = '';
       }
+      isUserLead = false;
     }
 
-    if (!leadNik) {
+    if (!leadNik && !isAdminOrSuper) {
       return sendMessage(chatId, "⚠️ Akun Telegram Anda belum ditautkan ke NIK Teknisi. Gunakan `/register <NIK>` terlebih dahulu.");
     }
 
@@ -76,7 +83,7 @@ export async function handleTeamCommand(chatId, text, user) {
     );
 
     const partners = currentPartners
-      .filter(p => String(p.nik) !== String(leadNik))
+      .filter(p => !leadNik || String(p.nik) !== String(leadNik))
       .map(p => ({
         nik: p.nik,
         name: p.name,
@@ -94,7 +101,9 @@ export async function handleTeamCommand(chatId, text, user) {
       lead_nik: leadNik,
       lead_name: leadName,
       lead_phone: leadPhone,
-      partners: partners
+      partners: partners,
+      is_user_lead: isUserLead,
+      is_admin_or_super: isAdminOrSuper
     };
 
     await setSession(chatId, 'TEAM_MANAGE', sessionData);
@@ -120,23 +129,33 @@ export function formatTeamCard(data) {
     partnerListText = '   _(Belum ada partner/support)_';
   }
 
+  const leadLabel = data.lead_nik 
+    ? `*${escapeMarkdown(data.lead_name)}* (${escapeMarkdown(data.lead_nik)})` 
+    : `_Belum Ditentukan_`;
+
+  const leadTag = data.is_user_lead 
+    ? ` _[Otomatis Akun Anda]_` 
+    : (data.lead_nik ? ` _[Teknisi Utama di Tiket]_` : '');
+
   const message = `👷‍♂️ *LURUSKAN TIM TEKNISI*
 🎫 *Tiket*: ${escapeMarkdown(data.id_tiket)} (${data.status})
 📝 *Subjek*: ${escapeMarkdown(shortDesc)}
 ─────────────────────────
 🔵 *LENSA (Utama)*:
-👉 *${escapeMarkdown(data.lead_name)}* (${escapeMarkdown(data.lead_nik)}) _[Otomatis Akun Anda]_
+👉 ${leadLabel}${leadTag}
 
 🟣 *PARTNER (Support)*:
 ${escapeMarkdown(partnerListText)}
 ─────────────────────────
-_Klik tombol di bawah untuk memilih partner sekaligus:_`;
+_Klik tombol di bawah untuk mengatur tim:_`;
 
-  const buttons = [
-    { text: `👥 Pilih Partner (${data.partners.length}/4)`, callback_data: `TEAM_ADD_PARTNER_${data.ticket_id}` },
-    { text: "💾 Simpan & Selesai", callback_data: `TEAM_SAVE_${data.ticket_id}` },
-    { text: "❌ Batal", callback_data: `TEAM_CANCEL_${data.ticket_id}` }
-  ];
+  const buttons = [];
+  if (data.is_admin_or_super) {
+    buttons.push({ text: "🔄 Ganti LENSA (Utama)", callback_data: `TEAM_CHANGE_LEAD_${data.ticket_id}` });
+  }
+  buttons.push({ text: `👥 Pilih Partner (${data.partners.length}/4)`, callback_data: `TEAM_ADD_PARTNER_${data.ticket_id}` });
+  buttons.push({ text: "💾 Simpan & Selesai", callback_data: `TEAM_SAVE_${data.ticket_id}` });
+  buttons.push({ text: "❌ Batal", callback_data: `TEAM_CANCEL_${data.ticket_id}` });
 
   const keyboard = buildInlineKeyboard(buttons, 1);
   return { message, keyboard };
@@ -153,7 +172,7 @@ export async function renderPartnerChecklist(sessionData) {
   );
 
   // Filter: Jangan sertakan Teknisi Utama (LEAD)
-  const candidateTechs = techRows.filter(t => String(t.nik) !== String(sessionData.lead_nik));
+  const candidateTechs = techRows.filter(t => !sessionData.lead_nik || String(t.nik) !== String(sessionData.lead_nik));
 
   const partnerNiks = sessionData.partners.map(p => String(p.nik));
 
@@ -208,7 +227,63 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
 
   const sessionData = session.data;
 
-  // 1. BUKA MENU CHECKLIST PARTNER
+  // 1. GANTI LENSA (Khusus SuperAdmin/Admin)
+  if (callbackData.startsWith('TEAM_CHANGE_LEAD_')) {
+    try {
+      const division = sessionData.division || (sessionData.category === 'SQUAT' ? 'SQUAT' : 'MS');
+      const [techRows] = await db.query(
+        `SELECT nik, name, phone_number 
+         FROM technicians 
+         WHERE is_active = 1 AND division = ? 
+         ORDER BY name ASC`,
+        [division]
+      );
+
+      const buttons = techRows.map(t => ({
+        text: (String(t.nik) === String(sessionData.lead_nik) ? '🔵 ' : '') + t.name,
+        callback_data: `TEAM_SET_LEAD_${t.nik}`
+      }));
+
+      buttons.push({ text: "🔙 Kembali", callback_data: `TEAM_BACK_${sessionData.ticket_id}` });
+
+      const keyboard = buildInlineKeyboard(buttons, 2);
+      const message = `🔵 *PILIH TEKNISI UTAMA (LENSA)*\n🎫 Tiket: *${escapeMarkdown(sessionData.id_tiket)}*\n\n_Pilih teknisi yang menjadi PIC/LENSA tiket ini:_`;
+      await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
+      return answerCallbackQuery(callbackQueryId);
+    } catch (err) {
+      console.error("Open Change Lead Error:", err);
+      return answerCallbackQuery(callbackQueryId, "Gagal memuat daftar teknisi.", true);
+    }
+  }
+
+  // 2. EKSEKUSI GANTI LENSA
+  if (callbackData.startsWith('TEAM_SET_LEAD_')) {
+    const newLeadNik = callbackData.replace('TEAM_SET_LEAD_', '');
+    try {
+      const [rows] = await db.query('SELECT nik, name, phone_number FROM technicians WHERE nik = ?', [newLeadNik]);
+      if (rows.length > 0) {
+        const picked = rows[0];
+        sessionData.lead_nik = picked.nik;
+        sessionData.lead_name = picked.name;
+        sessionData.lead_phone = picked.phone_number || '';
+        sessionData.is_user_lead = user.nik && String(user.nik) === String(picked.nik);
+
+        // Jika teknisi ini sebelumnya ada di partner, hapus dari partner
+        sessionData.partners = sessionData.partners.filter(p => String(p.nik) !== String(picked.nik));
+
+        await setSession(chatId, 'TEAM_MANAGE', sessionData);
+
+        const { message, keyboard } = formatTeamCard(sessionData);
+        await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
+        return answerCallbackQuery(callbackQueryId, `LENSA diubah ke ${picked.name}`);
+      }
+    } catch (err) {
+      console.error("Set Lead Error:", err);
+      return answerCallbackQuery(callbackQueryId, "Gagal mengubah LENSA.", true);
+    }
+  }
+
+  // 3. BUKA MENU CHECKLIST PARTNER
   if (callbackData.startsWith('TEAM_ADD_PARTNER_')) {
     try {
       const { message, keyboard } = await renderPartnerChecklist(sessionData);
@@ -220,7 +295,7 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
     }
   }
 
-  // 2. TOGGLE CHECKLIST PARTNER (CENTANG / BATAL SEKALIGUS)
+  // 4. TOGGLE CHECKLIST PARTNER (CENTANG / BATAL SEKALIGUS)
   if (callbackData.startsWith('TEAM_TOGGLE_')) {
     const toggledNik = callbackData.replace('TEAM_TOGGLE_', '');
     const isAlreadySelected = sessionData.partners.some(p => String(p.nik) === String(toggledNik));
@@ -262,7 +337,7 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
     }
   }
 
-  // 3. KOSONGKAN PILIHAN PARTNER
+  // 5. KOSONGKAN PILIHAN PARTNER
   if (callbackData.startsWith('TEAM_CLEAR_')) {
     sessionData.partners = [];
     await setSession(chatId, 'TEAM_MANAGE', sessionData);
@@ -272,21 +347,21 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
     return answerCallbackQuery(callbackQueryId, "Semua partner dikosongkan.");
   }
 
-  // 4. SELESAI MEMILIH / KEMBALI KE KARTU TIM
+  // 6. SELESAI MEMILIH / KEMBALI KE KARTU TIM
   if (callbackData.startsWith('TEAM_BACK_')) {
     const { message, keyboard } = formatTeamCard(sessionData);
     await editMessageText(chatId, messageId, message, { reply_markup: keyboard });
-    return answerCallbackQuery(callbackQueryId, "Pilihan partner disimpan.");
+    return answerCallbackQuery(callbackQueryId, "Pilihan disimpan.");
   }
 
-  // 5. BATAL
+  // 7. BATAL
   if (callbackData.startsWith('TEAM_CANCEL_')) {
     await clearSession(chatId);
     await editMessageText(chatId, messageId, `❌ Pengaturan tim untuk tiket *${escapeMarkdown(sessionData.id_tiket)}* dibatalkan.`);
     return answerCallbackQuery(callbackQueryId, "Dibatalkan");
   }
 
-  // 6. SIMPAN KE DATABASE
+  // 8. SIMPAN KE DATABASE
   if (callbackData.startsWith('TEAM_SAVE_')) {
     const connection = await db.getConnection();
     try {
@@ -322,7 +397,7 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
       );
 
       // Insert ke history
-      const historyNote = `Tim diluruskan via Bot Telegram: LENSA = ${sessionData.lead_name} (${sessionData.lead_nik})${partnerNames.length > 0 ? `, Partner = ${partnerNames.join(', ')}` : ' (Tanpa Partner)'}`;
+      const historyNote = `Tim diluruskan via Bot Telegram: LENSA = ${sessionData.lead_name} (${sessionData.lead_nik || '-'})${partnerNames.length > 0 ? `, Partner = ${partnerNames.join(', ')}` : ' (Tanpa Partner)'}`;
       await connection.query(
         `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, 'Bot Telegram', NOW())`,
         [sessionData.ticket_id, historyNote]

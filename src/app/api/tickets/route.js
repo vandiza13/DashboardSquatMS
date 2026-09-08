@@ -67,6 +67,12 @@ export async function GET(request) {
         if (startDate && endDate) {
             query += ` AND DATE(t.tiket_time) BETWEEN ? AND ?`;
             queryParams.push(startDate, endDate);
+        } else if (startDate) {
+            query += ` AND DATE(t.tiket_time) >= ?`;
+            queryParams.push(startDate);
+        } else if (endDate) {
+            query += ` AND DATE(t.tiket_time) <= ?`;
+            queryParams.push(endDate);
         }
 
         query += ` GROUP BY t.id ORDER BY t.tiket_time DESC`;
@@ -104,6 +110,12 @@ export async function GET(request) {
         if (startDate && endDate) {
             countQuery += ` AND DATE(t.tiket_time) BETWEEN ? AND ?`;
             countParams.push(startDate, endDate);
+        } else if (startDate) {
+            countQuery += ` AND DATE(t.tiket_time) >= ?`;
+            countParams.push(startDate);
+        } else if (endDate) {
+            countQuery += ` AND DATE(t.tiket_time) <= ?`;
+            countParams.push(endDate);
         }
 
         const [totalRows] = await db.query(countQuery, countParams);
