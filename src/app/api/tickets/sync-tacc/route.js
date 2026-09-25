@@ -28,31 +28,34 @@ function getNormalizedKeys(rawId) {
 function parseCloseTime(val) {
     if (!val) return null;
     const str = String(val).trim();
-    if (!str) return null;
+    if (!str || str === '0000-00-00' || str === '0000-00-00 00:00:00' || str === '?') return null;
 
+    let d = null;
     const num = Number(str);
     if (!isNaN(num) && num > 40000 && num < 60000) {
         const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-        const ms = excelEpoch.getTime() + num * 86400 * 1000;
-        const d = new Date(ms);
-        return formatMySQLDate(d);
+        d = new Date(excelEpoch.getTime() + num * 86400 * 1000);
+    } else {
+        const ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (ymdMatch) {
+            const [, y, m, day, hh = '00', mm = '00', ss = '00'] = ymdMatch;
+            d = new Date(`${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:${ss.padStart(2, '0')}`);
+        } else {
+            const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+            if (dmyMatch) {
+                const [, day, m, y, hh = '00', mm = '00', ss = '00'] = dmyMatch;
+                d = new Date(`${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:${ss.padStart(2, '0')}`);
+            } else {
+                d = new Date(str);
+            }
+        }
     }
 
-    const ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-    if (ymdMatch) {
-        const [, y, m, d, hh = '00', mm = '00', ss = '00'] = ymdMatch;
-        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:${ss.padStart(2, '0')}`;
-    }
-
-    const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-    if (dmyMatch) {
-        const [, d, m, y, hh = '00', mm = '00', ss = '00'] = dmyMatch;
-        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:${ss.padStart(2, '0')}`;
-    }
-
-    const parsed = new Date(str);
-    if (!isNaN(parsed.getTime())) {
-        return formatMySQLDate(parsed);
+    if (d && !isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        if (year >= 1000 && year <= 9999) {
+            return formatMySQLDate(d);
+        }
     }
 
     return null;
@@ -180,6 +183,9 @@ export async function POST(request) {
 
             const reqCloseCases = [];
             const reqCloseParams = [];
+            
+            const statusCloseCases = [];
+            const statusCloseParams = [];
 
             for (const item of batch) {
                 ttrCases.push(`WHEN id = ? THEN ?`);
@@ -191,6 +197,9 @@ export async function POST(request) {
                 if (item.req_close_str) {
                     reqCloseCases.push(`WHEN id = ? THEN ?`);
                     reqCloseParams.push(item.id, item.req_close_str);
+                    
+                    statusCloseCases.push(`WHEN id = ? THEN 'CLOSED'`);
+                    statusCloseParams.push(item.id);
                 }
             }
 
@@ -203,8 +212,8 @@ export async function POST(request) {
                 sql += `, 
                     last_update_time = CASE ${reqCloseCases.join(' ')} ELSE last_update_time END,
                     closed_at = CASE ${reqCloseCases.join(' ')} ELSE closed_at END,
-                    status = 'CLOSED'`;
-                params.push(...reqCloseParams, ...reqCloseParams);
+                    status = CASE ${statusCloseCases.join(' ')} ELSE status END`;
+                params.push(...reqCloseParams, ...reqCloseParams, ...statusCloseParams);
             }
 
             sql += ` WHERE id IN (${ids.map(() => '?').join(',')})`;
