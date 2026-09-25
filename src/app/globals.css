@@ -144,3 +144,40 @@ button, a, input, select {
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out forwards;
 }
+
+/* === LOGIN PAGE ANIMATIONS === */
+@keyframes border-glow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: rotate(0deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: rotate(180deg);
+  }
+}
+
+.animate-border-glow {
+  animation: border-glow 6s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.6s ease-in-out;
+}
+
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(20px, -30px) scale(1.05); }
+  50% { transform: translate(-15px, 15px) scale(0.95); }
+  75% { transform: translate(10px, 20px) scale(1.02); }
+}
+
+.animate-blob {
+  animation: blob 8s ease-in-out infinite;
+}
