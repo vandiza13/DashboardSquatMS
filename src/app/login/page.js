@@ -96,6 +96,9 @@ function ParticleOverlay({ theme }) {
     );
 }
 
+import bgNight from '../../public/bg-tower-night.webp';
+import bgDay from '../../public/bg-tower-day.webp';
+
 // ─── LOGIN PAGE ────────────────────────────────────────────────────────
 export default function LoginPage() {
     const router = useRouter();
@@ -132,35 +135,35 @@ export default function LoginPage() {
         }
     };
 
-    // Fallback UI to prevent hydration mismatch before theme context is available
-    if (!mounted) return <div className="min-h-screen bg-slate-900"></div>;
-
-    const isDark = theme === 'dark';
+    // Default ke dark mode jika belum mounted untuk keperluan SSR
+    const isDark = !mounted || theme === 'dark';
 
     return (
         <div className={`min-h-screen flex items-center justify-center lg:justify-end lg:pr-[12%] relative overflow-hidden transition-colors duration-700 ${isDark ? 'bg-[#040810]' : 'bg-blue-50'}`}>
             
             {/* 1. Static Photo Background (Day/Night transition) */}
-            <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 z-0 bg-[#040810]">
                 {/* Dark Mode Background */}
                 <div className={`absolute inset-0 transition-opacity duration-1000 ${isDark ? 'opacity-100' : 'opacity-0'}`}>
                     <Image
-                        src="/bg-tower-night.webp"
+                        src={bgNight}
                         alt="BTS Tower Night"
                         fill
                         priority
                         quality={80}
+                        placeholder="blur"
                         className="object-cover object-center"
                     />
                 </div>
                 {/* Light Mode Background */}
                 <div className={`absolute inset-0 transition-opacity duration-1000 ${isDark ? 'opacity-0' : 'opacity-100'}`}>
                     <Image
-                        src="/bg-tower-day.webp"
+                        src={bgDay}
                         alt="BTS Tower Day"
                         fill
                         priority
                         quality={80}
+                        placeholder="blur"
                         className="object-cover object-center"
                     />
                 </div>
