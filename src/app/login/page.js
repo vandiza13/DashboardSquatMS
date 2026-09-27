@@ -145,22 +145,22 @@ export default function LoginPage() {
                 {/* Dark Mode Background */}
                 <div className={`absolute inset-0 transition-opacity duration-1000 ${isDark ? 'opacity-100' : 'opacity-0'}`}>
                     <Image
-                        src="/bg-tower-night-final.jpg"
+                        src="/bg-tower-night.webp"
                         alt="BTS Tower Night"
                         fill
                         priority
-                        quality={100}
+                        quality={80}
                         className="object-cover object-center"
                     />
                 </div>
                 {/* Light Mode Background */}
                 <div className={`absolute inset-0 transition-opacity duration-1000 ${isDark ? 'opacity-0' : 'opacity-100'}`}>
                     <Image
-                        src="/bg-tower-day-final.jpg"
+                        src="/bg-tower-day.webp"
                         alt="BTS Tower Day"
                         fill
                         priority
-                        quality={100}
+                        quality={80}
                         className="object-cover object-center"
                     />
                 </div>
