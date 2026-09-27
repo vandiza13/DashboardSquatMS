@@ -371,7 +371,7 @@ export default function LoginPage() {
                         <p className={`text-[10px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                             &copy; {new Date().getFullYear()} Dashboard Squat & MS.
                             <span className="mx-2 opacity-30">|</span>
-                            Developed by <a href="https://www.vandiza.my.id" target="_blank" rel="noopener noreferrer" className={`font-bold transition-colors ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}>Vandiza</a>
+                            Developed by <a href="https://www.vandiza.my.id" target="_blank" rel="noopener noreferrer" className={`font-bold transition-colors ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}>Tubagus Paradisa</a>
                         </p>
                     </div>
                 </div>
