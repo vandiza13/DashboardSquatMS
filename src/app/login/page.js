@@ -96,8 +96,8 @@ function ParticleOverlay({ theme }) {
     );
 }
 
-import bgNight from '../../public/bg-tower-night.webp';
-import bgDay from '../../public/bg-tower-day.webp';
+import bgNight from '../../../public/bg-tower-night.webp';
+import bgDay from '../../../public/bg-tower-day.webp';
 
 // ─── LOGIN PAGE ────────────────────────────────────────────────────────
 export default function LoginPage() {
