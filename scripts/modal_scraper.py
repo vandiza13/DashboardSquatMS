@@ -248,8 +248,18 @@ def scrape_mtel_section(session, windows, now_wib, spreadsheet_id, dashboard_api
                 end_str = w_end.strftime("%Y-%m-%d")
                 sep = "&" if target["query"] else "?"
                 url = f"{MTEL_BASE_URL}{target['export_path']}?{target['query']}{sep}get_start={start_str}&get_end={end_str}"
-                res = session.get(url, timeout=120)
-                if res.status_code == 200 and len(res.content) > 100:
+                res = None
+                for attempt in range(3):
+                    try:
+                        res = session.get(url, timeout=120)
+                        if res.status_code == 200:
+                            break
+                    except Exception as req_err:
+                        if attempt == 2:
+                            raise req_err
+                        time.sleep(2)
+
+                if res and res.status_code == 200 and len(res.content) > 100:
                     part = read_export_bytes(res.content)
                     if part is not None and not part.empty:
                         frames.append(part)
