@@ -183,132 +183,80 @@ export async function POST(request) {
             const parsedClose = parseDateTimeToMySQL(rawClose);
 
             // ==============================================================
-            // KASUS 1: TIKET SUDAH ADA DI DATABASE
+            // KASUS 1: TIKET SUDAH ADA DI DATABASE -> SINKRONISASI TTR & STATUS CLOSED
             // ==============================================================
             if (existing) {
-                // Keamanan Data & RCA: Status di dashboard TIDAK diubah ke CLOSED sepihak
-                // agar kolom RCA, material, dan investigasi teknisi tidak kosong.
-                // Sistem HANYA menyinkronkan nilai TTR (ttr_tacc) & ID TACC jika ada data baru.
-                let needUpdate = false;
-                const updates = [];
-                const updateParams = [];
+                const currentStatus = String(existing.status).toUpperCase();
+                const isClosedInTacc = (rawStatus === 'CLOSED' || rawStatus === 'TECH CLOSE' || !!parsedClose);
 
-                if (finalTtr && existing.ttr_tacc !== finalTtr) {
-                    updates.push("ttr_tacc = ?");
-                    updateParams.push(finalTtr);
-                    existing.ttr_tacc = finalTtr;
-                    needUpdate = true;
-                }
-
-                if (rawNomorTT && !existing.id_tiket_tacc) {
-                    updates.push("id_tiket_tacc = ?");
-                    updateParams.push(rawNomorTT);
-                    existing.id_tiket_tacc = rawNomorTT;
-                    needUpdate = true;
-                }
-
-                if (needUpdate) {
-                    updates.push("last_update_time = NOW()");
-                    updateParams.push(existing.id);
+                // Jika di TACC sudah CLOSED / TECH CLOSE dan di DB masih OPEN atau SC (atau butuh update data closed)
+                if (isClosedInTacc && (currentStatus === 'OPEN' || currentStatus === 'SC')) {
                     await connection.query(
-                        `UPDATE tickets SET ${updates.join(', ')} WHERE id = ?`,
-                        updateParams
+                        `UPDATE tickets 
+                         SET status = 'CLOSED', 
+                             ttr_tacc = COALESCE(?, ttr_tacc),
+                             id_tiket_tacc = COALESCE(id_tiket_tacc, ?),
+                             closed_at = COALESCE(?, closed_at, NOW()),
+                             last_update_time = NOW()
+                         WHERE id = ?`,
+                        [finalTtr, rawNomorTT || null, parsedClose, existing.id]
                     );
 
                     await connection.query(
                         `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) 
                          VALUES (?, ?, 'Auto-Sync TACC Scraper', NOW())`,
-                        [existing.id, `TTR TACC disinkronkan otomatis: ${finalTtr || '-'} Jam (Status TACC: ${rawStatus})`]
+                        [existing.id, `Status disinkronkan ke CLOSED dari TACC (TTR: ${finalTtr || '-'} Jam, Closed: ${parsedClose || 'Now'})`]
                     );
 
-                    updatedStatusCount++;
+                    existing.status = 'CLOSED';
+                    existing.ttr_tacc = finalTtr || existing.ttr_tacc;
+                    updatedClosedCount++;
                 } else {
-                    skippedCount++;
+                    // Update ttr_tacc atau id_tiket_tacc jika ada data TTR baru
+                    let needUpdate = false;
+                    const updates = [];
+                    const updateParams = [];
+
+                    if (finalTtr && existing.ttr_tacc !== finalTtr) {
+                        updates.push("ttr_tacc = ?");
+                        updateParams.push(finalTtr);
+                        existing.ttr_tacc = finalTtr;
+                        needUpdate = true;
+                    }
+
+                    if (rawNomorTT && !existing.id_tiket_tacc) {
+                        updates.push("id_tiket_tacc = ?");
+                        updateParams.push(rawNomorTT);
+                        existing.id_tiket_tacc = rawNomorTT;
+                        needUpdate = true;
+                    }
+
+                    if (needUpdate) {
+                        updates.push("last_update_time = NOW()");
+                        updateParams.push(existing.id);
+                        await connection.query(
+                            `UPDATE tickets SET ${updates.join(', ')} WHERE id = ?`,
+                            updateParams
+                        );
+
+                        await connection.query(
+                            `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) 
+                             VALUES (?, ?, 'Auto-Sync TACC Scraper', NOW())`,
+                            [existing.id, `TTR TACC disinkronkan otomatis: ${finalTtr || '-'} Jam (Status TACC: ${rawStatus})`]
+                        );
+
+                        updatedStatusCount++;
+                    } else {
+                        skippedCount++;
+                    }
                 }
             }
             // ==============================================================
-            // KASUS 2: TIKET BELUM ADA DI DATABASE -> AUTO-INSERT JIKA MASIH AKTIF
+            // KASUS 2: TIKET BELUM ADA DI DATABASE -> DITUNDA / DILEWATI
             // ==============================================================
             else {
-                // Hanya insert tiket yang berstatus aktif (Open, Pending, In Progress, Delivered)
-                const isActiveStatus = ['OPEN', 'PENDING', 'IN PROGRESS', 'DELIVERED'].includes(rawStatus);
-
-                if (isActiveStatus) {
-                    const finalIdTiket = String(rawTiketId || `TR-${rawNomorTT}`).trim();
-                    const finalNomorTT = String(rawNomorTT || '').trim() || null;
-                    const finalOpenTime = parseDateTimeToMySQL(row.start_time || row['Start TT Open Time'] || new Date()) || new Date();
-                    
-                    // Smart Description Builder (Route Case / Pair Site Down <> Site Detector)
-                    const cleanStr = (val) => {
-                        if (!val) return '';
-                        const s = String(val).trim();
-                        return (s.toLowerCase() === 'nan' || s.toLowerCase() === 'null') ? '' : s;
-                    };
-
-                    const routeCase = cleanStr(row['Route Case'] || row['route_case'] || row['RouteCase']);
-                    const siteDown = cleanStr(row['Site Down Name'] || row['Site Down ID'] || row['Site Down'] || row.site_name);
-                    const siteDetector = cleanStr(row['Site Detector Name'] || row['Site Detector ID'] || row['Site Detector']);
-
-                    let finalDeskripsi = '';
-                    if (routeCase) {
-                        finalDeskripsi = routeCase;
-                    } else if (siteDown && siteDetector && siteDown !== siteDetector) {
-                        finalDeskripsi = `${siteDown} <> ${siteDetector}`;
-                    } else if (siteDown) {
-                        finalDeskripsi = siteDown;
-                    } else if (siteDetector) {
-                        finalDeskripsi = siteDetector;
-                    } else {
-                        const spanOrRing = cleanStr(row['Span ID FSI'] || row['Spand ID'] || row['Ring ID']);
-                        const descInfo = cleanStr(row.keterangan || row['Keterangan'] || row.deskripsi || row['Ticket Info'] || row['Tiket Info']);
-                        finalDeskripsi = spanOrRing || descInfo || `Tiket ${finalIdTiket}`;
-                    }
-
-                    // Priority
-                    const finalPriority = row.priority || row['Priority'] || null;
-                    const finalBranch = row.branch || row['Branch'] || row['BRANCH'] || 'BEKASI';
-
-                    // Status awal di dashboard: jika di TACC 'PENDING' maka 'SC' (Stop Clock), selain itu 'OPEN'
-                    const dbStatus = (rawStatus === 'PENDING') ? 'SC' : 'OPEN';
-
-                    const [insertRes] = await connection.query(
-                        `INSERT INTO tickets (
-                            category, subcategory, priority, id_tiket, id_tiket_tacc,
-                            tiket_time, deskripsi, status, branch, created_by_user_id,
-                            updated_by_user_id, last_update_time
-                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, NOW())`,
-                        [
-                            targetCategory,
-                            targetSubcategory,
-                            finalPriority,
-                            finalIdTiket,
-                            finalNomorTT,
-                            finalOpenTime,
-                            finalDeskripsi,
-                            dbStatus,
-                            finalBranch
-                        ]
-                    );
-
-                    const newTicketId = insertRes.insertId;
-
-                    await connection.query(
-                        `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) 
-                         VALUES (?, ?, 'Auto-Sync TACC Scraper', NOW())`,
-                        [newTicketId, `Tiket baru dibuat otomatis dari TACC Scraper (Status: ${dbStatus})`]
-                    );
-
-                    // Tambahkan ke map agar tidak terduplikasi
-                    const newEntry = { id: newTicketId, id_tiket: finalIdTiket, id_tiket_tacc: finalNomorTT, status: dbStatus };
-                    for (const k of candidateKeys) {
-                        ticketMap.set(k, newEntry);
-                    }
-
-                    insertedCount++;
-                } else {
-                    // Tiket belum ada tapi di TACC sudah CLOSED/CANCELLED lama, abaikan
-                    skippedCount++;
-                }
+                // Sesuai keputusan: tiket running baru ditunda dulu, fokus sync MTTR/SLA tiket closed yang sudah ada
+                skippedCount++;
             }
         }
 

@@ -484,8 +484,8 @@ def scrape_centratama_section(start_str: str, end_str: str, now_wib: str, spread
         modal.Secret.from_name("centratama-credentials"),
     ],
     timeout=1200,
-    # Jadwalkan otomatis jika diinginkan (misal setiap 15 menit):
-    # schedule=modal.Period(minutes=15),
+    # Jadwal otomatis 1x sehari (setiap jam 01:00 WIB dini hari / 18:00 UTC):
+    schedule=modal.Cron("0 18 * * *"),
 )
 def run_all_scrapers():
     import pytz
