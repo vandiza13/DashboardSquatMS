@@ -54,3 +54,10 @@ service-account.json
 # File database lokal (jika ada backup manual)
 *.sql
 *.db
+
+# Temporary scratch folder
+scratch/
+
+# Python cache
+__pycache__/
+*.pyc
