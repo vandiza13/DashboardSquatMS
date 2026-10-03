@@ -238,10 +238,31 @@ export async function POST(request) {
                     const finalNomorTT = String(rawNomorTT || '').trim() || null;
                     const finalOpenTime = parseDateTimeToMySQL(row.start_time || row['Start TT Open Time'] || new Date()) || new Date();
                     
-                    // Keterangan / Deskripsi
-                    const siteDownName = row['Site Down Name'] || row.site_name || '';
-                    const descInfo = row.keterangan || row['Keterangan'] || row.deskripsi || row['Ticket Info'] || '';
-                    const finalDeskripsi = [siteDownName, descInfo].filter(Boolean).join(' - ') || 'Tiket dibuat via TACC Scraper';
+                    // Smart Description Builder (Route Case / Pair Site Down <> Site Detector)
+                    const cleanStr = (val) => {
+                        if (!val) return '';
+                        const s = String(val).trim();
+                        return (s.toLowerCase() === 'nan' || s.toLowerCase() === 'null') ? '' : s;
+                    };
+
+                    const routeCase = cleanStr(row['Route Case'] || row['route_case'] || row['RouteCase']);
+                    const siteDown = cleanStr(row['Site Down Name'] || row['Site Down ID'] || row['Site Down'] || row.site_name);
+                    const siteDetector = cleanStr(row['Site Detector Name'] || row['Site Detector ID'] || row['Site Detector']);
+
+                    let finalDeskripsi = '';
+                    if (routeCase) {
+                        finalDeskripsi = routeCase;
+                    } else if (siteDown && siteDetector && siteDown !== siteDetector) {
+                        finalDeskripsi = `${siteDown} <> ${siteDetector}`;
+                    } else if (siteDown) {
+                        finalDeskripsi = siteDown;
+                    } else if (siteDetector) {
+                        finalDeskripsi = siteDetector;
+                    } else {
+                        const spanOrRing = cleanStr(row['Span ID FSI'] || row['Spand ID'] || row['Ring ID']);
+                        const descInfo = cleanStr(row.keterangan || row['Keterangan'] || row.deskripsi || row['Ticket Info'] || row['Tiket Info']);
+                        finalDeskripsi = spanOrRing || descInfo || `Tiket ${finalIdTiket}`;
+                    }
 
                     // Priority
                     const finalPriority = row.priority || row['Priority'] || null;
