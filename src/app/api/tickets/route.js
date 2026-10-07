@@ -238,18 +238,21 @@ export async function POST(request) {
         let lensaMessage = '';
         const telegramNik = (technician_niks && Array.isArray(technician_niks) && technician_niks.length > 0) ? technician_niks[0] : null;
         if (telegramNik && category === 'SQUAT') {
-            const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.82:8347/ambil';
+            const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.84:8793/process';
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 seconds timeout
 
+                const payload = {
+                    sto: sto || '',
+                    ticket: id_tiket,
+                    nik: telegramNik
+                };
+
                 const res = await fetch(lensaApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        incident: id_tiket,
-                        em: telegramNik
-                    }),
+                    body: JSON.stringify(payload),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
