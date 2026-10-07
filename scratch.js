@@ -18,8 +18,8 @@ async function run() {
   });
 
   try {
-    const [rows] = await db.query(`SELECT DATE_FORMAT(tiket_time, '%Y-%m') as month, count(*) as total, SUM(CASE WHEN status = 'CLOSED' THEN 1 ELSE 0 END) as closed, SUM(CASE WHEN outage_hours IS NOT NULL THEN 1 ELSE 0 END) as synced FROM tickets WHERE category='SQUAT' GROUP BY month ORDER BY month DESC`);
-    console.table(rows);
+    const [rows] = await db.query(`SELECT deskripsi FROM tickets WHERE category='SQUAT' LIMIT 5`);
+    rows.forEach(r => console.log("---", r.deskripsi));
   } catch(e) {
     console.error(e);
   } finally {

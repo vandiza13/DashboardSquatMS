@@ -119,7 +119,7 @@ export async function GET(request) {
         const [topTicketsData] = await db.query(`
             SELECT 
                 id_tiket as incident,
-                '-' as siteId,
+                deskripsi as siteId,
                 sto,
                 DATE_FORMAT(tiket_time, '%Y-%m-%d %H:%i') as reportedDate,
                 priority as severity,
@@ -136,11 +136,22 @@ export async function GET(request) {
             LIMIT 3
         `, dateParams);
 
-        const topTicketsBekasi = topTicketsData.map(t => ({
-            branch: 'BEKASI',
-            district: 'BEKASI',
-            ...t
-        }));
+        const topTicketsBekasi = topTicketsData.map(t => {
+            let extractedSiteId = t.siteId;
+            if (extractedSiteId) {
+                const parts = extractedSiteId.split('_');
+                // Format umumnya: TSEL_METRO_CKR345_SITENAME_...
+                if (parts.length > 2) {
+                    extractedSiteId = parts[2];
+                }
+            }
+            return {
+                branch: 'BEKASI',
+                district: 'BEKASI',
+                ...t,
+                siteId: extractedSiteId || '-'
+            };
+        });
 
         // E. FORMAT BROADCAST TEXT
         const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
