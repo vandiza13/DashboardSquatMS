@@ -52,13 +52,14 @@ export async function PUT(request, props) {
 
         const body = await request.json();
 
-        const [oldData] = await connection.query('SELECT status, update_progres, category, material, closed_at, sto FROM tickets WHERE id = ?', [id]);
+        const [oldData] = await connection.query('SELECT status, update_progres, category, material, closed_at, sto, id_tiket FROM tickets WHERE id = ?', [id]);
         if (oldData.length === 0) return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
 
         const oldStatus = oldData[0].status;
         const oldProgress = oldData[0].update_progres || '-';
         const oldCategory = oldData[0].category;
         const oldSto = oldData[0].sto;
+        const oldIdTiket = oldData[0].id_tiket;
         const oldMaterial = oldData[0].material || '';
         let newClosedAt = oldData[0].closed_at;
 
@@ -213,7 +214,7 @@ export async function PUT(request, props) {
         const telegramNik = (body.technician_niks && body.technician_niks.length > 0) ? body.technician_niks[0] : null;
 
         let lensaMessage = '';
-        if (isNewTechnician && telegramNik && body.category === 'SQUAT') {
+        if (isNewTechnician && telegramNik && (body.category || oldCategory) === 'SQUAT') {
             const lensaApiUrl = process.env.LENSA_API_URL || 'http://36.93.188.84:8793/process';
 
             try {
@@ -222,7 +223,7 @@ export async function PUT(request, props) {
 
                 const payload = {
                     sto: body.sto || oldSto || '',
-                    ticket: body.id_tiket,
+                    ticket: body.id_tiket || oldIdTiket,
                     nik: telegramNik
                 };
 
