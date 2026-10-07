@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FaTimes, FaCloudUploadAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaTrash, FaTerminal } from 'react-icons/fa';
+import { FaTimes, FaCloudUploadAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaTrash, FaTerminal, FaSyncAlt } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
 // Helper untuk pencarian kolom secara fleksibel (case-insensitive & trim)
@@ -28,6 +28,7 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
         OLO: null
     });
     const [isUploading, setIsUploading] = useState(false);
+    const [isGSheetSyncing, setIsGSheetSyncing] = useState(false);
     const [logs, setLogs] = useState([]);
 
     if (!isOpen) return null;
@@ -35,6 +36,24 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
     const addLog = (type, message) => {
         const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
         setLogs(prev => [...prev, { time, type, message }]);
+    };
+
+    const handleSyncGSheet = async () => {
+        setIsGSheetSyncing(true);
+        addLog('info', 'Memulai auto-sync SQUAT TSEL dari Google Sheet Simarvel H-1...');
+        try {
+            const res = await fetch('/api/sync/squat-sheet', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Gagal sinkronisasi Google Sheet');
+            addLog('success', `[Sukses GSheet] ${data.message || `${data.updated} tiket SQUAT telah disinkronkan!`}`);
+            if (data.updated > 0 && onSuccess) {
+                onSuccess();
+            }
+        } catch (err) {
+            addLog('error', `[Gagal GSheet] ${err.message}`);
+        } finally {
+            setIsGSheetSyncing(false);
+        }
     };
 
     const handleFileChange = (e, category) => {
@@ -202,9 +221,30 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 p-3 rounded-lg text-xs text-red-700 dark:text-red-300">
                         <p className="font-bold mb-1">Catatan Penting:</p>
                         <ul className="list-disc pl-4 space-y-0.5">
-                            <li>Upload file export Insera/Simarvel pada kolom yang sesuai (TSEL atau OLO).</li>
+                            <li>Upload file export Insera/Simarvel pada kolom yang sesuai (TSEL atau OLO), atau gunakan tombol <strong>Auto-Sync Google Sheet</strong> di bawah.</li>
                             <li>Tiket yang cocok akan otomatis disinkronkan nilainya (TTR & Waktu Close) dan dipastikan berstatus <strong>CLOSED</strong>.</li>
                         </ul>
+                    </div>
+
+                    {/* Auto-Sync Langsung dari Google Sheet (Simarvel H-1) */}
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-red-500/10 via-rose-500/10 to-amber-500/10 border border-red-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                        <div>
+                            <h4 className="text-xs font-black text-[var(--text-primary)] flex items-center gap-2">
+                                <FaSyncAlt className={isGSheetSyncing ? 'animate-spin text-rose-500' : 'text-rose-500'} />
+                                Auto-Sync SQUAT TSEL dari Google Sheet
+                            </h4>
+                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                                Sinkronkan otomatis nilai TTR_Finale & waktu Closed dari Google Sheet Simarvel H-1 tanpa upload Excel.
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleSyncGSheet}
+                            disabled={isGSheetSyncing || isUploading}
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-2 shrink-0 cursor-pointer"
+                        >
+                            {isGSheetSyncing ? <FaSpinner className="animate-spin" /> : <FaSyncAlt />}
+                            <span>{isGSheetSyncing ? 'Menyinkronkan...' : 'Mulai Sync GSheet'}</span>
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

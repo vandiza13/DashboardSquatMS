@@ -12,6 +12,7 @@ import {
 import MsComplianceTable from '@/components/MsComplianceTable';
 import MttriComplianceTable from '@/components/MttriComplianceTable';
 import OloComplianceTable from '@/components/OloComplianceTable';
+import TsaComplianceTable from '@/components/TsaComplianceTable';
 import Skeleton from '@/components/Skeleton';
 import { pusherClient } from '@/lib/pusher-client';
 
@@ -93,7 +94,7 @@ export default function SlaPerformancePage() {
                         </h2>
                     </div>
                     <p className="text-xs md:text-sm text-[var(--text-muted)] mt-1.5 font-medium">
-                        Analisa waktu penyelesaian tiket (TTR) dan kepatuhan target SLA bulanan (MS-Eksternal, SQUAT TSEL & SQUAT OLO)
+                        Analisa waktu penyelesaian tiket (TTR), MTTRi, TSA, dan kepatuhan target SLA bulanan
                     </p>
                 </div>
 
@@ -166,7 +167,10 @@ export default function SlaPerformancePage() {
                         selectedYear={selectedYear} 
                     />
 
-                    {/* 3. TABEL SQUAT OLO */}
+                    {/* 3. MODUL KPI TSA (TRANSPORT SERVICE AVAILABILITY) */}
+                    <TsaComplianceTable selectedMonth={selectedMonth} selectedYear={selectedYear} />
+
+                    {/* 4. TABEL SQUAT OLO */}
                     <OloComplianceTable 
                         data={data?.oloCompliance} 
                         selectedMonth={selectedMonth} 
