@@ -145,7 +145,21 @@ export async function POST(request) {
                 const rawImpacted = row.impacted_sites;
                 const rawOutage = row.outage_hours;
                 
-                const finalImpacted = rawImpacted && !isNaN(parseInt(rawImpacted, 10)) ? parseInt(rawImpacted, 10) : null;
+                let finalImpacted = null;
+                if (rawImpacted) {
+                    const strImpacted = String(rawImpacted);
+                    const matchBilling = strImpacted.match(/Site Berbilling\s*:\s*(\d+)/i);
+                    const matchJumlah = strImpacted.match(/Jumlah Site\s*:\s*(\d+)/i);
+                    
+                    if (matchBilling) {
+                        finalImpacted = parseInt(matchBilling[1], 10);
+                    } else if (matchJumlah) {
+                        finalImpacted = parseInt(matchJumlah[1], 10);
+                    } else if (!isNaN(parseInt(strImpacted, 10))) {
+                        finalImpacted = parseInt(strImpacted, 10);
+                    }
+                }
+
                 let finalOutage = null;
                 if (rawOutage) {
                     const cleanOutage = String(rawOutage).replace(',', '.');
