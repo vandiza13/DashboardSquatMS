@@ -20,7 +20,7 @@ const SQUAT_COLUMN_CANDIDATES = {
     id: ['Incident', 'Incident ID', 'Incident_ID', 'ID Tiket', 'Ticket ID', 'No Tiket', 'id_tiket', 'Nomor TT'],
     ttr: ['TTR_Finale', 'TTR Finale', 'TTR', 'TTR_Customer', 'TTR Customer', 'ttr_finale', 'TTR NET (Jam)', 'TTR NET'],
     close_time: ['c_resolve_date', 'Resolve Date', 'c_resolve_time', 'c_close_date', 'Closed Date', 'Req Close', 'Req Close Time', 'Close Time', 'closed_at'],
-    impacted_sites: ['total impacted site (manual)', 'total impacted site', 'impacted sites', 'impacted site'],
+    impacted_sites: ['total impacted site (manual)', 'total impacted site', 'impacted sites', 'impacted site', 'impacted_site'],
     outage_hours: ['total outage (manual)', 'total outage', 'outage hours', 'outage']
 };
 
