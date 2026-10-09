@@ -19,7 +19,9 @@ const findMatchingColumn = (row, candidates) => {
 const SQUAT_COLUMN_CANDIDATES = {
     id: ['Incident', 'Incident ID', 'Incident_ID', 'ID Tiket', 'Ticket ID', 'No Tiket', 'id_tiket', 'Nomor TT'],
     ttr: ['TTR_Finale', 'TTR Finale', 'TTR', 'TTR_Customer', 'TTR Customer', 'ttr_finale', 'TTR NET (Jam)', 'TTR NET'],
-    close_time: ['c_resolve_date', 'Resolve Date', 'c_resolve_time', 'c_close_date', 'Closed Date', 'Req Close', 'Req Close Time', 'Close Time', 'closed_at']
+    close_time: ['c_resolve_date', 'Resolve Date', 'c_resolve_time', 'c_close_date', 'Closed Date', 'Req Close', 'Req Close Time', 'Close Time', 'closed_at'],
+    impacted_sites: ['total impacted site (manual)', 'total impacted site', 'impacted sites', 'impacted site'],
+    outage_hours: ['total outage (manual)', 'total outage', 'outage hours', 'outage']
 };
 
 export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
@@ -88,6 +90,8 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
                 const idCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.id);
                 const ttrCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.ttr);
                 const closeTimeCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.close_time);
+                const impactedCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.impacted_sites);
+                const outageCol = findMatchingColumn(firstRow, SQUAT_COLUMN_CANDIDATES.outage_hours);
 
                 if (!idCol || !ttrCol) {
                     const missing = [];
@@ -102,7 +106,9 @@ export default function SyncSquatModal({ isOpen, onClose, onSuccess }) {
                     .map(row => ({
                         id_tiket: String(row[idCol]).trim(),
                         ttr: row[ttrCol] !== undefined ? String(row[ttrCol]).trim() : '0',
-                        close_time: closeTimeCol && row[closeTimeCol] ? String(row[closeTimeCol]).trim() : null
+                        close_time: closeTimeCol && row[closeTimeCol] ? String(row[closeTimeCol]).trim() : null,
+                        impacted_sites: impactedCol && row[impactedCol] !== undefined ? String(row[impactedCol]).trim() : null,
+                        outage_hours: outageCol && row[outageCol] !== undefined ? String(row[outageCol]).trim() : null
                     }));
 
                 updateFile(category, { 

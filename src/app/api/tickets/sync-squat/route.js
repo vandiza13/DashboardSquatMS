@@ -92,7 +92,7 @@ export async function POST(request) {
         // Catatan: Tidak membatasi status = 'CLOSED' agar tiket yang masih OPEN/SC di sistem
         // namun sudah CLOSED di Insera otomatis tersinkron & ditutup rapi.
         const [dbTickets] = await db.query(
-            `SELECT id, id_tiket, id_tiket_tacc, status FROM tickets WHERE category = 'SQUAT'`
+            `SELECT id, id_tiket, id_tiket_tacc, status, impacted_sites, outage_hours FROM tickets WHERE category = 'SQUAT'`
         );
 
         if (!dbTickets || dbTickets.length === 0) {
@@ -141,10 +141,24 @@ export async function POST(request) {
                 const ttrNumMatch = cleanTtr.match(/^-?\d+(?:\.\d+)?/);
                 const finalTtr = ttrNumMatch ? ttrNumMatch[0] : '0';
 
+                // Bersihkan Impacted Sites & Outage Hours
+                const rawImpacted = row.impacted_sites;
+                const rawOutage = row.outage_hours;
+                
+                const finalImpacted = rawImpacted && !isNaN(parseInt(rawImpacted, 10)) ? parseInt(rawImpacted, 10) : null;
+                let finalOutage = null;
+                if (rawOutage) {
+                    const cleanOutage = String(rawOutage).replace(',', '.');
+                    const outageNumMatch = cleanOutage.match(/^-?\d+(?:\.\d+)?/);
+                    if (outageNumMatch) finalOutage = parseFloat(outageNumMatch[0]);
+                }
+
                 toUpdate.push({
                     id: matchedTicket.id,
                     ttr: finalTtr,
-                    close_time_str: parseCloseTime(row.close_time)
+                    close_time_str: parseCloseTime(row.close_time),
+                    impacted_sites: finalImpacted !== null ? finalImpacted : matchedTicket.impacted_sites,
+                    outage_hours: finalOutage !== null ? finalOutage : matchedTicket.outage_hours
                 });
             }
         }
@@ -170,6 +184,12 @@ export async function POST(request) {
 
             const closeTimeCases = [];
             const closeTimeParams = [];
+            
+            const impactedCases = [];
+            const impactedParams = [];
+            
+            const outageCases = [];
+            const outageParams = [];
 
             for (const item of batch) {
                 ttrCases.push(`WHEN id = ? THEN ?`);
@@ -179,6 +199,16 @@ export async function POST(request) {
                     closeTimeCases.push(`WHEN id = ? THEN ?`);
                     closeTimeParams.push(item.id, item.close_time_str);
                 }
+                
+                if (item.impacted_sites !== null && item.impacted_sites !== undefined) {
+                    impactedCases.push(`WHEN id = ? THEN ?`);
+                    impactedParams.push(item.id, item.impacted_sites);
+                }
+
+                if (item.outage_hours !== null && item.outage_hours !== undefined) {
+                    outageCases.push(`WHEN id = ? THEN ?`);
+                    outageParams.push(item.id, item.outage_hours);
+                }
             }
 
             let sql = `UPDATE tickets SET ttr_tacc = CASE ${ttrCases.join(' ')} ELSE ttr_tacc END, status = 'CLOSED'`;
@@ -187,6 +217,16 @@ export async function POST(request) {
             if (closeTimeCases.length > 0) {
                 sql += `, closed_at = CASE ${closeTimeCases.join(' ')} ELSE closed_at END, last_update_time = CASE ${closeTimeCases.join(' ')} ELSE last_update_time END`;
                 params.push(...closeTimeParams, ...closeTimeParams);
+            }
+            
+            if (impactedCases.length > 0) {
+                sql += `, impacted_sites = CASE ${impactedCases.join(' ')} ELSE impacted_sites END`;
+                params.push(...impactedParams);
+            }
+
+            if (outageCases.length > 0) {
+                sql += `, outage_hours = CASE ${outageCases.join(' ')} ELSE outage_hours END`;
+                params.push(...outageParams);
             }
 
             sql += ` WHERE id IN (${ids.map(() => '?').join(',')})`;
