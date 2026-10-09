@@ -58,7 +58,19 @@ export async function GET(request) {
         const outageMtd = parseFloat(row.outageMtd);
 
         // A. ACHIEVEMENT TSA (B.1)
-        const totalBilling = 757; // Sesuai kesepakatan Bekasi Only
+        // Dapatkan Total Billing dari tabel billing_tsa untuk bulan ini
+        let totalBilling = 757; // Default fallback
+        const [billingRow] = await db.query(`SELECT total_sites FROM billing_tsa WHERE month_year = ? LIMIT 1`, [monthParam]);
+        if (billingRow && billingRow.length > 0) {
+            totalBilling = billingRow[0].total_sites;
+        } else {
+            // Jika bulan ini belum ada, ambil yang paling terakhir diinput
+            const [fallbackRow] = await db.query(`SELECT total_sites FROM billing_tsa ORDER BY month_year DESC LIMIT 1`);
+            if (fallbackRow && fallbackRow.length > 0) {
+                totalBilling = fallbackRow[0].total_sites;
+            }
+        }
+
         const targetPct = 99.95;
         const supportedHours = totalBilling * hariBerjalan * 24;
         

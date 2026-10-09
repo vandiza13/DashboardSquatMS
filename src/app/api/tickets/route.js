@@ -180,17 +180,19 @@ export async function POST(request) {
         await connection.beginTransaction();
 
         let finalBranch = branch || null;
+        let finalServiceArea = null;
         if (sto) {
-            const [mappingRes] = await connection.query('SELECT branch FROM sto_branch_mappings WHERE sto = ?', [sto.toUpperCase()]);
+            const [mappingRes] = await connection.query('SELECT branch, service_area FROM sto_branch_mappings WHERE sto = ?', [sto.toUpperCase()]);
             if (mappingRes.length > 0) {
                 finalBranch = mappingRes[0].branch;
+                finalServiceArea = mappingRes[0].service_area;
             }
         }
 
         const [result] = await connection.query(
             `INSERT INTO tickets 
-            (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto, branch) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?, ?)`,
+            (category, subcategory, priority, id_tiket, id_tiket_tacc, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, partner_technicians, sto, branch, service_area) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?, ?, ?)`,
             [
                 category,
                 subcategory,
@@ -203,7 +205,8 @@ export async function POST(request) {
                 user.userId,
                 partner_technicians || null,
                 sto || null,
-                finalBranch
+                finalBranch,
+                finalServiceArea
             ]
         );
 

@@ -54,6 +54,12 @@ export default function Sidebar({ isOpen, isDesktopOpen = true, onClose, onToggl
                 icon: FaNetworkWired,
                 color: 'blue'
             });
+            menuItems.splice(5, 0, {
+                name: 'Billing TSA',
+                href: '/dashboard/billing-tsa',
+                icon: FaDatabase,
+                color: 'emerald'
+            });
         }
     }
 

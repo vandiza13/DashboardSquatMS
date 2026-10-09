@@ -91,11 +91,15 @@ export async function POST(request) {
         };
 
         // Fetch STO mappings to accurately map STO to Branch
-        const [mappings] = await connection.query('SELECT sto, branch FROM sto_branch_mappings');
+        const [mappings] = await connection.query('SELECT sto, branch, service_area FROM sto_branch_mappings');
         const stoToBranch = {};
+        const stoToSA = {};
         for (const m of mappings) {
             if (m.sto && m.branch) {
                 stoToBranch[m.sto.toUpperCase()] = m.branch;
+                if (m.service_area) {
+                    stoToSA[m.sto.toUpperCase()] = m.service_area;
+                }
             }
         }
 
@@ -127,8 +131,11 @@ export async function POST(request) {
             
             const sto = rawWorkzone ? rawWorkzone.toUpperCase() : null;
             let branch = rawWitel || null;
-            if (sto && stoToBranch[sto]) {
-                branch = stoToBranch[sto];
+            let service_area = null;
+
+            if (sto) {
+                if (stoToBranch[sto]) branch = stoToBranch[sto];
+                if (stoToSA[sto]) service_area = stoToSA[sto];
             }
 
             let subcategory = null;
@@ -150,8 +157,8 @@ export async function POST(request) {
             // We use 'SQUAT' as category for TSEL and OLO
             const [result] = await connection.query(
                 `INSERT IGNORE INTO tickets 
-                (category, subcategory, priority, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, sto, branch) 
-                VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?)`,
+                (category, subcategory, priority, id_tiket, tiket_time, deskripsi, status, created_by_user_id, updated_by_user_id, last_update_time, sto, branch, service_area) 
+                VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, NOW(), ?, ?, ?)`,
                 [
                     'SQUAT',
                     subcategory,
@@ -162,7 +169,8 @@ export async function POST(request) {
                     isWebhook ? 1 : user.userId,
                     isWebhook ? 1 : user.userId,
                     sto,
-                    branch
+                    branch,
+                    service_area
                 ]
             );
 

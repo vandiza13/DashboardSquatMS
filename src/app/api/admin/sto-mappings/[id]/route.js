@@ -15,15 +15,15 @@ export async function PUT(request, { params }) {
 
         const { id } = await params;
         const body = await request.json();
-        const { sto, branch } = body;
+        const { sto, branch, service_area } = body;
 
         if (!sto || !branch) {
             return NextResponse.json({ error: 'STO dan Branch wajib diisi' }, { status: 400 });
         }
 
         const [result] = await db.query(
-            'UPDATE sto_branch_mappings SET sto = ?, branch = ? WHERE id = ?',
-            [sto.toUpperCase(), branch.toUpperCase(), id]
+            'UPDATE sto_branch_mappings SET sto = ?, branch = ?, service_area = ? WHERE id = ?',
+            [sto.toUpperCase(), branch.toUpperCase(), service_area || null, id]
         );
 
         if (result.affectedRows === 0) {

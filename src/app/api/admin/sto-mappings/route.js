@@ -31,15 +31,15 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { sto, branch } = body;
+        const { sto, branch, service_area } = body;
 
         if (!sto || !branch) {
             return NextResponse.json({ error: 'STO dan Branch wajib diisi' }, { status: 400 });
         }
 
         await db.query(
-            'INSERT INTO sto_branch_mappings (sto, branch) VALUES (?, ?)',
-            [sto.toUpperCase(), branch.toUpperCase()]
+            'INSERT INTO sto_branch_mappings (sto, branch, service_area) VALUES (?, ?, ?)',
+            [sto.toUpperCase(), branch.toUpperCase(), service_area || null]
         );
 
         return NextResponse.json({ message: 'Mapping berhasil dibuat' }, { status: 201 });

@@ -7,7 +7,7 @@ import {
     FaHardHat, FaHistory, FaLayerGroup, FaWhatsapp, FaFileExcel,
     FaCalendarAlt, FaInbox, FaFolderOpen, FaFileUpload,
     FaHourglassHalf, FaFire, FaExclamationCircle, FaStopwatch, FaTag,
-    FaSyncAlt, FaEye, FaServer, FaBolt
+    FaSyncAlt, FaEye, FaServer, FaBolt, FaEllipsisV
 } from 'react-icons/fa';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
@@ -172,6 +172,7 @@ export default function TicketsPage() {
     const [isSyncTaccModalOpen, setIsSyncTaccModalOpen] = useState(false); 
     const [isSyncSquatModalOpen, setIsSyncSquatModalOpen] = useState(false); 
     const [exportLoading, setExportLoading] = useState(false); 
+    const [activeDropdownId, setActiveDropdownId] = useState(null);
 
     // [PUSHER] 2. State untuk trigger refresh otomatis
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -429,37 +430,12 @@ export default function TicketsPage() {
                 <div className="flex flex-col">
                     <Link href={`/dashboard/tickets/${ticket.id}`} className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline text-base">{ticket.id_tiket}</Link>
 
-                    {/* [UPDATE MOBILE] Menampilkan TACC dan TTR jika ada */}
-                    {(ticket.id_tiket_tacc || ticket.ttr_tacc) && (
+                    {/* [UPDATE MOBILE] Menampilkan TACC */}
+                    {ticket.id_tiket_tacc && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                            {ticket.id_tiket_tacc && (
-                                <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800/50">
-                                    <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
-                                </span>
-                            )}
-                            {ticket.ttr_tacc && (
-                                <>
-                                    <span 
-                                        className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                                            isTtrNotComply(ticket) 
-                                            ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
-                                            : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
-                                        }`}
-                                        title={`Batas SLA: ${getTtrThreshold(ticket)} Jam (${isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'})`}
-                                    >
-                                        <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
-                                    </span>
-                                    {ticket.category === 'SQUAT' && (
-                                        <span className={`flex items-center text-[9px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
-                                            isTtrNotComply(ticket)
-                                            ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'
-                                            : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700'
-                                        }`}>
-                                            {isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'}
-                                        </span>
-                                    )}
-                                </>
-                            )}
+                            <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800/50">
+                                <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
+                            </span>
                         </div>
                     )}
 
@@ -467,6 +443,28 @@ export default function TicketsPage() {
                 </div>
                 <div className="flex flex-col items-end gap-1">
                     <StatusBadge status={ticket.status} />
+                    {ticket.ttr_tacc && (
+                        <div className="flex flex-col items-end gap-1 mt-0.5">
+                            <span 
+                                className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                    isTtrNotComply(ticket) 
+                                    ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
+                                    : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
+                                }`}
+                            >
+                                <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                            </span>
+                            {ticket.category === 'SQUAT' && (
+                                <span className={`flex items-center text-[9px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                                    isTtrNotComply(ticket)
+                                    ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'
+                                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700'
+                                }`}>
+                                    {isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'}
+                                </span>
+                            )}
+                        </div>
+                    )}
                     {ticket.status !== 'CLOSED' && (() => {
                         const aging = getTicketAging(ticket);
                         return aging ? <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${aging.className}`}>{aging.icon} {aging.text}</span> : null;
@@ -475,11 +473,14 @@ export default function TicketsPage() {
             </div>
 
             {/* Priority & Meta */}
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1 mb-1">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-[var(--bg-base)] ${CATEGORY_COLORS[ticket.category] || CATEGORY_COLORS.DEFAULT}`}>{ticket.category} - {ticket.subcategory}</span>
-                {ticket.sto && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span>}
-                {ticket.branch && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">Branch: {ticket.branch}</span>}
                 {ticket.priority && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white dark:bg-slate-700 dark:border-slate-600 shadow-sm whitespace-nowrap">{ticket.priority}</span>}
+            </div>
+            <div className="flex flex-wrap gap-1 mb-2">
+                {ticket.sto && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span>}
+                {ticket.service_area && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">SA: {ticket.service_area}</span>}
+                {ticket.branch && <span className="inline-block rounded px-2 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">Branch: {ticket.branch}</span>}
             </div>
 
             <div className="text-[var(--text-primary)] text-xs bg-[var(--bg-base)] p-2.5 rounded-lg border border-[var(--border-color)]">
@@ -790,7 +791,7 @@ export default function TicketsPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-[var(--bg-base)] text-[var(--text-secondary)] uppercase tracking-wider font-extrabold border-b border-[var(--border-color)] text-[11px]">
-                            <tr><th className="px-6 py-3.5">Info Tiket</th><th className="px-6 py-3.5">Deskripsi</th><th className="px-6 py-3.5">Teknisi</th><th className="px-6 py-3.5">Status & SLA</th><th className="px-6 py-3.5">Update</th><th className="px-6 py-3.5 text-center">Aksi</th></tr>
+                            <tr><th className="px-6 py-3.5">Info Tiket</th><th className="px-6 py-3.5">Deskripsi</th><th className="px-6 py-3.5">Teknisi</th><th className="px-6 py-3.5">Status & SLA</th><th className="px-6 py-3.5">Update</th><th className="px-6 py-3.5 text-right">Aksi</th></tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-subtle)]">
                             {loading ? (
@@ -816,37 +817,12 @@ export default function TicketsPage() {
                                     <td className="px-6 py-4 align-top">
                                         <div className="mb-1"><Link href={`/dashboard/tickets/${ticket.id}`} className="font-bold text-blue-600 dark:text-blue-400 hover:underline text-xs">{ticket.id_tiket}</Link></div>
 
-                                        {/* [BARU] TAMPILAN TACC & TTR DI DESKTOP DENGAN LOGIKA WARNA MERAH */}
-                                        {(ticket.id_tiket_tacc || ticket.ttr_tacc) && (
+                                        {/* [BARU] TAMPILAN TACC DI DESKTOP */}
+                                        {ticket.id_tiket_tacc && (
                                             <div className="mt-1 flex flex-wrap gap-1">
-                                                {ticket.id_tiket_tacc && (
-                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
-                                                        <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
-                                                    </span>
-                                                )}
-                                                {ticket.ttr_tacc && (
-                                                    <>
-                                                        <span 
-                                                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                                                                isTtrNotComply(ticket) 
-                                                                ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
-                                                                : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
-                                                            }`}
-                                                            title={`Batas SLA: ${getTtrThreshold(ticket)} Jam (${isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'})`}
-                                                        >
-                                                            <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
-                                                        </span>
-                                                        {ticket.category === 'SQUAT' && (
-                                                            <span className={`inline-flex items-center text-[9px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
-                                                                isTtrNotComply(ticket)
-                                                                ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'
-                                                                : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700'
-                                                            }`}>
-                                                                {isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'}
-                                                            </span>
-                                                        )}
-                                                    </>
-                                                )}
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
+                                                    <FaTag size={8} /> TACC: {ticket.id_tiket_tacc}
+                                                </span>
                                             </div>
                                         )}
 
@@ -854,8 +830,11 @@ export default function TicketsPage() {
                                             <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border uppercase bg-[var(--bg-base)] ${CATEGORY_COLORS[ticket.category]}`}>{ticket.category}-{ticket.subcategory}</span>
                                             {ticket.priority && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-slate-800 bg-slate-800 text-white dark:bg-slate-700 dark:border-slate-600 whitespace-nowrap">{ticket.priority}</span>}
                                         </div>
-                                        {ticket.sto && <div className="mt-1"><span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span></div>}
-                                        {ticket.branch && <div className="mt-1"><span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">Branch: {ticket.branch}</span></div>}
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {ticket.sto && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-[var(--border-color)] bg-[var(--bg-base)] text-[var(--text-secondary)]">STO: {ticket.sto}</span>}
+                                            {ticket.service_area && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">SA: {ticket.service_area}</span>}
+                                            {ticket.branch && <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold border border-teal-200 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">Branch: {ticket.branch}</span>}
+                                        </div>
                                         <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(ticket.tiket_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</div>
                                     </td>
                                     <td className="px-6 py-4 align-top max-w-sm">
@@ -885,14 +864,27 @@ export default function TicketsPage() {
                                     <td className="px-6 py-4 align-top">
                                         <div className="flex flex-col gap-1.5 items-start">
                                             <StatusBadge status={ticket.status} />
-                                            {ticket.category === 'SQUAT' && ticket.ttr_tacc && (
-                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-wider ${
-                                                    isTtrNotComply(ticket)
-                                                    ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50'
-                                                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
-                                                }`}>
-                                                    {isTtrNotComply(ticket) ? '🔴 NOT COMPLY' : '🟢 COMPLY'}
-                                                </span>
+                                            {ticket.ttr_tacc && (
+                                                <div className="flex flex-col gap-1.5 items-start mt-0.5">
+                                                    <span 
+                                                        className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                                            isTtrNotComply(ticket) 
+                                                            ? 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50' 
+                                                            : 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800/50'
+                                                        }`}
+                                                    >
+                                                        <FaStopwatch size={8}/> TTR: {ticket.ttr_tacc} Jam
+                                                    </span>
+                                                    {ticket.category === 'SQUAT' && (
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-wider ${
+                                                            isTtrNotComply(ticket)
+                                                            ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50'
+                                                            : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'
+                                                        }`}>
+                                                            {isTtrNotComply(ticket) ? 'NOT COMPLY' : 'COMPLY'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                             {(() => { const aging = getTicketAging(ticket); return aging ? <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap bg-[var(--bg-base)] ${aging.className}`}>{aging.icon}{aging.text}</span> : null; })()}
                                         </div>
@@ -903,12 +895,38 @@ export default function TicketsPage() {
                                             <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1 mt-1"><FaHistory /> {ticket.updater_name}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 align-top text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <button onClick={() => handleOpenTRModal(ticket)} className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm" title="Salin TR"><FaEye /></button>
-                                            {userRole !== 'View' && <button onClick={() => handleEditClick(ticket)} className="p-1.5 text-blue-500 hover:bg-blue-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaEdit /></button>}
-                                            <button onClick={() => handleHistoryClick(ticket.id, ticket.id_tiket)} className="p-1.5 text-purple-500 hover:bg-purple-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaHistory /></button>
-                                            {userRole === 'SuperAdmin' && <button onClick={() => handleDeleteClick(ticket.id)} className="p-1.5 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded border border-[var(--border-color)] shadow-sm"><FaTrash /></button>}
+                                    <td className="px-6 py-4 align-top text-right">
+                                        <div className="relative inline-block text-left">
+                                            <button 
+                                                onClick={() => setActiveDropdownId(activeDropdownId === ticket.id ? null : ticket.id)} 
+                                                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-base)] rounded-full transition-all"
+                                            >
+                                                <FaEllipsisV size={14} />
+                                            </button>
+                                            
+                                            {activeDropdownId === ticket.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)}></div>
+                                                    <div className="absolute right-0 mt-1 w-36 bg-[var(--bg-surface)] rounded-xl shadow-lg border border-[var(--border-color)] z-50 overflow-hidden py-1">
+                                                        {userRole !== 'View' && (
+                                                            <button onClick={() => { handleEditClick(ticket); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2.5 text-xs text-[var(--text-secondary)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2 transition-colors">
+                                                                <FaEdit size={12} /> Update
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => { handleHistoryClick(ticket.id, ticket.id_tiket); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2.5 text-xs text-[var(--text-secondary)] hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center gap-2 transition-colors">
+                                                            <FaHistory size={12} /> History
+                                                        </button>
+                                                        <button onClick={() => { handleOpenTRModal(ticket); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2.5 text-xs text-[var(--text-secondary)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center gap-2 transition-colors">
+                                                            <FaEye size={12} /> TimeReport
+                                                        </button>
+                                                        {userRole === 'SuperAdmin' && (
+                                                            <button onClick={() => { handleDeleteClick(ticket.id); setActiveDropdownId(null); }} className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors border-t border-[var(--border-color)]">
+                                                                <FaTrash size={12} /> Delete
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -922,3 +940,4 @@ export default function TicketsPage() {
         </div>
     );
 }
+

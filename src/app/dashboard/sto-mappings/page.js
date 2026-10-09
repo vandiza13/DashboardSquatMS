@@ -17,7 +17,7 @@ export default function StoMappingsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('CREATE'); // 'CREATE', 'EDIT'
     const [selectedMapping, setSelectedMapping] = useState(null);
-    const [formData, setFormData] = useState({ sto: '', branch: '' });
+    const [formData, setFormData] = useState({ sto: '', branch: '', service_area: '' });
     
     // Search & Filter
     const [searchTerm, setSearchTerm] = useState('');
@@ -92,14 +92,14 @@ export default function StoMappingsPage() {
     // --- MODAL TRIGGERS ---
     const openCreateModal = () => {
         setModalMode('CREATE');
-        setFormData({ sto: '', branch: '' });
+        setFormData({ sto: '', branch: '', service_area: '' });
         setIsModalOpen(true);
     };
 
     const openEditModal = (mapping) => {
         setModalMode('EDIT');
         setSelectedMapping(mapping);
-        setFormData({ sto: mapping.sto, branch: mapping.branch });
+        setFormData({ sto: mapping.sto, branch: mapping.branch, service_area: mapping.service_area || '' });
         setIsModalOpen(true);
     };
 
@@ -111,7 +111,8 @@ export default function StoMappingsPage() {
     // --- FILTER ---
     const filteredMappings = mappings.filter(m => 
         m.sto.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        m.branch.toLowerCase().includes(searchTerm.toLowerCase())
+        m.branch.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.service_area && m.service_area.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     return (
@@ -170,6 +171,7 @@ export default function StoMappingsPage() {
                             <tr className="bg-[var(--bg-base)] border-b border-[var(--border-subtle)] text-xs uppercase tracking-wider text-[var(--text-muted)] font-bold">
                                 <th className="px-6 py-4 w-16 text-center">#</th>
                                 <th className="px-6 py-4">Kode STO</th>
+                                <th className="px-6 py-4">Service Area (SA)</th>
                                 <th className="px-6 py-4">Nama Branch</th>
                                 <th className="px-6 py-4 w-32 text-center">Aksi</th>
                             </tr>
@@ -177,7 +179,7 @@ export default function StoMappingsPage() {
                         <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="4" className="py-16 text-center text-[var(--text-muted)]">
+                                    <td colSpan="5" className="py-16 text-center text-[var(--text-muted)]">
                                         <div className="flex flex-col items-center justify-center gap-3">
                                             <div className="h-8 w-8 rounded-full border-4 border-[var(--border-color)] border-t-blue-500 animate-spin"></div>
                                             <span className="font-medium animate-pulse">Memuat data STO...</span>
@@ -186,7 +188,7 @@ export default function StoMappingsPage() {
                                 </tr>
                             ) : filteredMappings.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" className="py-16 text-center">
+                                    <td colSpan="5" className="py-16 text-center">
                                         <div className="flex flex-col items-center justify-center gap-2">
                                             <div className="bg-[var(--bg-base)] p-4 rounded-full text-[var(--text-muted)] mb-2"><FaNetworkWired size={24} /></div>
                                             <p className="text-[var(--text-secondary)] font-medium">Tidak ada data STO.</p>
@@ -208,6 +210,15 @@ export default function StoMappingsPage() {
                                                     <span className="text-[10px] text-[var(--text-muted)] font-mono opacity-0 group-hover:opacity-100 transition-opacity">ID: {m.id}</span>
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {m.service_area ? (
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800">
+                                                    {m.service_area}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[var(--text-muted)] text-xs italic">-</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800">
@@ -259,6 +270,17 @@ export default function StoMappingsPage() {
                                     placeholder="Contoh: BEK"
                                 />
                                 <p className="text-[10px] text-[var(--text-muted)] mt-1">Gunakan singkatan resmi 3 huruf.</p>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Service Area (SA)</label>
+                                <input
+                                    type="text"
+                                    value={formData.service_area}
+                                    onChange={e => setFormData({ ...formData, service_area: e.target.value })}
+                                    className="w-full rounded-xl bg-[var(--bg-base)] border border-[var(--border-color)] focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all p-3 text-sm text-[var(--text-primary)] font-bold placeholder-[var(--text-muted)] shadow-inner"
+                                    placeholder="Contoh: Bekasi (Opsional)"
+                                />
                             </div>
 
                             <div className="space-y-1">
