@@ -143,7 +143,6 @@ export async function POST(request) {
 
                 // Bersihkan Impacted Sites & Outage Hours
                 const rawImpacted = row.impacted_sites;
-                const rawOutage = row.outage_hours;
                 
                 let finalImpacted = null;
                 if (rawImpacted) {
@@ -161,10 +160,12 @@ export async function POST(request) {
                 }
 
                 let finalOutage = null;
-                if (rawOutage) {
-                    const cleanOutage = String(rawOutage).replace(',', '.');
-                    const outageNumMatch = cleanOutage.match(/^-?\d+(?:\.\d+)?/);
-                    if (outageNumMatch) finalOutage = parseFloat(outageNumMatch[0]);
+                // Hitung otomatis Outage Hours = TTR x Impacted Site
+                if (finalImpacted !== null && finalImpacted > 0 && finalTtr) {
+                    const parsedTtr = parseFloat(finalTtr);
+                    if (!isNaN(parsedTtr)) {
+                        finalOutage = parsedTtr * finalImpacted;
+                    }
                 }
 
                 toUpdate.push({
