@@ -256,16 +256,23 @@ export default function UmtSitesPage() {
                 </div>
 
                 {/* Desktop Table */}
-                <div className="hidden md:block overflow-hidden rounded-2xl bg-[var(--bg-surface)] shadow-sm border border-[var(--border-color)]">
+                <div className="hidden md:block overflow-hidden rounded-2xl bg-[var(--bg-surface)] shadow-xs border border-[var(--border-color)]">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-[var(--bg-base)] text-[var(--text-muted)] uppercase tracking-wider font-bold border-b border-[var(--border-color)] text-xs">
+                        <table className="w-full text-left table-fixed border-collapse text-sm">
+                            <colgroup>
+                                <col className="w-[18%]" />
+                                <col className="w-[36%]" />
+                                <col className="w-[18%]" />
+                                <col className="w-[16%]" />
+                                <col className="w-[12%]" />
+                            </colgroup>
+                            <thead className="bg-[var(--bg-base)] text-[var(--text-muted)] uppercase tracking-wider font-extrabold border-b border-[var(--border-color)] text-[11px]">
                                 <tr>
-                                    <th className="px-6 py-4">Site ID</th>
-                                    <th className="px-6 py-4">Nama Site</th>
-                                    <th className="px-6 py-4">STO</th>
-                                    <th className="px-6 py-4">Ring</th>
-                                    <th className="px-6 py-4 text-center">Aksi</th>
+                                    <th className="px-5 py-3.5">Site ID</th>
+                                    <th className="px-5 py-3.5">Nama Site</th>
+                                    <th className="px-5 py-3.5 text-center">STO</th>
+                                    <th className="px-5 py-3.5 text-center">Ring</th>
+                                    <th className="px-5 py-3.5 text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border-subtle)] text-xs">
@@ -273,25 +280,48 @@ export default function UmtSitesPage() {
                                     <TableSkeleton />
                                 ) : sites.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="p-12 text-center text-[var(--text-muted)] italic font-semibold">
+                                        <td colSpan="5" className="p-12 text-center text-[var(--text-muted)] italic font-semibold text-xs">
                                             Data Site UMT kosong atau pencarian Anda nihil.
                                         </td>
                                     </tr>
                                 ) : (
                                     sites.map((site) => (
-                                        <tr key={site.id} className="hover:bg-[var(--bg-base)] transition-colors border-b border-[var(--border-subtle)]">
-                                            <td className="px-6 py-4 font-extrabold text-[var(--text-primary)] text-sm">{site.site_id}</td>
-                                            <td className="px-6 py-4 text-[var(--text-secondary)] font-medium max-w-xs truncate">{site.site_name || '-'}</td>
-                                            <td className="px-6 py-4 font-bold text-[var(--text-secondary)]">{site.sto || '-'}</td>
-                                            <td className="px-6 py-4 font-bold text-[var(--text-secondary)]">{site.ring || '-'}</td>
-                                            <td className="px-6 py-4 text-center">
+                                        <tr key={site.id} className="hover:bg-[var(--bg-base)]/60 transition-colors group">
+                                            <td className="px-5 py-3.5 align-middle">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 shadow-xs shadow-orange-500/50"></span>
+                                                    <span className="font-mono font-extrabold text-[var(--text-primary)] text-sm tracking-tight truncate">
+                                                        {site.site_id}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3.5 align-middle">
+                                                <div className="font-bold text-[var(--text-primary)] text-xs truncate leading-snug" title={site.site_name}>
+                                                    {site.site_name || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3.5 align-middle text-center">
+                                                <span className="inline-flex items-center justify-center font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-[var(--bg-base)] border border-[var(--border-color)] text-[var(--text-primary)] shadow-2xs">
+                                                    {site.sto || '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5 align-middle text-center">
+                                                {site.ring ? (
+                                                    <span className="inline-block font-extrabold px-2 py-0.5 rounded-md border text-[10px] tracking-wide uppercase bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30">
+                                                        {site.ring}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[var(--text-muted)] font-medium">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-3.5 align-middle text-center">
                                                 <div className="flex items-center justify-center gap-1.5">
-                                                    <button onClick={() => handleViewClick(site)} className="p-2 text-emerald-500 hover:bg-emerald-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-emerald-500/40 transition-colors" title="Lihat Detail Site"><FaEye size={12} /></button>
+                                                    <button onClick={() => handleViewClick(site)} className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-2xs hover:border-emerald-500/40 transition-colors" title="Lihat Detail Site"><FaEye size={12} /></button>
                                                     {(userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'MS'].includes(userDivision))) ? (
                                                         <>
-                                                            <button onClick={() => handleEditClick(site)} className="p-2 text-blue-500 hover:bg-blue-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-blue-500/40 transition-colors" title="Edit Data Site"><FaEdit size={12} /></button>
+                                                            <button onClick={() => handleEditClick(site)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-500/15 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-2xs hover:border-blue-500/40 transition-colors" title="Edit Data Site"><FaEdit size={12} /></button>
                                                             {userRole === 'SuperAdmin' && (
-                                                                <button onClick={() => handleDeleteClick(site)} className="p-2 text-red-500 hover:bg-red-500/10 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-sm hover:border-red-500/40 transition-colors" title="Hapus Site"><FaTrash size={12} /></button>
+                                                                <button onClick={() => handleDeleteClick(site)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-500/15 bg-[var(--bg-base)] rounded-xl border border-[var(--border-color)] shadow-2xs hover:border-red-500/40 transition-colors" title="Hapus Site"><FaTrash size={12} /></button>
                                                             )}
                                                         </>
                                                     ) : null}
