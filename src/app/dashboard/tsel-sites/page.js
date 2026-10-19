@@ -225,7 +225,6 @@ export default function TselSitesPage() {
     
     // Filters
     const [branchFilter, setBranchFilter] = useState('');
-    const [siteClassFilter, setSiteClassFilter] = useState('');
     const [stoFilter, setStoFilter] = useState('');
     const [aksesFilter, setAksesFilter] = useState('');
 
@@ -252,7 +251,6 @@ export default function TselSitesPage() {
                 limit: 10,
                 search,
                 branch: branchFilter,
-                siteClass: siteClassFilter,
                 sto: stoFilter,
                 akses: aksesFilter
             });
@@ -267,18 +265,18 @@ export default function TselSitesPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, search, branchFilter, siteClassFilter, stoFilter, aksesFilter]);
+    }, [page, search, branchFilter, stoFilter, aksesFilter]);
 
     useEffect(() => {
         setPage(1);
-    }, [search, branchFilter, siteClassFilter, stoFilter, aksesFilter]);
+    }, [search, branchFilter, stoFilter, aksesFilter]);
 
     useEffect(() => {
         if (['SuperAdmin', 'Admin', 'User', 'View'].includes(userRole)) {
             const timer = setTimeout(fetchSites, 400);
             return () => clearTimeout(timer);
         }
-    }, [page, search, branchFilter, siteClassFilter, stoFilter, aksesFilter, userRole, fetchSites]);
+    }, [page, search, branchFilter, stoFilter, aksesFilter, userRole, fetchSites]);
 
     const handleCreateClick = () => {
         setEditingSite(null);
@@ -413,22 +411,6 @@ export default function TselSitesPage() {
                         </select>
                     </div>
 
-                    {/* Filter Class */}
-                    <div className="flex items-center gap-2 bg-[var(--bg-base)] px-3 py-2 rounded-xl border border-[var(--border-color)] text-xs text-[var(--text-secondary)] font-bold min-w-[130px] flex-1 sm:flex-none">
-                        <select
-                            value={siteClassFilter}
-                            onChange={(e) => setSiteClassFilter(e.target.value)}
-                            className="bg-transparent focus:outline-none cursor-pointer w-full font-bold text-xs"
-                        >
-                            <option value="">Semua Class</option>
-                            <option value="DIAMOND">DIAMOND</option>
-                            <option value="PLATINUM">PLATINUM</option>
-                            <option value="GOLD">GOLD</option>
-                            <option value="SILVER">SILVER</option>
-                            <option value="BRONZE">BRONZE</option>
-                        </select>
-                    </div>
-
                     {/* Filter STO */}
                     <div className="flex items-center gap-2 bg-[var(--bg-base)] px-3 py-2 rounded-xl border border-[var(--border-color)] text-xs text-[var(--text-secondary)] font-bold min-w-[135px] flex-1 sm:flex-none">
                         <input
@@ -463,11 +445,10 @@ export default function TselSitesPage() {
                     </div>
 
                     {/* Reset Button */}
-                    {(branchFilter || siteClassFilter || stoFilter || aksesFilter || search) && (
+                    {(branchFilter || stoFilter || aksesFilter || search) && (
                         <button
                             onClick={() => {
                                 setBranchFilter('');
-                                setSiteClassFilter('');
                                 setStoFilter('');
                                 setAksesFilter('');
                                 setSearch('');
@@ -525,9 +506,11 @@ export default function TselSitesPage() {
                                         <span className="text-xs text-[var(--text-muted)] font-medium mt-0.5 block">{site.site_name || '-'}</span>
                                     </div>
                                 </div>
-                                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase ${getClassBadgeStyle(site.site_class)}`}>
-                                    {site.site_class || 'CLASS -'}
-                                </span>
+                                {site.site_class && site.site_class !== '-' && site.site_class.trim() !== '' && (
+                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase shrink-0 ${getClassBadgeStyle(site.site_class)}`}>
+                                        {site.site_class}
+                                    </span>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -608,9 +591,11 @@ export default function TselSitesPage() {
                                                     <span className="font-mono font-extrabold text-[var(--text-primary)] text-sm tracking-tight truncate">
                                                         {site.site_id}
                                                     </span>
-                                                    <span className={`inline-block font-extrabold px-1.5 py-0.5 rounded text-[9px] tracking-wide uppercase border shrink-0 ${getClassBadgeStyle(site.site_class)}`}>
-                                                        {site.site_class && site.site_class !== '-' ? site.site_class : 'UNCLASSED'}
-                                                    </span>
+                                                    {site.site_class && site.site_class !== '-' && site.site_class.trim() !== '' && (
+                                                        <span className={`inline-block font-extrabold px-1.5 py-0.5 rounded text-[9px] tracking-wide uppercase border shrink-0 ${getClassBadgeStyle(site.site_class)}`}>
+                                                            {site.site_class}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="font-bold text-[var(--text-secondary)] text-xs truncate leading-snug pl-4" title={site.site_name}>
                                                     {site.site_name || '-'}
