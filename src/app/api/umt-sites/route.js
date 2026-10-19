@@ -34,7 +34,9 @@ export async function GET(request) {
 
         const offset = (page - 1) * limit;
 
-        let queryConditions = [];
+        let queryConditions = [
+            "(site_id NOT ILIKE '%site id%' AND site_id NOT ILIKE '%id tenant%')"
+        ];
         let params = [];
 
         if (search) {
@@ -42,7 +44,7 @@ export async function GET(request) {
             queryConditions.push(`(site_id ILIKE $${params.length} OR site_name ILIKE $${params.length} OR sto ILIKE $${params.length} OR ring ILIKE $${params.length})`);
         }
 
-        let whereClause = queryConditions.length > 0 ? ' WHERE ' + queryConditions.join(' AND ') : '';
+        let whereClause = ' WHERE ' + queryConditions.join(' AND ');
 
         const dataQuery = `SELECT * FROM public.umt_sites${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         const countQuery = `SELECT COUNT(*) as total FROM public.umt_sites${whereClause}`;

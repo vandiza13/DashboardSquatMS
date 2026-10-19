@@ -34,15 +34,18 @@ export async function GET(request) {
         const branchFilter = searchParams.get('branch') || '';
         const siteClassFilter = searchParams.get('siteClass') || '';
         const stoFilter = searchParams.get('sto') || '';
+        const aksesFilter = searchParams.get('akses') || '';
 
         const offset = (page - 1) * limit;
 
-        let queryConditions = [];
+        let queryConditions = [
+            "(site_id NOT ILIKE '%site id%' AND site_id NOT ILIKE '%id tenant%')"
+        ];
         let params = [];
 
         if (search) {
             params.push(`%${search}%`);
-            queryConditions.push(`(site_id ILIKE $${params.length} OR site_name ILIKE $${params.length} OR sto ILIKE $${params.length} OR branch ILIKE $${params.length} OR metro ILIKE $${params.length})`);
+            queryConditions.push(`(site_id ILIKE $${params.length} OR site_name ILIKE $${params.length} OR sto ILIKE $${params.length} OR branch ILIKE $${params.length} OR metro ILIKE $${params.length} OR gpon ILIKE $${params.length} OR akses ILIKE $${params.length})`);
         }
 
         if (branchFilter) {
@@ -60,7 +63,12 @@ export async function GET(request) {
             queryConditions.push(`sto = $${params.length}`);
         }
 
-        let whereClause = queryConditions.length > 0 ? ' WHERE ' + queryConditions.join(' AND ') : '';
+        if (aksesFilter) {
+            params.push(`%${aksesFilter}%`);
+            queryConditions.push(`akses ILIKE $${params.length}`);
+        }
+
+        let whereClause = ' WHERE ' + queryConditions.join(' AND ');
 
         const dataQuery = `SELECT * FROM public.tsel_sites${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         const countQuery = `SELECT COUNT(*) as total FROM public.tsel_sites${whereClause}`;

@@ -20,9 +20,199 @@ const SITE_CLASS_BADGES = {
 };
 
 const getClassBadgeStyle = (siteClass) => {
-    if (!siteClass) return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+    if (!siteClass || siteClass === '-') return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
     return SITE_CLASS_BADGES[siteClass.toUpperCase()] || 'bg-slate-500/10 text-slate-400 border-slate-500/30';
 };
+
+const isValid = (val) => {
+    if (!val) return false;
+    const str = String(val).trim();
+    return str !== '' && str !== '-' && str.toLowerCase() !== 'null' && str.toLowerCase() !== 'undefined';
+};
+
+const getAksesBadgeStyle = (akses) => {
+    const raw = (akses || '').toUpperCase();
+    if (raw.includes('GPON')) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+    if (raw.includes('P2P')) return 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/30';
+    if (raw.includes('METRO')) return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30';
+    if (raw.includes('L2SW') || raw.includes('SWITCH')) return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30';
+    if (raw.includes('RTN')) return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+    return 'bg-slate-500/10 text-slate-500 border-slate-500/30';
+};
+
+function SmartLinkAkses({ site }) {
+    const rawAkses = (site.akses || '').trim();
+    const hasAkses = isValid(rawAkses);
+    const upperAkses = hasAkses ? rawAkses.toUpperCase() : '';
+
+    const hasGpon = isValid(site.gpon);
+    const hasPortGpon = isValid(site.port_gpon);
+    const hasMetro = isValid(site.metro);
+    const hasPortMetro = isValid(site.port_metro);
+    const hasPortConn = isValid(site.port_connection);
+
+    // 1. GPON or P2P
+    if (upperAkses.includes('GPON') || upperAkses.includes('P2P') || (!hasAkses && hasGpon)) {
+        const badgeLabel = hasAkses ? rawAkses : 'GPON';
+        return (
+            <div className="flex flex-col gap-1 justify-center">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${getAksesBadgeStyle(badgeLabel)}`}>
+                        {badgeLabel}
+                    </span>
+                    {hasGpon ? (
+                        <span className="font-mono font-bold text-[var(--text-primary)] text-xs tracking-tight truncate max-w-[220px]" title={`GPON: ${site.gpon}`}>
+                            {site.gpon}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-[var(--text-muted)] italic">-</span>
+                    )}
+                    {hasPortGpon && (
+                        <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0 leading-none" title={`Port GPON: ${site.port_gpon}`}>
+                            {site.port_gpon}
+                        </span>
+                    )}
+                </div>
+
+                {hasMetro && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] pl-0.5 min-w-0">
+                        <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase shrink-0">Uplink:</span>
+                        <span className="font-mono text-xs text-[var(--text-secondary)] truncate max-w-[190px]" title={`Metro Uplink: ${site.metro}`}>
+                            {site.metro}
+                        </span>
+                        {hasPortMetro && (
+                            <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1 py-0.5 rounded border border-[var(--border-subtle)] shrink-0 leading-none" title={`Port Metro: ${site.port_metro}`}>
+                                {site.port_metro}
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // 2. METRO-E
+    if (upperAkses.includes('METRO') || (!hasAkses && hasMetro)) {
+        const badgeLabel = hasAkses ? rawAkses : 'METRO-E';
+        return (
+            <div className="flex flex-col gap-1 justify-center">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${getAksesBadgeStyle(badgeLabel)}`}>
+                        {badgeLabel}
+                    </span>
+                    {hasMetro ? (
+                        <span className="font-mono font-bold text-[var(--text-primary)] text-xs tracking-tight truncate max-w-[220px]" title={`Metro: ${site.metro}`}>
+                            {site.metro}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-[var(--text-muted)] italic">-</span>
+                    )}
+                    {hasPortMetro && (
+                        <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0 leading-none" title={`Port Metro: ${site.port_metro}`}>
+                            {site.port_metro}
+                        </span>
+                    )}
+                </div>
+
+                {hasGpon && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] pl-0.5 min-w-0">
+                        <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase shrink-0">GPON:</span>
+                        <span className="font-mono text-xs text-[var(--text-secondary)] truncate max-w-[190px]" title={site.gpon}>{site.gpon}</span>
+                        {hasPortGpon && <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">({site.port_gpon})</span>}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // 3. L2SW / SWITCH
+    if (upperAkses.includes('L2SW') || upperAkses.includes('SWITCH')) {
+        return (
+            <div className="flex flex-col gap-1 justify-center">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${getAksesBadgeStyle(rawAkses)}`}>
+                        {rawAkses}
+                    </span>
+                    {hasMetro && (
+                        <span className="font-mono font-bold text-[var(--text-primary)] text-xs tracking-tight truncate max-w-[220px]" title={`Switch / Metro: ${site.metro}`}>
+                            {site.metro}
+                        </span>
+                    )}
+                    {hasPortMetro && (
+                        <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0 leading-none" title={`Port: ${site.port_metro}`}>
+                            {site.port_metro}
+                        </span>
+                    )}
+                </div>
+
+                {hasPortConn && (
+                    <div className="text-[11px] text-[var(--text-secondary)] pl-0.5 flex items-center gap-1.5 min-w-0">
+                        <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase shrink-0">Koneksi:</span>
+                        <span className="font-mono text-xs text-[var(--text-secondary)] truncate">{site.port_connection}</span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // 4. RTN (Radio / Transmission)
+    if (upperAkses.includes('RTN')) {
+        return (
+            <div className="flex flex-col gap-1 justify-center">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${getAksesBadgeStyle(rawAkses)}`}>
+                        {rawAkses}
+                    </span>
+                    {hasMetro && (
+                        <span className="font-mono font-bold text-[var(--text-primary)] text-xs tracking-tight truncate max-w-[220px]" title={`Metro: ${site.metro}`}>
+                            {site.metro}
+                        </span>
+                    )}
+                    {hasPortMetro && (
+                        <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0 leading-none" title={`Port: ${site.port_metro}`}>
+                            {site.port_metro}
+                        </span>
+                    )}
+                </div>
+
+                {hasGpon && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] pl-0.5 min-w-0">
+                        <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase shrink-0">GPON:</span>
+                        <span className="font-mono text-xs text-[var(--text-secondary)] truncate max-w-[190px]" title={site.gpon}>{site.gpon}</span>
+                        {hasPortGpon && <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">({site.port_gpon})</span>}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // 5. Fallback if any network data exists
+    if (hasAkses || hasMetro || hasGpon) {
+        return (
+            <div className="flex flex-col gap-1 justify-center">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    {hasAkses && (
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border leading-none shrink-0 ${getAksesBadgeStyle(rawAkses)}`}>
+                            {rawAkses}
+                        </span>
+                    )}
+                    {hasMetro && (
+                        <span className="font-mono font-bold text-[var(--text-primary)] text-xs truncate" title={site.metro}>
+                            {site.metro} {hasPortMetro ? `(${site.port_metro})` : ''}
+                        </span>
+                    )}
+                    {hasGpon && !hasMetro && (
+                        <span className="font-mono font-bold text-[var(--text-primary)] text-xs truncate" title={site.gpon}>
+                            {site.gpon} {hasPortGpon ? `(${site.port_gpon})` : ''}
+                        </span>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return <span className="text-[var(--text-muted)] text-xs italic font-medium">-</span>;
+}
 
 export default function TselSitesPage() {
     const [sites, setSites] = useState([]);
@@ -37,6 +227,7 @@ export default function TselSitesPage() {
     const [branchFilter, setBranchFilter] = useState('');
     const [siteClassFilter, setSiteClassFilter] = useState('');
     const [stoFilter, setStoFilter] = useState('');
+    const [aksesFilter, setAksesFilter] = useState('');
 
     // Modals
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -62,7 +253,8 @@ export default function TselSitesPage() {
                 search,
                 branch: branchFilter,
                 siteClass: siteClassFilter,
-                sto: stoFilter
+                sto: stoFilter,
+                akses: aksesFilter
             });
             const res = await fetch(`/api/tsel-sites?${params}`);
             const result = await res.json();
@@ -75,18 +267,18 @@ export default function TselSitesPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, search, branchFilter, siteClassFilter, stoFilter]);
+    }, [page, search, branchFilter, siteClassFilter, stoFilter, aksesFilter]);
 
     useEffect(() => {
         setPage(1);
-    }, [search, branchFilter, siteClassFilter, stoFilter]);
+    }, [search, branchFilter, siteClassFilter, stoFilter, aksesFilter]);
 
     useEffect(() => {
         if (['SuperAdmin', 'Admin', 'User', 'View'].includes(userRole)) {
             const timer = setTimeout(fetchSites, 400);
             return () => clearTimeout(timer);
         }
-    }, [page, search, branchFilter, siteClassFilter, stoFilter, userRole, fetchSites]);
+    }, [page, search, branchFilter, siteClassFilter, stoFilter, aksesFilter, userRole, fetchSites]);
 
     const handleCreateClick = () => {
         setEditingSite(null);
@@ -146,12 +338,24 @@ export default function TselSitesPage() {
 
     const TableSkeleton = () => ([...Array(5)].map((_, i) => (
         <tr key={i} className="border-b border-[var(--border-subtle)]">
-            <td className="px-5 py-3.5"><Skeleton className="h-4 w-20" /></td>
-            <td className="px-5 py-3.5"><Skeleton className="h-4 w-32" /></td>
-            <td className="px-5 py-3.5"><Skeleton className="h-5 w-16 mb-1 rounded-md" /><Skeleton className="h-3 w-12" /></td>
-            <td className="px-5 py-3.5 text-center"><Skeleton className="h-6 w-12 mx-auto rounded-lg" /></td>
-            <td className="px-5 py-3.5"><Skeleton className="h-4 w-44 mb-1.5" /><Skeleton className="h-4 w-36" /></td>
-            <td className="px-5 py-3.5 text-center"><div className="flex justify-center gap-1.5"><Skeleton className="h-8 w-8 rounded-xl" /><Skeleton className="h-8 w-8 rounded-xl" /></div></td>
+            <td className="px-5 py-3.5">
+                <div className="flex items-center gap-2 mb-1.5"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-14 rounded-md" /></div>
+                <Skeleton className="h-3 w-36 pl-4" />
+            </td>
+            <td className="px-5 py-3.5">
+                <Skeleton className="h-5 w-12 rounded-lg mb-1" />
+                <Skeleton className="h-3 w-16" />
+            </td>
+            <td className="px-5 py-3.5">
+                <Skeleton className="h-4 w-48 mb-1.5" />
+                <Skeleton className="h-3 w-32" />
+            </td>
+            <td className="px-5 py-3.5 text-center">
+                <div className="flex justify-center gap-1.5">
+                    <Skeleton className="h-8 w-8 rounded-xl" />
+                    <Skeleton className="h-8 w-8 rounded-xl" />
+                </div>
+            </td>
         </tr>
     )));
 
@@ -241,13 +445,31 @@ export default function TselSitesPage() {
                         )}
                     </div>
 
+                    {/* Filter Akses */}
+                    <div className="flex items-center gap-2 bg-[var(--bg-base)] px-3 py-2 rounded-xl border border-[var(--border-color)] text-xs text-[var(--text-secondary)] font-bold min-w-[130px] flex-1 sm:flex-none">
+                        <select
+                            value={aksesFilter}
+                            onChange={(e) => setAksesFilter(e.target.value)}
+                            className="bg-transparent focus:outline-none cursor-pointer w-full font-bold text-xs"
+                        >
+                            <option value="">Semua Akses</option>
+                            <option value="GPON">GPON</option>
+                            <option value="P2P">P2P</option>
+                            <option value="METRO-E">METRO-E</option>
+                            <option value="L2SW">L2SW</option>
+                            <option value="RTN TSEL">RTN TSEL</option>
+                            <option value="RTN TLKM">RTN TLKM</option>
+                        </select>
+                    </div>
+
                     {/* Reset Button */}
-                    {(branchFilter || siteClassFilter || stoFilter || search) && (
+                    {(branchFilter || siteClassFilter || stoFilter || aksesFilter || search) && (
                         <button
                             onClick={() => {
                                 setBranchFilter('');
                                 setSiteClassFilter('');
                                 setStoFilter('');
+                                setAksesFilter('');
                                 setSearch('');
                             }}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all shrink-0"
@@ -312,33 +534,8 @@ export default function TselSitesPage() {
                                 <div><span className="text-[var(--text-muted)] font-semibold block">Branch:</span> <span className="font-bold text-[var(--text-secondary)]">{site.branch || '-'}</span></div>
                                 <div><span className="text-[var(--text-muted)] font-semibold block">STO:</span> <span className="font-bold text-[var(--text-secondary)]">{site.sto || '-'}</span></div>
                                 <div className="col-span-2">
-                                    <span className="text-[var(--text-muted)] font-semibold block mb-1.5">Jaringan & Akses:</span>
-                                    <div className="flex flex-col gap-1.5">
-                                        {/* Metro */}
-                                        {(site.metro || site.port_metro) && (
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/30 shrink-0">Metro</span>
-                                                <span className="font-mono font-bold text-xs text-[var(--text-primary)] truncate">{site.metro || '-'}</span>
-                                                {site.port_metro && <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0">{site.port_metro}</span>}
-                                            </div>
-                                        )}
-                                        {/* GPON */}
-                                        {(site.gpon || site.port_gpon) && (
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 shrink-0">GPON</span>
-                                                <span className="font-mono font-bold text-xs text-[var(--text-primary)] truncate">{site.gpon || '-'}</span>
-                                                {site.port_gpon && <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0">{site.port_gpon}</span>}
-                                            </div>
-                                        )}
-                                        {/* Akses */}
-                                        {site.akses && !site.metro && !site.gpon && (
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 shrink-0">Akses</span>
-                                                <span className="font-mono font-bold text-xs text-[var(--text-secondary)]">{site.akses}</span>
-                                            </div>
-                                        )}
-                                        {!site.metro && !site.gpon && !site.akses && <span className="text-[var(--text-muted)] font-medium italic text-[10px]">-</span>}
-                                    </div>
+                                    <span className="text-[var(--text-muted)] font-semibold block mb-1">Jaringan & Link Akses:</span>
+                                    <SmartLinkAkses site={site} />
                                 </div>
                             </div>
 
@@ -378,20 +575,16 @@ export default function TselSitesPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left table-fixed border-collapse">
                         <colgroup>
-                            <col className="w-[14%]" />
-                            <col className="w-[22%]" />
-                            <col className="w-[16%]" />
-                            <col className="w-[10%]" />
-                            <col className="w-[28%]" />
+                            <col className="w-[30%]" />
+                            <col className="w-[18%]" />
+                            <col className="w-[42%]" />
                             <col className="w-[10%]" />
                         </colgroup>
                         <thead className="bg-[var(--bg-base)] text-[var(--text-muted)] uppercase tracking-wider font-extrabold border-b border-[var(--border-color)] text-[11px]">
                             <tr>
-                                <th className="px-5 py-3.5">Site ID</th>
-                                <th className="px-5 py-3.5">Nama Site</th>
-                                <th className="px-5 py-3.5">Class & Wilayah</th>
-                                <th className="px-5 py-3.5 text-center">STO</th>
-                                <th className="px-5 py-3.5">Jaringan & Akses</th>
+                                <th className="px-5 py-3.5">Site & Class</th>
+                                <th className="px-5 py-3.5">STO & Wilayah</th>
+                                <th className="px-5 py-3.5">Jaringan & Link Akses</th>
                                 <th className="px-5 py-3.5 text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -400,105 +593,49 @@ export default function TselSitesPage() {
                                 <TableSkeleton />
                             ) : sites.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-12 text-center text-[var(--text-muted)] italic font-semibold text-xs">
+                                    <td colSpan="4" className="p-12 text-center text-[var(--text-muted)] italic font-semibold text-xs">
                                         Data Site TSEL kosong atau pencarian Anda nihil.
                                     </td>
                                 </tr>
                             ) : (
                                 sites.map((site) => (
                                     <tr key={site.id} className="hover:bg-[var(--bg-base)]/60 transition-colors group">
-                                        {/* 1. Site ID */}
+                                        {/* 1. Site, Nama & Class */}
                                         <td className="px-5 py-3.5 align-middle">
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-xs shadow-blue-500/50"></span>
-                                                <span className="font-mono font-extrabold text-[var(--text-primary)] text-sm tracking-tight truncate">
-                                                    {site.site_id}
-                                                </span>
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-xs shadow-blue-500/50"></span>
+                                                    <span className="font-mono font-extrabold text-[var(--text-primary)] text-sm tracking-tight truncate">
+                                                        {site.site_id}
+                                                    </span>
+                                                    <span className={`inline-block font-extrabold px-1.5 py-0.5 rounded text-[9px] tracking-wide uppercase border shrink-0 ${getClassBadgeStyle(site.site_class)}`}>
+                                                        {site.site_class && site.site_class !== '-' ? site.site_class : 'UNCLASSED'}
+                                                    </span>
+                                                </div>
+                                                <div className="font-bold text-[var(--text-secondary)] text-xs truncate leading-snug pl-4" title={site.site_name}>
+                                                    {site.site_name || '-'}
+                                                </div>
                                             </div>
                                         </td>
 
-                                        {/* 2. Nama Site */}
-                                        <td className="px-5 py-3.5 align-middle">
-                                            <div className="font-bold text-[var(--text-primary)] text-xs truncate leading-snug" title={site.site_name}>
-                                                {site.site_name || '-'}
-                                            </div>
-                                        </td>
-
-                                        {/* 3. Class & Branch */}
+                                        {/* 2. STO & Wilayah */}
                                         <td className="px-5 py-3.5 align-middle">
                                             <div className="flex flex-col gap-1 items-start">
-                                                <span className={`inline-block font-extrabold px-2 py-0.5 rounded-md border text-[10px] tracking-wide uppercase ${getClassBadgeStyle(site.site_class)}`}>
-                                                    {site.site_class || 'CLASS -'}
+                                                <span className="inline-flex items-center font-mono font-black text-xs px-2.5 py-0.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-color)] text-[var(--text-primary)] shadow-2xs">
+                                                    {site.sto || '-'}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-[var(--text-muted)] tracking-tight">
+                                                <span className="text-[11px] font-bold text-[var(--text-muted)] tracking-tight">
                                                     {site.branch || '-'}
                                                 </span>
                                             </div>
                                         </td>
 
-                                        {/* 4. STO */}
-                                        <td className="px-5 py-3.5 align-middle text-center">
-                                            <span className="inline-flex items-center justify-center font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-[var(--bg-base)] border border-[var(--border-color)] text-[var(--text-primary)] shadow-2xs">
-                                                {site.sto || '-'}
-                                            </span>
-                                        </td>
-
-                                        {/* 5. Jaringan & Akses (Compact Inline Pills) */}
+                                        {/* 3. Link Akses & Jaringan */}
                                         <td className="px-5 py-3 align-middle">
-                                            <div className="flex flex-col gap-1.5 justify-center">
-                                                {/* Metro Row */}
-                                                {(site.metro || site.port_metro) && (
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shrink-0 leading-none">
-                                                            Metro
-                                                        </span>
-                                                        <span className="font-mono font-bold text-[var(--text-primary)] text-[11px] truncate" title={site.metro}>
-                                                            {site.metro || '-'}
-                                                        </span>
-                                                        {site.port_metro && (
-                                                            <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0 leading-none" title={`Port Metro: ${site.port_metro}`}>
-                                                                {site.port_metro}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {/* GPON Row */}
-                                                {(site.gpon || site.port_gpon) && (
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0 leading-none">
-                                                            GPON
-                                                        </span>
-                                                        <span className="font-mono font-bold text-[var(--text-primary)] text-[11px] truncate" title={site.gpon}>
-                                                            {site.gpon || '-'}
-                                                        </span>
-                                                        {site.port_gpon && (
-                                                            <span className="font-mono text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)] px-1.5 py-0.5 rounded border border-[var(--border-color)] shrink-0 leading-none" title={`Port GPON: ${site.port_gpon}`}>
-                                                                {site.port_gpon}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {/* Akses row (if no metro/gpon, or secondary) */}
-                                                {site.akses && !site.metro && !site.gpon && (
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 leading-none">
-                                                            Akses
-                                                        </span>
-                                                        <span className="font-mono font-bold text-[var(--text-secondary)] text-[11px] truncate">
-                                                            {site.akses}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {!site.metro && !site.gpon && !site.akses && (
-                                                    <span className="text-[var(--text-muted)] text-[11px] italic font-medium">-</span>
-                                                )}
-                                            </div>
+                                            <SmartLinkAkses site={site} />
                                         </td>
 
-                                        {/* 6. Aksi */}
+                                        {/* 4. Aksi */}
                                         <td className="px-5 py-3.5 align-middle text-center">
                                             <div className="flex items-center justify-center gap-1.5">
                                                 <button
@@ -508,7 +645,7 @@ export default function TselSitesPage() {
                                                 >
                                                     <FaEye size={12} />
                                                 </button>
-                                                {userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'SQUAT'].includes(userDivision)) ? (
+                                                {(userRole === 'SuperAdmin' || (userRole === 'Admin' && ['ALL', 'SQUAT'].includes(userDivision))) && (
                                                     <>
                                                         <button
                                                             onClick={() => handleEditClick(site)}
@@ -527,7 +664,7 @@ export default function TselSitesPage() {
                                                             </button>
                                                         )}
                                                     </>
-                                                ) : null}
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
