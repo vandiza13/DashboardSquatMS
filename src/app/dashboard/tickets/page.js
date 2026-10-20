@@ -10,7 +10,7 @@ import {
     FaSyncAlt, FaEye, FaServer, FaBolt, FaEllipsisV
 } from 'react-icons/fa';
 import Link from 'next/link';
-import * as XLSX from 'xlsx';
+// import * as XLSX dynamically when exporting
 import TicketFormModal from '@/components/TicketFormModal';
 import ReportModal from '@/components/ReportModal';
 import HistoryModal from '@/components/HistoryModal';
@@ -150,6 +150,7 @@ export default function TicketsPage() {
     const [userRole, setUserRole] = useState('');
     const [userDivision, setUserDivision] = useState('');
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({});
     const [startDate, setStartDate] = useState('');
@@ -215,8 +216,8 @@ export default function TicketsPage() {
 
             const params = new URLSearchParams({ 
                 page, 
-                limit: 10, 
-                search, 
+                limit: 10,
+                search: debouncedSearch, 
                 status: activeTab, 
                 category: categoryParam, 
                 subcategory: subcategoryParam, 
@@ -229,14 +230,24 @@ export default function TicketsPage() {
         } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
     };
 
-    useEffect(() => { setPage(1); }, [activeTab, mainGroup, activeSubCategory, startDate, endDate]);
+    // Debounce khusus input teks pencarian agar tidak membebani server saat mengetik
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [search]);
 
-    // [PUSHER] 3. Tambahkan 'refreshTrigger' ke dependency array agar fetchTickets dipanggil saat ada update
+    // Reset ke halaman 1 saat filter atau pencarian berubah
+    useEffect(() => { 
+        setPage(1); 
+    }, [activeTab, mainGroup, activeSubCategory, startDate, endDate, debouncedSearch]);
+
+    // Fetch data langsung TANPA delay 500ms saat ganti tab / pagination
     useEffect(() => { 
         if (!userRole) return; // Mencegah double-fetch sebelum data user/divisi terisi
-        const t = setTimeout(fetchTickets, 500); 
-        return () => clearTimeout(t); 
-    }, [page, search, activeTab, mainGroup, activeSubCategory, startDate, endDate, refreshTrigger, userRole]);
+        fetchTickets();
+    }, [page, debouncedSearch, activeTab, mainGroup, activeSubCategory, startDate, endDate, refreshTrigger, userRole]);
 
     // [PUSHER] 4. Setup Listener Realtime
     useEffect(() => {
@@ -269,6 +280,7 @@ export default function TicketsPage() {
     const handleExportExcel = async () => {
         try {
             setExportLoading(true);
+            const XLSX = await import('xlsx');
             let categoryParam = 'ALL';
             let subcategoryParam = 'ALL';
 

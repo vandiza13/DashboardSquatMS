@@ -183,18 +183,23 @@ export async function POST(request) {
                     `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
                     [ticketId, `Tiket disinkronisasi dari Google Sheets (Auto)`, 'Sistem']
                 );
-
-                try {
-                    await pusherServer.trigger('dashboard-channel', 'ticket-update', {
-                        message: `Tiket ${incident} baru saja disinkronisasi dari Sheet`,
-                        type: 'NEW_TICKET',
-                        timestamp: new Date().toISOString()
-                    });
-                } catch (pusherError) {
-                    console.error(">>> Pusher Trigger Error on Sync:", pusherError);
-                }
             } else {
                 skippedCount++;
+            }
+        }
+
+        // Kirim 1x notifikasi realtime agregat ke Pusher SETELAH seluruh baris selesai diproses
+        // Ini mencegah Pusher Storm dan reload berulang-ulang di frontend
+        if (syncedCount > 0) {
+            try {
+                await pusherServer.trigger('dashboard-channel', 'ticket-update', {
+                    message: `${syncedCount} tiket baru disinkronisasi dari Sheet`,
+                    type: 'SYNC_GSHEET_COMPLETE',
+                    syncedCount,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (pusherError) {
+                console.error(">>> Pusher Trigger Error on Sync:", pusherError);
             }
         }
 

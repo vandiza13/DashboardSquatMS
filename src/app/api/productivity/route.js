@@ -63,10 +63,11 @@ export async function GET(request) {
 
         const queryParams = [];
 
-        // Tambahkan Filter Waktu jika user memilih bulan/tahun
+        // Tambahkan Filter Waktu range berbasis index jika user memilih bulan/tahun
         if (month && year) {
-            query += ` AND MONTH(COALESCE(t.closed_at, t.last_update_time)) = ? AND YEAR(COALESCE(t.closed_at, t.last_update_time)) = ?`;
-            queryParams.push(month, year);
+            const startMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+            query += ` AND COALESCE(t.closed_at, t.last_update_time) >= ? AND COALESCE(t.closed_at, t.last_update_time) < DATE_ADD(?, INTERVAL 1 MONTH)`;
+            queryParams.push(startMonth, startMonth);
         }
 
         if (division === 'SQUAT') {
@@ -81,8 +82,6 @@ export async function GET(request) {
             ORDER BY lead_total DESC, partner_total DESC, total DESC, tech.name ASC
         `;
 
-        const [rows] = await db.query(query, queryParams);
-
         // --- Query Tambahan: Hitung per Subcategory ---
         let subQuery = `
             SELECT category, subcategory, COUNT(*) as count
@@ -92,18 +91,23 @@ export async function GET(request) {
         const subParams = [];
 
         if (month && year) {
-            subQuery += ` AND MONTH(COALESCE(closed_at, last_update_time)) = ? AND YEAR(COALESCE(closed_at, last_update_time)) = ?`;
-            subParams.push(month, year);
+            const startMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+            subQuery += ` AND COALESCE(closed_at, last_update_time) >= ? AND COALESCE(closed_at, last_update_time) < DATE_ADD(?, INTERVAL 1 MONTH)`;
+            subParams.push(startMonth, startMonth);
         }
 
         subQuery += ` GROUP BY category, subcategory ORDER BY category, count DESC`;
 
-        const [subRows] = await db.query(subQuery, subParams);
+        // Jalankan kedua query secara paralel untuk kecepatan maksimal
+        const [[rows], [subRows]] = await Promise.all([
+            db.query(query, queryParams),
+            db.query(subQuery, subParams)
+        ]);
 
         return NextResponse.json({ technicians: rows, subcategoryCounts: subRows });
 
     } catch (error) {
-        console.error('Productivity API Error:', error);
-        return NextResponse.json({ error: 'Gagal memuat data produktifitas' }, { status: 500 });
+        console.error("API Productivity Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

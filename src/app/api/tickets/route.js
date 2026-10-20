@@ -6,7 +6,7 @@ import { pusherServer } from '@/lib/pusher';
 
 export const dynamic = 'force-dynamic';
 
-// --- GET: AMBIL DATA TIKET (TETAP SAMA) ---
+// --- GET: AMBIL DATA TIKET (OPTIMIZED DENGAN INDEX & PARALLEL QUERY) ---
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -21,7 +21,56 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     try {
-            let query = `
+        const whereConditions = [];
+        const whereParams = [];
+
+        if (search) {
+            whereConditions.push(`(t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`);
+            const likeTerm = `%${search}%`;
+            whereParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
+        }
+
+        if (statusFilter === 'RUNNING') {
+            whereConditions.push(`t.status IN ('OPEN', 'SC')`);
+        } else if (statusFilter === 'CLOSED') {
+            whereConditions.push(`t.status = 'CLOSED'`);
+        } else if (statusFilter && statusFilter !== 'ALL') {
+            whereConditions.push(`t.status = ?`);
+            whereParams.push(statusFilter);
+        }
+
+        if (categoryFilter === 'MS') {
+            whereConditions.push(`t.category IN ('UMT', 'CENTRATAMA', 'MTEL')`);
+        } else if (categoryFilter && categoryFilter !== 'ALL') {
+            whereConditions.push(`t.category = ?`);
+            whereParams.push(categoryFilter);
+        }
+
+        if (subcategoryFilter && subcategoryFilter !== 'ALL') {
+            whereConditions.push(`t.subcategory = ?`);
+            whereParams.push(subcategoryFilter);
+        }
+
+        // Optimasi: SARGable index filter untuk tanggal (menghindari DATE(t.tiket_time))
+        if (startDate && endDate) {
+            whereConditions.push(`t.tiket_time >= ? AND t.tiket_time < DATE_ADD(?, INTERVAL 1 DAY)`);
+            whereParams.push(startDate, endDate);
+        } else if (startDate) {
+            whereConditions.push(`t.tiket_time >= ?`);
+            whereParams.push(startDate);
+        } else if (endDate) {
+            whereConditions.push(`t.tiket_time < DATE_ADD(?, INTERVAL 1 DAY)`);
+            whereParams.push(endDate);
+        }
+
+        const whereSql = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        let tickets = [];
+        let totalItems = 0;
+
+        if (limit >= 10000) {
+            // Kasus Export: Ambil seluruh tiket langsung
+            const exportQuery = `
                 SELECT 
                     t.*, 
                     COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
@@ -32,100 +81,56 @@ export async function GET(request) {
                 LEFT JOIN users u ON t.updated_by_user_id = u.id
                 LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id AND tt.role = 'LEAD'
                 LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
-                WHERE 1=1
+                ${whereSql}
+                GROUP BY t.id
+                ORDER BY t.tiket_time DESC
             `;
+            const [exportRows] = await db.query(exportQuery, whereParams);
+            tickets = exportRows;
+            totalItems = exportRows.length;
+        } else {
+            // Optimasi Two-Step Pagination:
+            // 1. Ambil target 10 ID dengan index scan (0-1ms) dan total count secara paralel
+            const idQuery = `SELECT t.id FROM tickets t ${whereSql} ORDER BY t.tiket_time DESC LIMIT ? OFFSET ?`;
+            const countQuery = `SELECT COUNT(*) as total FROM tickets t ${whereSql}`;
 
-        const queryParams = [];
+            const [[idRows], [countRows]] = await Promise.all([
+                db.query(idQuery, [...whereParams, limit, offset]),
+                db.query(countQuery, whereParams)
+            ]);
 
-        if (search) {
-            query += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`;
-            const likeTerm = `%${search}%`;
-            queryParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
+            totalItems = countRows[0]?.total || 0;
+            const targetIds = idRows.map(r => r.id);
+
+            // 2. Jika ada ID, ambil detail dan relasi HANYA untuk 10 baris tersebut
+            if (targetIds.length > 0) {
+                const placeholders = targetIds.map(() => '?').join(',');
+                const detailQuery = `
+                    SELECT 
+                        t.*, 
+                        COALESCE(MAX(u.display_name), MAX(u.username)) as updater_name,
+                        MAX(tt.technician_nik) as technician_nik,
+                        MAX(tech.name) as technician_name,
+                        MAX(tech.phone_number) as technician_phone
+                    FROM tickets t
+                    LEFT JOIN users u ON t.updated_by_user_id = u.id
+                    LEFT JOIN ticket_technicians tt ON t.id = tt.ticket_id AND tt.role = 'LEAD'
+                    LEFT JOIN technicians tech ON tt.technician_nik = tech.nik
+                    WHERE t.id IN (${placeholders})
+                    GROUP BY t.id
+                    ORDER BY t.tiket_time DESC
+                `;
+                const [detailRows] = await db.query(detailQuery, targetIds);
+                tickets = detailRows;
+            }
         }
-
-        if (statusFilter === 'RUNNING') {
-            query += ` AND t.status IN ('OPEN', 'SC')`;
-        } else if (statusFilter === 'CLOSED') {
-            query += ` AND t.status = 'CLOSED'`;
-        } else if (statusFilter && statusFilter !== 'ALL') {
-            query += ` AND t.status = ?`;
-            queryParams.push(statusFilter);
-        }
-
-        if (categoryFilter === 'MS') {
-            query += ` AND t.category IN ('UMT', 'CENTRATAMA', 'MTEL')`;
-        } else if (categoryFilter && categoryFilter !== 'ALL') {
-            query += ` AND t.category = ?`;
-            queryParams.push(categoryFilter);
-        }
-
-        if (subcategoryFilter && subcategoryFilter !== 'ALL') {
-            query += ` AND t.subcategory = ?`;
-            queryParams.push(subcategoryFilter);
-        }
-
-        if (startDate && endDate) {
-            query += ` AND DATE(t.tiket_time) BETWEEN ? AND ?`;
-            queryParams.push(startDate, endDate);
-        } else if (startDate) {
-            query += ` AND DATE(t.tiket_time) >= ?`;
-            queryParams.push(startDate);
-        } else if (endDate) {
-            query += ` AND DATE(t.tiket_time) <= ?`;
-            queryParams.push(endDate);
-        }
-
-        query += ` GROUP BY t.id ORDER BY t.tiket_time DESC`;
-
-        if (limit < 10000) {
-            query += ` LIMIT ? OFFSET ?`;
-            queryParams.push(limit, offset);
-        }
-
-        const [tickets] = await db.query(query, queryParams);
-
-        let countQuery = `SELECT COUNT(*) as total FROM tickets t WHERE 1=1`;
-        const countParams = [];
-
-        if (search) {
-            countQuery += ` AND (t.id_tiket LIKE ? OR t.deskripsi LIKE ? OR t.category LIKE ? OR t.id_tiket_tacc LIKE ?)`;
-            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-        }
-        if (statusFilter === 'RUNNING') countQuery += ` AND t.status IN ('OPEN', 'SC')`;
-        else if (statusFilter === 'CLOSED') countQuery += ` AND t.status = 'CLOSED'`;
-        else if (statusFilter && statusFilter !== 'ALL') {
-            countQuery += ` AND t.status = ?`;
-            countParams.push(statusFilter);
-        }
-        if (categoryFilter === 'MS') {
-            countQuery += ` AND t.category IN ('UMT', 'CENTRATAMA', 'MTEL')`;
-        } else if (categoryFilter && categoryFilter !== 'ALL') {
-            countQuery += ` AND t.category = ?`;
-            countParams.push(categoryFilter);
-        }
-        if (subcategoryFilter && subcategoryFilter !== 'ALL') {
-            countQuery += ` AND t.subcategory = ?`;
-            countParams.push(subcategoryFilter);
-        }
-        if (startDate && endDate) {
-            countQuery += ` AND DATE(t.tiket_time) BETWEEN ? AND ?`;
-            countParams.push(startDate, endDate);
-        } else if (startDate) {
-            countQuery += ` AND DATE(t.tiket_time) >= ?`;
-            countParams.push(startDate);
-        } else if (endDate) {
-            countQuery += ` AND DATE(t.tiket_time) <= ?`;
-            countParams.push(endDate);
-        }
-
-        const [totalRows] = await db.query(countQuery, countParams);
 
         return NextResponse.json({
             data: tickets,
             pagination: {
                 currentPage: page,
-                totalPages: Math.ceil((totalRows[0]?.total || 0) / limit),
-                totalItems: totalRows[0]?.total || 0,
+                totalPages: Math.ceil(totalItems / limit),
+                totalItems,
                 itemsPerPage: limit
             }
         });
