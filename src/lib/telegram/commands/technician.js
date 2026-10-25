@@ -150,23 +150,17 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}, br
       { text: "🔒 Close Tiket", callback_data: `HELP_CLOSE_${ticket.id_tiket}` }
     ], 2);
 
-    // Jika dipicu dari tombol pesan siaran (broadcastMessageId ada), edit tombol pesan siaran agar tombol Ambil berubah menjadi info PIC
+    // Jika dipicu dari tombol pesan siaran (broadcastMessageId ada), edit tombol pesan siaran agar tombol Ambil berubah menjadi status Diambil
     if (broadcastMessageId) {
       const originalText = rawMessage.text || '';
       const updatedButtons = [
-        [{ text: `✅ Diambil: ${techName} (${assignedNik})`, callback_data: `AMBIL_TAKEN_${ticket.id_tiket}` }],
-        [
-          { text: "👥 Atur Partner / Tim", callback_data: `TEAM_MANAGE_START_${ticket.id}` },
-          { text: "🔒 Close Tiket", callback_data: `HELP_CLOSE_${ticket.id_tiket}` }
-        ]
+        [{ text: `✅ Diambil: ${techName} (${assignedNik})`, callback_data: `AMBIL_TAKEN_${ticket.id_tiket}` }]
       ];
 
       await editMessageText(chatId, broadcastMessageId, originalText, {
         parse_mode: '',
         reply_markup: { inline_keyboard: updatedButtons }
       }).catch(e => console.error("Edit broadcast message error:", e));
-
-      return;
     }
 
     const replyText = 
