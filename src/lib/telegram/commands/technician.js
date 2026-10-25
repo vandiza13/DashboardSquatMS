@@ -102,11 +102,11 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}) {
       await connection.query("DELETE FROM ticket_technicians WHERE ticket_id = ? AND role = 'LEAD'", [ticket.id]);
       await connection.query("INSERT INTO ticket_technicians (ticket_id, technician_nik, role) VALUES (?, ?, 'LEAD')", [ticket.id, assignedNik]);
 
-      // Ubah status ke PROGRESS jika masih OPEN
-      const newStatus = ticket.status === 'OPEN' ? 'PROGRESS' : ticket.status;
+      // Status di database adalah ENUM('OPEN','SC','CLOSED')
+      // Tetap pertahankan status saat ini (misal OPEN atau SC), tidak diubah ke string 'PROGRESS' (panjang 8 karakter)
       await connection.query(
-        "UPDATE tickets SET status = ?, last_update_time = NOW() WHERE id = ?",
-        [newStatus, ticket.id]
+        "UPDATE tickets SET last_update_time = NOW() WHERE id = ?",
+        [ticket.id]
       );
 
       // Catat riwayat
