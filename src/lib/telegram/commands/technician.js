@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { sendMessage } from '../client';
+import { sendMessage, editMessageText } from '../client';
 import { buildInlineKeyboard } from '../helpers';
 import { pusherServer } from '@/lib/pusher';
 import { appendTicketToSheet } from '@/lib/googleSheets';
@@ -39,7 +39,7 @@ async function hitLensaAPI(sto, ticket, nik) {
 /**
  * 1. COMMAND: /ambil <ID_TIKET>
  */
-export async function handleAmbilCommand(chatId, text, user, rawMessage = {}) {
+export async function handleAmbilCommand(chatId, text, user, rawMessage = {}, broadcastMessageId = null) {
   // Hanya teknisi atau admin/superadmin yang bisa ambil
   const techNik = user.nik;
   const techName = user.full_name || user.display_name || user.username;
@@ -153,17 +153,36 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}) {
       ? (lensaStatusResult === 'SUCCESS' ? 'Silahkan cek Lensa' : '⚠️ Gagal terhubung ke Lensa (Timeout)')
       : 'Tiket Non-SQUAT (Tidak dikirim ke Lensa)';
 
+    const keyboard = buildInlineKeyboard([
+      { text: "👥 Atur Partner / Tim", callback_data: `TEAM_MANAGE_START_${ticket.id}` },
+      { text: "🔒 Close Tiket", callback_data: `HELP_CLOSE_${ticket.id_tiket}` }
+    ], 2);
+
+    // Jika dipicu dari tombol pesan siaran (broadcastMessageId ada), edit tombol pesan siaran agar tombol Ambil berubah menjadi info PIC
+    if (broadcastMessageId) {
+      const originalText = rawMessage.text || '';
+      const updatedButtons = [
+        [{ text: `✅ Diambil: ${techName} (${assignedNik})`, callback_data: 'AMBIL_DISABLED' }],
+        [
+          { text: "👥 Atur Partner / Tim", callback_data: `TEAM_MANAGE_START_${ticket.id}` },
+          { text: "🔒 Close Tiket", callback_data: `HELP_CLOSE_${ticket.id_tiket}` }
+        ]
+      ];
+
+      await editMessageText(chatId, broadcastMessageId, originalText, {
+        parse_mode: '',
+        reply_markup: { inline_keyboard: updatedButtons }
+      }).catch(e => console.error("Edit broadcast message error:", e));
+
+      return;
+    }
+
     const replyText = 
 `✅ Berhasil ambil tiket ${ticket.id_tiket}
 Deskripsi: ${ticket.deskripsi || '-'}
 STO : ${ticket.sto || '-'}
 Oleh : ${techName} (${assignedNik})
 ${lensaNote}`;
-
-    const keyboard = buildInlineKeyboard([
-      { text: "👥 Atur Partner / Tim", callback_data: `TEAM_MANAGE_START_${ticket.id}` },
-      { text: "🔒 Close Tiket", callback_data: `HELP_CLOSE_${ticket.id_tiket}` }
-    ], 2);
 
     return sendMessage(chatId, replyText, { reply_markup: keyboard });
 

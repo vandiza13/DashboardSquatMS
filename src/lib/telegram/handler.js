@@ -330,8 +330,13 @@ async function processCallbackQuery(callbackQuery) {
       if (tRows.length === 0) {
         return answerCallbackQuery(callbackQueryId, "Tiket tidak ditemukan", true);
       }
-      await answerCallbackQuery(callbackQueryId);
-      return handleAmbilCommand(chatId, `/ambil ${tRows[0].id_tiket}`, user, callbackQuery.message);
+      await answerCallbackQuery(callbackQueryId, "Tiket berhasil diambil!");
+      // Kirim callbackQuery.message.message_id agar handleAmbilCommand mengedit tombol pesan siaran
+      return handleAmbilCommand(chatId, `/ambil ${tRows[0].id_tiket}`, user, callbackQuery.message, messageId);
+    }
+
+    if (data === 'AMBIL_DISABLED') {
+      return answerCallbackQuery(callbackQueryId, "Tiket ini sudah diambil.", true);
     }
 
     // Callback untuk bantuan tombol Close Tiket (HELP_CLOSE_<ID>)
