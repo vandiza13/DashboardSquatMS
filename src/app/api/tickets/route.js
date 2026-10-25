@@ -293,6 +293,24 @@ export async function POST(request) {
             console.error(">>> Pusher Trigger Error:", pusherError);
         }
 
+        // [TELEGRAM BROADCAST] Otomatis kirim ke grup jika kategori SQUAT
+        if (category === 'SQUAT') {
+            try {
+                const { broadcastNewSquatTicket } = await import('@/lib/telegram/broadcast');
+                await broadcastNewSquatTicket({
+                    id: ticketId,
+                    id_tiket,
+                    category,
+                    subcategory,
+                    deskripsi,
+                    sto,
+                    tiket_time: tiket_time || new Date()
+                });
+            } catch (teleErr) {
+                console.error(">>> Telegram Broadcast Error on Ticket Creation:", teleErr.message);
+            }
+        }
+
         return NextResponse.json({ message: `Tiket berhasil dibuat${lensaMessage}`, ticketId }, { status: 201 });
 
     } catch (error) {

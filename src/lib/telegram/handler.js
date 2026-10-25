@@ -323,6 +323,35 @@ async function processCallbackQuery(callbackQuery) {
       return handleTeamCallback(chatId, messageId, data, user, callbackQueryId);
     }
 
+    // Callback untuk tombol [🖐️ Ambil Tiket] dari broadcast grup
+    if (data.startsWith('AMBIL_TIKET_')) {
+      const ticketId = data.replace('AMBIL_TIKET_', '');
+      const [tRows] = await db.query('SELECT id_tiket FROM tickets WHERE id = ?', [ticketId]);
+      if (tRows.length === 0) {
+        return answerCallbackQuery(callbackQueryId, "Tiket tidak ditemukan", true);
+      }
+      await answerCallbackQuery(callbackQueryId);
+      return handleAmbilCommand(chatId, `/ambil ${tRows[0].id_tiket}`, user, callbackQuery.message);
+    }
+
+    // Callback untuk bantuan tombol Close Tiket (HELP_CLOSE_<ID>)
+    if (data.startsWith('HELP_CLOSE_')) {
+      const idTiket = data.replace('HELP_CLOSE_', '');
+      const helpText = 
+`🔒 *Format Close Tiket ${escapeMarkdown(idTiket)}:*
+
+Ketik dan kirim format berikut di grup:
+
+\`/close ${idTiket}
+Penyebab: <penyebab gangguan>
+Perbaikan: <tindakan perbaikan>
+Material: <material yang digunakan atau ->
+Keterangan Lain: <keterangan tambahan atau ->\``;
+
+      await sendMessage(chatId, helpText);
+      return answerCallbackQuery(callbackQueryId);
+    }
+
     // Restrict modifying operations to non-View users
     if (user.role === 'View') {
       return answerCallbackQuery(callbackQueryId, "Akses ditolak untuk role View.", true);

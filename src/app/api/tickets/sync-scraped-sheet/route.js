@@ -183,6 +183,20 @@ export async function POST(request) {
                     `INSERT INTO ticket_history (ticket_id, change_details, changed_by, change_timestamp) VALUES (?, ?, ?, NOW())`,
                     [ticketId, `Tiket disinkronisasi dari Google Sheets (Auto)`, 'Sistem']
                 );
+                try {
+                    const { broadcastNewSquatTicket } = await import('@/lib/telegram/broadcast');
+                    await broadcastNewSquatTicket({
+                        id: ticketId,
+                        id_tiket: incident,
+                        category: 'SQUAT',
+                        subcategory,
+                        deskripsi: summary || '-',
+                        sto,
+                        tiket_time: tiketTime
+                    });
+                } catch (tErr) {
+                    console.error('>>> Telegram Broadcast on sync error:', tErr.message);
+                }
             } else {
                 skippedCount++;
             }

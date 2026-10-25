@@ -48,13 +48,14 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}) {
     return sendMessage(chatId, "⚠️ Akun Telegram Anda belum tertaut ke NIK Teknisi. Gunakan `/register <NIK>` terlebih dahulu.");
   }
 
-  const parts = text.trim().split(/\s+/);
-  if (parts.length < 2) {
+  // Filter dan bersihkan argumen, abaikan jika ada typo seperti "/ambil /ambil INC123..."
+  const cleanParts = text.trim().split(/\s+/).filter(p => !p.startsWith('/ambil'));
+  if (cleanParts.length === 0) {
     return sendMessage(chatId, "⚠️ Format salah.\nContoh: `/ambil INC54326005`");
   }
 
-  const idTiketInput = parts[1];
-  const isForce = parts.includes('force');
+  const idTiketInput = cleanParts[0];
+  const isForce = text.toLowerCase().includes('force');
 
   try {
     // Cari tiket berdasarkan id_tiket
@@ -160,8 +161,9 @@ Oleh : ${techName} (${assignedNik})
 ${lensaNote}`;
 
     const keyboard = buildInlineKeyboard([
-      { text: "👥 Atur Partner / Tim", callback_data: `TEAM_MANAGE_START_${ticket.id}` }
-    ], 1);
+      { text: "👥 Atur Partner / Tim", callback_data: `TEAM_MANAGE_START_${ticket.id}` },
+      { text: "🔒 Close Tiket", callback_data: `HELP_CLOSE_${ticket.id_tiket}` }
+    ], 2);
 
     return sendMessage(chatId, replyText, { reply_markup: keyboard });
 

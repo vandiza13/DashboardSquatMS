@@ -416,13 +416,16 @@ export async function handleTeamCallback(chatId, messageId, callbackData, user, 
         console.error("Pusher error:", e);
       }
 
-      const finishText = `🎉 *BERHASIL DILURUSKAN!*
+      const cleanPartnerNames = sessionData.partners.map(p => p.name).join(', ') || '-';
+      const leadLabel = sessionData.lead_nik 
+        ? `${sessionData.lead_name} (${sessionData.lead_nik})`
+        : sessionData.lead_name;
 
-🎫 Tiket: *${escapeMarkdown(sessionData.id_tiket)}*
-🔵 *LENSA (Utama)*: ${escapeMarkdown(sessionData.lead_name)}
-🟣 *PARTNER*: ${escapeMarkdown(partnerNames.length > 0 ? partnerNames.join(', ') : '-') }
+      const finishText = `✅ Tim Tiket ${sessionData.id_tiket} Disimpan!
+LENSA   : ${leadLabel}
+PARTNER : ${cleanPartnerNames}
 
-✅ Data telah disimpan & poin produktifitas otomatis diperbarui di leaderboard.`;
+Gunakan /close ${sessionData.id_tiket} jika pekerjaan sudah selesai.`;
 
       await editMessageText(chatId, messageId, finishText);
       await clearSession(chatId);
