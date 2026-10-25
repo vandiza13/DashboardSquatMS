@@ -335,8 +335,12 @@ async function processCallbackQuery(callbackQuery) {
       return handleAmbilCommand(chatId, `/ambil ${tRows[0].id_tiket}`, user, callbackQuery.message, messageId);
     }
 
-    if (data === 'AMBIL_DISABLED') {
-      return answerCallbackQuery(callbackQueryId, "Tiket ini sudah diambil.", true);
+    if (data.startsWith('AMBIL_TAKEN_') || data === 'AMBIL_DISABLED') {
+      const idTiket = data.startsWith('AMBIL_TAKEN_') ? data.replace('AMBIL_TAKEN_', '') : '';
+      const promptText = idTiket
+        ? `Silakan /ambil ${idTiket} force untuk ambil alih tiket ini.`
+        : "Silakan ketik /ambil <ID_TIKET> force untuk ambil alih tiket ini.";
+      return answerCallbackQuery(callbackQueryId, promptText, true);
     }
 
     // Callback untuk bantuan tombol Close Tiket (HELP_CLOSE_<ID>)
