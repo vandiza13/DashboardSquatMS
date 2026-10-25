@@ -11,6 +11,7 @@ import { handleStats, handleRunning, handleTiket, handleTR, handleHapusCommand, 
 import { handleCreateWizard, handleCreateCallback } from './commands/create';
 import { handleUpdateWizard, handleUpdateCallback } from './commands/update';
 import { handleTeamCommand, handleTeamCallback } from './commands/team';
+import { handleAmbilCommand, handleQuickUpdateCommand, handleQuickCloseCommand } from './commands/technician';
 
 export async function handleTelegramMessage(body) {
   if (body.message) {
@@ -22,6 +23,8 @@ export async function handleTelegramMessage(body) {
 
 async function processMessage(message) {
   const chatId = message.chat.id;
+  const chatType = message.chat.type || 'private'; // 'private', 'group', 'supergroup'
+  const isGroup = chatType === 'group' || chatType === 'supergroup';
   const text = message.text || '';
 
   // 1. Unauthenticated commands
@@ -32,20 +35,43 @@ async function processMessage(message) {
     return handleRegister(chatId, text, message.from || {});
   }
 
-  // 2. Authenticate User
-  const user = await authenticateTelegramUser(chatId);
+  // 2. Authenticate User (Jika di grup, autentikasi berdasarkan message.from.id pengirim)
+  const authId = isGroup && message.from ? message.from.id : chatId;
+  const user = await authenticateTelegramUser(authId);
   if (!user) {
+    if (isGroup) {
+      const senderName = message.from?.username ? `@${message.from.username}` : (message.from?.first_name || 'Anda');
+      return sendMessage(chatId, `⚠️ ${senderName} belum terdaftar di sistem.\nSilakan japri bot dan ketik:\n\`/register <NIK>\``);
+    }
     return sendMessage(chatId, "⚠️ Anda belum terdaftar. Silakan gunakan perintah:\n• Untuk Teknisi: `/register <NIK>`\n• Untuk Staf Dashboard: `/register <username> <password>`");
+  }
+
+  // 2a. Validasi perintah khusus grup (/ambil, /update, /close)
+  const isGroupOnlyCommand = text.startsWith('/ambil') || text.startsWith('/update') || text.startsWith('/close');
+  if (isGroupOnlyCommand && !isGroup) {
+    const cmdName = text.split(/\s+/)[0];
+    return sendMessage(chatId, `⚠️ Perintah \`${cmdName}\` hanya dapat dilakukan di dalam Grup Koordinasi Teknisi.`);
   }
   if (user.role === 'View' && !text.startsWith('/tiket') && !text.startsWith('/tr') && !text.startsWith('/running') && !text.startsWith('/stats') && !text.startsWith('/help') && !text.startsWith('/profil')) {
     return sendMessage(chatId, "🚫 Akses ditolak. Akun Anda hanya memiliki hak akses 'View'.");
   }
 
-  // 2b. Restrict commands for Teknisi role (only /tiket, /tr, /running, /tim, /help, /profil, /switch)
+  // 2b. Restrict commands for Teknisi role (allowed: /tiket, /tr, /running, /tim, /ambil, /update, /close, /tutup, /help, /profil, /switch)
   if (user.role === 'Teknisi') {
-    const isAllowed = text.startsWith('/tiket') || text.startsWith('/tr') || text.startsWith('/running') || text.startsWith('/tim') || text.startsWith('/help') || text.startsWith('/profil') || text.startsWith('/start') || text.startsWith('/switch');
+    const isAllowed = text.startsWith('/tiket') || 
+                      text.startsWith('/tr') || 
+                      text.startsWith('/running') || 
+                      text.startsWith('/tim') || 
+                      text.startsWith('/ambil') || 
+                      text.startsWith('/update') || 
+                      text.startsWith('/close') || 
+                      text.startsWith('/tutup') || 
+                      text.startsWith('/help') || 
+                      text.startsWith('/profil') || 
+                      text.startsWith('/start') || 
+                      text.startsWith('/switch');
     if (!isAllowed && text.startsWith('/')) {
-      return sendMessage(chatId, "🚫 Akses ditolak: Role Teknisi hanya dapat mengakses perintah /tiket, /tr, /running, dan /tim.");
+      return sendMessage(chatId, "🚫 Akses ditolak: Role Teknisi hanya dapat mengakses perintah /ambil, /tim, /update, /close, /tiket, /tr, dan /running.");
     }
   }
 
@@ -58,6 +84,8 @@ async function processMessage(message) {
   if (text.startsWith('/tiket')) return handleTiket(chatId, text, user);
   if (text.startsWith('/tr')) return handleTR(chatId, text, user);
   if (text.startsWith('/tim')) return handleTeamCommand(chatId, text, user);
+  if (text.startsWith('/ambil')) return handleAmbilCommand(chatId, text, user, message);
+  if (text.startsWith('/close')) return handleQuickCloseCommand(chatId, text, user, message);
   if (text.startsWith('/hapus')) {
     if (user.role !== 'SuperAdmin') {
       return sendMessage(chatId, "🚫 Akses ditolak. Hanya Super Admin yang diperbolehkan menghapus tiket.");
@@ -65,7 +93,17 @@ async function processMessage(message) {
     return handleHapusCommand(chatId, text, user);
   }
   if (text.startsWith('/buat')) return handleCreateWizard(chatId, user, text);
-  if (text.startsWith('/update') || text.startsWith('/tutup')) return handleUpdateWizard(chatId, user, text);
+  if (text.startsWith('/close')) return handleQuickCloseCommand(chatId, text, user, message);
+  if (text.startsWith('/update')) {
+    // Jika format sekali kirim: "/update <ID> <catatan>", langsung eksekusi tanpa wizard
+    const parts = text.trim().split(/\s+/);
+    if (parts.length >= 3) {
+      return handleQuickUpdateCommand(chatId, text, user, message);
+    }
+    // Jika hanya "/update <ID>", gunakan wizard interaktif
+    return handleUpdateWizard(chatId, user, text);
+  }
+  if (text.startsWith('/tutup')) return handleUpdateWizard(chatId, user, text);
   
   // 4. Handle Conversation States (Wizard Follow-up)
   // For text inputs during creation or updating (e.g. typing description, RCA)
@@ -83,15 +121,16 @@ async function processMessage(message) {
 
 async function processCallbackQuery(callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
+  const fromId = callbackQuery.from?.id || chatId;
   const data = callbackQuery.data;
   const callbackQueryId = callbackQuery.id;
   const messageId = callbackQuery.message.message_id;
 
   try {
-    // Authenticate User
-    const user = await authenticateTelegramUser(chatId);
+    // Authenticate User (bisa dari chat grup atau japri)
+    const user = await authenticateTelegramUser(fromId);
     if (!user) {
-      return answerCallbackQuery(callbackQueryId, "Akses ditolak.", true);
+      return answerCallbackQuery(callbackQueryId, "Akses ditolak: Akun Telegram Anda belum terdaftar.", true);
     }
 
     // Route callback query for TR (Read-only)
@@ -271,8 +310,10 @@ async function processCallbackQuery(callbackQuery) {
       if (user.role === 'View') {
         return answerCallbackQuery(callbackQueryId, "Akses ditolak untuk role View.", true);
       }
-      if (data.startsWith('TEAM_START_')) {
-        const ticketId = data.replace('TEAM_START_', '');
+      if (data.startsWith('TEAM_START_') || data.startsWith('TEAM_MANAGE_START_')) {
+        const ticketId = data.startsWith('TEAM_START_') 
+          ? data.replace('TEAM_START_', '') 
+          : data.replace('TEAM_MANAGE_START_', '');
         const [tRows] = await db.query('SELECT id_tiket FROM tickets WHERE id = ?', [ticketId]);
         if (tRows.length > 0) {
           return handleTeamCommand(chatId, `/tim ${tRows[0].id_tiket}`, user);

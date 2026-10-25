@@ -25,10 +25,13 @@ export async function handleHelp(chatId, user) {
 /profil - Lihat info akun Anda
 
 *Tiket & Pekerjaan:*
+/ambil <ID> - Ambil tiket & set sebagai LENSA Utama
+/tim <ID> - Luruskan / pilih rekan Partner tim
+/update <ID> <catatan> - Update progres pekerjaan
+/close <ID> - Tutup tiket (format sekali kirim)
 /tiket <ID> - Detail tiket gangguan
 /tr <ID> - Ambil Time Report (TR) siap copas ke grup WA
 /running - Pantau tiket aktif di divisi ${user.division || ''}
-/tim <ID> - Luruskan tim LENSA & Partner tiket
 
 _Anda terhubung sebagai: ${user.full_name || user.username} (Teknisi ${user.division || '-'})_`;
     return sendMessage(chatId, text);
