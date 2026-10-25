@@ -55,7 +55,6 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}, br
   }
 
   const idTiketInput = cleanParts[0];
-  const isForce = text.toLowerCase().includes('force');
 
   try {
     // Cari tiket berdasarkan id_tiket
@@ -84,13 +83,6 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}, br
     const assignedNik = techNik || ticket.current_lead_nik;
     if (!assignedNik) {
       return sendMessage(chatId, "⚠️ NIK Teknisi tidak ditemukan.");
-    }
-
-    if (ticket.current_lead_nik && String(ticket.current_lead_nik) !== String(assignedNik) && !isForce) {
-      return sendMessage(
-        chatId, 
-        `⚠️ Tiket *${ticket.id_tiket}* saat ini sudah dipegang oleh *${ticket.current_lead_name || ticket.current_lead_nik}*.\n\nJika ingin mengambil alih, ketik:\n\`/ambil ${ticket.id_tiket} force\``
-      );
     }
 
     // Update database dalam transaksi

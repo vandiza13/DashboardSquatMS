@@ -338,8 +338,8 @@ async function processCallbackQuery(callbackQuery) {
     if (data.startsWith('AMBIL_TAKEN_') || data === 'AMBIL_DISABLED') {
       const idTiket = data.startsWith('AMBIL_TAKEN_') ? data.replace('AMBIL_TAKEN_', '') : '';
       const promptText = idTiket
-        ? `Silakan /ambil ${idTiket} force untuk ambil alih tiket ini.`
-        : "Silakan ketik /ambil <ID_TIKET> force untuk ambil alih tiket ini.";
+        ? `Silakan /ambil ${idTiket} untuk ambil alih tiket ini.`
+        : "Silakan ketik /ambil <ID_TIKET> untuk ambil alih tiket ini.";
       return answerCallbackQuery(callbackQueryId, promptText, true);
     }
 
