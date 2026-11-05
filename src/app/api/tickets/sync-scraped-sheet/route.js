@@ -192,6 +192,7 @@ export async function POST(request) {
                         subcategory,
                         deskripsi: summary || '-',
                         sto,
+                        branch,
                         tiket_time: tiketTime
                     });
                 } catch (tErr) {

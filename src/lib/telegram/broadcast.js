@@ -1,5 +1,6 @@
 import { sendMessage } from '@/lib/telegram/client';
 import { buildInlineKeyboard } from '@/lib/telegram/helpers';
+import { db } from '@/lib/db';
 
 /**
  * Format tanggal ke DD/MM/YYYY HH:mm WIB
@@ -39,12 +40,32 @@ export async function broadcastNewSquatTicket(ticket) {
   const sub = (ticket.subcategory || 'SQUAT').toUpperCase();
   const waktuStr = formatWibDate(ticket.tiket_time || new Date());
 
+  // Ambil branch dari data tiket atau mapping STO jika belum tersedia
+  let branchName = ticket.branch || '';
+  if (!branchName || branchName === '-') {
+    if (ticket.sto) {
+      try {
+        const [rows] = await db.query(
+          'SELECT branch FROM sto_branch_mappings WHERE UPPER(sto) = ? LIMIT 1',
+          [ticket.sto.toUpperCase()]
+        );
+        if (rows.length > 0 && rows[0].branch) {
+          branchName = rows[0].branch;
+        }
+      } catch (e) {
+        // Abaikan error DB lookup
+      }
+    }
+  }
+  if (!branchName) branchName = '-';
+
   const messageText = 
 `Tiket Baru ${sub}
 
 No. Tiket : ${ticket.id_tiket}
 Deskripsi : ${ticket.deskripsi || '-'}
 STO : ${ticket.sto || '-'}
+Branch : ${branchName}
 Waktu : ${waktuStr}
 
 Silahkan Ambil tiket ini

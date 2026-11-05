@@ -374,6 +374,25 @@ export async function handleCreateCallback(chatId, messageId, data, user, callba
         console.error("Pusher error:", e);
       }
 
+      // Broadcast ke grup Telegram jika kategori SQUAT
+      if (sessionData.category === 'SQUAT') {
+        try {
+          const { broadcastNewSquatTicket } = await import('@/lib/telegram/broadcast');
+          await broadcastNewSquatTicket({
+            id: ticketId,
+            id_tiket: sessionData.id_tiket,
+            category: sessionData.category,
+            subcategory: sessionData.subcategory,
+            deskripsi: sessionData.deskripsi || '-',
+            sto: sessionData.sto || '-',
+            branch: finalBranch || '-',
+            tiket_time: formattedTime
+          });
+        } catch (teleErr) {
+          console.error(">>> Telegram Broadcast on bot create error:", teleErr.message);
+        }
+      }
+
       await editMessageText(chatId, messageId, `✅ *TIKET BERHASIL DIBUAT!*\nID Tiket: ${escapeMarkdown(sessionData.id_tiket)}`);
       await clearSession(chatId);
     } catch (e) {

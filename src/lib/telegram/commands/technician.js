@@ -167,6 +167,7 @@ export async function handleAmbilCommand(chatId, text, user, rawMessage = {}, br
 `✅ Berhasil ambil tiket ${ticket.id_tiket}
 Deskripsi: ${ticket.deskripsi || '-'}
 STO : ${ticket.sto || '-'}
+Branch : ${ticket.branch || '-'}
 Oleh : ${techName} (${assignedNik})
 ${lensaNote}`;
 

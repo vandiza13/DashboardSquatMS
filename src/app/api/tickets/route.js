@@ -304,6 +304,7 @@ export async function POST(request) {
                     subcategory,
                     deskripsi,
                     sto,
+                    branch,
                     tiket_time: tiket_time || new Date()
                 });
             } catch (teleErr) {
