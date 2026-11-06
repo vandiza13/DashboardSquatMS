@@ -46,8 +46,8 @@ async function processMessage(message) {
     return sendMessage(chatId, "⚠️ Anda belum terdaftar. Silakan gunakan perintah:\n• Untuk Teknisi: `/register <NIK>`\n• Untuk Staf Dashboard: `/register <username> <password>`");
   }
 
-  // 2a. Validasi perintah khusus grup (/ambil, /update, /close)
-  const isGroupOnlyCommand = text.startsWith('/ambil') || text.startsWith('/update') || text.startsWith('/close');
+  // 2a. Validasi perintah khusus grup (/ambil, /update)
+  const isGroupOnlyCommand = text.startsWith('/ambil') || text.startsWith('/update');
   if (isGroupOnlyCommand && !isGroup) {
     const cmdName = text.split(/\s+/)[0];
     return sendMessage(chatId, `⚠️ Perintah \`${cmdName}\` hanya dapat dilakukan di dalam Grup Koordinasi Teknisi.`);
@@ -93,7 +93,6 @@ async function processMessage(message) {
     return handleHapusCommand(chatId, text, user);
   }
   if (text.startsWith('/buat')) return handleCreateWizard(chatId, user, text);
-  if (text.startsWith('/close')) return handleQuickCloseCommand(chatId, text, user, message);
   if (text.startsWith('/update')) {
     // Jika format sekali kirim: "/update <ID> <catatan>", langsung eksekusi tanpa wizard
     const parts = text.trim().split(/\s+/);
